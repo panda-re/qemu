@@ -523,6 +523,8 @@ const QEMULogItem qemu_log_items[] = {
       "include VPU registers in the 'cpu' logging" },
     { LOG_INVALID_MEM, "invalid_mem",
       "log invalid memory accesses" },
+    { LOG_AVATAR, "avatar",
+      "Show avatar related events\n" },
     { 0, NULL, NULL },
 };
 

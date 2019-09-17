@@ -34,6 +34,7 @@
 #endif
 #include "cpregs.h"
 #include "target/arm/gtimer.h"
+#include "hw/avatar/interrupts.h"
 
 /**
  * PANDA IMPORTS
@@ -8541,6 +8542,7 @@ static void arm_cpu_do_interrupt_aarch32_hyp(CPUState *cs)
     addr += env->cp15.hvbar;
 
     take_aarch32_exception(env, ARM_CPU_MODE_HYP, mask, 0, addr);
+    avatar_armv7m_exception_exit(env->v7m.exception, env->regs[15]);
 }
 
 static void arm_cpu_do_interrupt_aarch32(CPUState *cs)
