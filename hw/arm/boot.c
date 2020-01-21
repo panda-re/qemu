@@ -966,7 +966,7 @@ static void arm_setup_direct_kernel_boot(ARMCPU *cpu,
         kernel_size = load_image_targphys_as(info->kernel_filename, entry,
                                              ram_end - KERNEL_LOAD_ADDR, as,
                                              NULL);
-        is_linux = 1;
+        //is_linux = 1;
         if (kernel_size >= 0) {
             image_low_addr = entry;
             image_high_addr = image_low_addr + kernel_size;
