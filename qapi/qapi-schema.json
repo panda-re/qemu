@@ -75,4 +75,4 @@
 { 'include': 'cryptodev.json' }
 { 'include': 'cxl.json' }
 { 'include': 'uefi.json' }
-{ 'include': 'avatar.json' }
+{ 'include': 'avatar-target.json' }
