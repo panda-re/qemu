@@ -34,6 +34,8 @@ NAMES += cflow
 NAMES += stringsearch
 NAMES += syscalls
 NAMES += syscalls_logger
+NAMES += vmi/core
+NAMES += vmi/linux
 
 # Replace '/' with '_' in plugin names
 NAMES_UNDERSCORE := $(subst /,_,$(NAMES))
@@ -77,6 +79,28 @@ $(call obj_from_src,$(1)): $(1)
 		BUILD, plugin $$@)
 endef
 
+# VMI core
+VPATH += vmi
+vmi_core.o: vmi/core.c
+	$(call quiet-command, \
+		$(CC) $(CFLAGS) $(PLUGIN_CFLAGS) -c -o $@ $<, \
+		BUILD, plugin $@)
+
+# VMI Linux: Generate object files and build rules
+VPATH += vmi/linux
+VMI_LINUX_SRCS := \
+    vmi/linux/vmi_linux.cpp \
+    vmi/linux/default_profile.cpp \
+    vmi/linux/kernelinfo_read.c
+VMI_LINUX_OBJS := $(foreach src,$(VMI_LINUX_SRCS),$(call obj_from_src,$(src)))
+$(foreach src,$(VMI_LINUX_SRCS),$(eval $(call build_from_src,$(src))))
+
+libvmi_linux$(SO_SUFFIX): $(VMI_LINUX_OBJS)
+	$(call quiet-command, \
+		$(CC) -shared -o $@ $^ $(LDLIBS), \
+		LINK, plugin $@)
+
+# Generic rule for building plugins
 ifeq ($(CONFIG_WIN32),y)
 lib%$(SO_SUFFIX): %.o win32_linker.o ../../plugins/libqemu_plugin_api.a
 	$(call quiet-command, \
