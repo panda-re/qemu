@@ -40,6 +40,7 @@
 #include "tcg/tcg.h"
 #include "exec/exec-all.h"
 #include "exec/ram_addr.h"
+#include "exec/address-spaces.h"
 #include "disas/disas.h"
 #include "plugin.h"
 #ifndef CONFIG_USER_ONLY
@@ -51,6 +52,7 @@
 #include "loader.h"
 #endif
 #endif
+
 
 /* Uninstall and Reset handlers */
 
@@ -203,6 +205,111 @@ qemu_plugin_tb_get_insn(const struct qemu_plugin_tb *tb, size_t idx)
     insn = g_ptr_array_index(tb->insns, idx);
     insn->mem_only = tb->mem_only;
     return insn;
+}
+
+/*
+ * Register information
+ *
+ * These queries allow the plugin to retrieve information about each
+ * the current state of registers in the CPU
+ */
+
+uint64_t qemu_plugin_get_pc(void) {
+    CPUState *cpu = current_cpu;
+    CPUArchState *env = (CPUArchState *)cpu->env_ptr;
+    target_ulong pc, cs_base;
+    uint32_t flags;
+    cpu_get_tb_cpu_state(env, &pc, &cs_base, &flags);
+    return (uint64_t)pc;
+}
+
+bool qemu_plugin_read_guest_virt_mem(uint64_t gva, char* buf, size_t length) {
+#ifdef CONFIG_USER_ONLY
+  return false;
+#else
+    // Convert virtual address to physical, then read it
+    CPUState *cpu = current_cpu;
+    uint64_t page = gva & TARGET_PAGE_MASK;
+    hwaddr gpa = cpu_get_phys_page_debug(cpu, page);
+    if (gpa == (hwaddr)-1) {
+        return false;
+    }
+
+    gpa += (gva & ~TARGET_PAGE_MASK);
+    cpu_physical_memory_rw(gpa, buf, length, false);
+    return true;
+#endif
+}
+
+int32_t qemu_plugin_get_reg32(unsigned int reg_idx, bool* error) {
+    // Should we directly use gdbsub.c's gdb_read_register?
+    CPUState *cpu = current_cpu;
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+    GByteArray* result = g_byte_array_sized_new(4);
+
+    int32_t rv = 0;
+    int bytes_read = cc->gdb_read_register(cpu, result, reg_idx);
+    *error = (bytes_read == 0);
+    if (*error) {
+      return 0;
+    }
+    memcpy(&rv, result->data, sizeof(rv));
+
+    g_byte_array_free(result, true);
+    return rv;
+}
+
+int64_t qemu_plugin_get_reg64(unsigned int reg_idx, bool* error) {
+    // Should we directly use gdbsub.c's gdb_read_register?
+    CPUState *cpu = current_cpu;
+    CPUClass *cc = CPU_GET_CLASS(cpu);
+    GByteArray* result = g_byte_array_sized_new(8);
+
+    int64_t rv = 0;
+    int bytes_read = cc->gdb_read_register(cpu, result, reg_idx);
+    *error = (bytes_read == 0);
+    if (*error) {
+      return 0;
+    }
+
+    memcpy(&rv, result->data, sizeof(rv));
+    g_byte_array_free(result, true);
+    return rv;
+}
+
+inline uint64_t qemu_plugin_virt_to_phys(uint64_t addr) {
+#ifdef CONFIG_USER_ONLY
+  return false;
+#endif
+    CPUState *cpu = current_cpu;
+    target_ulong page;
+    hwaddr phys_addr;
+    page = addr & TARGET_PAGE_MASK;
+    phys_addr = cpu_get_phys_page_debug(cpu, page);
+    if (phys_addr == -1) {
+        // no physical page mapped
+        return -1;
+    }
+    phys_addr += (addr & ~TARGET_PAGE_MASK);
+    return phys_addr;
+}
+
+void *qemu_plugin_virt_to_host(uint64_t addr, int len)
+{
+#ifdef CONFIG_USER_ONLY
+  return;
+#endif
+    uint64_t phys = qemu_plugin_virt_to_phys(addr);
+    hwaddr addr1;
+    hwaddr l = (hwaddr)len;
+    MemoryRegion *mr =
+        address_space_translate(&address_space_memory, phys, &addr1, &l, true, MEMTXATTRS_UNSPECIFIED);
+
+    if (!memory_access_is_direct(mr, true)) {
+        return NULL;
+    }
+
+    return qemu_map_ram_ptr(mr->ram_block, addr1);
 }
 
 /*

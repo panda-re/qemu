@@ -3,6 +3,9 @@
   qemu_plugin_end_code;
   qemu_plugin_entry_code;
   qemu_plugin_get_hwaddr;
+  qemu_plugin_get_pc;
+  qemu_plugin_get_reg32;
+  qemu_plugin_get_reg64;
   qemu_plugin_hwaddr_device_name;
   qemu_plugin_hwaddr_is_io;
   qemu_plugin_hwaddr_phys_addr;
@@ -18,8 +21,10 @@
   qemu_plugin_mem_size_shift;
   qemu_plugin_n_max_vcpus;
   qemu_plugin_n_vcpus;
+  qemu_plugin_name_to_handle;
   qemu_plugin_outs;
   qemu_plugin_path_to_binary;
+  qemu_plugin_read_guest_virt_mem;
   qemu_plugin_register_atexit_cb;
   qemu_plugin_register_flush_cb;
   qemu_plugin_register_vcpu_exit_cb;
@@ -42,4 +47,6 @@
   qemu_plugin_tb_vaddr;
   qemu_plugin_uninstall;
   qemu_plugin_vcpu_for_each;
+  qemu_plugin_virt_to_host;
+  qemu_plugin_virt_to_phys;
 };

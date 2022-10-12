@@ -345,6 +345,54 @@ size_t qemu_plugin_tb_n_insns(const struct qemu_plugin_tb *tb);
 uint64_t qemu_plugin_tb_vaddr(const struct qemu_plugin_tb *tb);
 
 /**
+ * qemu_plugin_get_pc() - returns current program counter
+ *
+ */
+uint64_t qemu_plugin_get_pc(void);
+
+/**
+ * qemu_plugin_get_reg32() - returns a 32-bit register
+ * @reg_idx: register index
+ * @error: set to true if an error occurs
+ *
+ */
+int32_t qemu_plugin_get_reg32(unsigned int reg_idx, bool* error);
+
+/**
+ * qemu_plugin_get_reg64() - returns a 64-bit register
+ * @reg_idx: register index
+ * @error: set to true if an error occurs
+ *
+ */
+int64_t qemu_plugin_get_reg64(unsigned int reg_idx, bool* error);
+
+/**
+ * qemu_plugin_read_guest_virt_mem() - Read a buffer of guest memory
+ * @gva: Guest virtual address
+ * @buf: Buffer to copy guest memory into
+ * @length: Size of buf
+ *
+ * Returns: True if the memory was successfully copied into buf
+ */
+bool qemu_plugin_read_guest_virt_mem(uint64_t gva, char* buf, size_t length);
+
+/**
+ * Translates guest virtual addres to a guest physical address.
+ * @gva: Guest virtual address
+ *
+ * Returns: Guest physical address
+ */
+uint64_t qemu_plugin_virt_to_phys(uint64_t addr);
+
+/**
+ * Obtain a host pointer for a guest virtual address
+ * @gva: Guest virtual address
+ *
+ * Returns: Host virtual address
+ */
+void* qemu_plugin_virt_to_host(uint64_t addr, int len);
+
+/**
  * qemu_plugin_tb_get_insn() - retrieve handle for instruction
  * @tb: opaque handle to TB passed to callback
  * @idx: instruction number, 0 indexed
@@ -625,4 +673,4 @@ uint64_t qemu_plugin_end_code(void);
  */
 uint64_t qemu_plugin_entry_code(void);
 
-#endif /* QEMU_QEMU_PLUGIN_H */
+#endif /* QEMU_PLUGIN_API_H */

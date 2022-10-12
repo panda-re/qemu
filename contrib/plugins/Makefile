@@ -22,6 +22,11 @@ NAMES += hwprofile
 NAMES += cache
 NAMES += drcov
 NAMES += pandummy
+NAMES += qpp_srv
+NAMES += qpp_client
+NAMES += syscalls
+NAMES += syscalls_logger
+NAMES += sc_file_log
 
 SONAMES := $(addsuffix .so,$(addprefix lib,$(NAMES)))
 
@@ -35,7 +40,7 @@ CFLAGS += -I$(SRC_PATH)/include/qemu
 all: $(SONAMES)
 
 %.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) -DCURRENT_PLUGIN=\"$(basename $@)\" -c -o $@ $<
 
 lib%.so: %.o
 	$(CC) -shared -Wl,-soname,$@ -o $@ $^ $(LDLIBS)
