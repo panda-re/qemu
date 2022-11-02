@@ -259,11 +259,24 @@ int64_t qemu_plugin_get_reg64(unsigned int reg_idx, bool* error) {
     return rv;
 }
 
+gpointer qemu_plugin_import_function(const char *plugin, const char *function) {
+    gpointer function_pointer = NULL;
+    GModule *function_handle = qemu_plugin_name_to_handle(plugin);
+    // resolve symbol to a pointer
+    if (g_module_symbol(function_handle, function, (gpointer *)&function_pointer)) {
+        return function_pointer;
+    }
+
+    error_report("function: %s not found in plugin: %s", function, plugin);
+    abort();
+    return NULL;
+}
+
 inline uint64_t qemu_plugin_virt_to_phys(uint64_t addr) {
 #ifdef CONFIG_USER_ONLY
   return false;
 #endif
-    CPUState *cpu = current_cpu;
+    /* CPUState *cpu = current_cpu;
     target_ulong page;
     hwaddr phys_addr;
     page = addr & TARGET_PAGE_MASK;
@@ -273,7 +286,8 @@ inline uint64_t qemu_plugin_virt_to_phys(uint64_t addr) {
         return -1;
     }
     phys_addr += (addr & ~TARGET_PAGE_MASK);
-    return phys_addr;
+    return phys_addr; */
+    return 0;
 }
 
 int qemu_plugin_read_guest_virt_mem(uint64_t gva, void* buf, size_t length) {
@@ -287,9 +301,9 @@ int qemu_plugin_read_guest_virt_mem(uint64_t gva, void* buf, size_t length) {
 void *qemu_plugin_virt_to_host(uint64_t addr, int len)
 {
 #ifdef CONFIG_USER_ONLY
-  return;
+  return NULL;
 #endif
-    uint64_t phys = qemu_plugin_virt_to_phys(addr);
+    /* uint64_t phys = qemu_plugin_virt_to_phys(addr);
     hwaddr addr1;
     hwaddr l = (hwaddr)len;
     MemoryRegion *mr =
@@ -299,7 +313,8 @@ void *qemu_plugin_virt_to_host(uint64_t addr, int len)
         return NULL;
     }
 
-    return qemu_map_ram_ptr(mr->ram_block, addr1);
+    return qemu_map_ram_ptr(mr->ram_block, addr1); */
+    return NULL;
 }
 
 /*

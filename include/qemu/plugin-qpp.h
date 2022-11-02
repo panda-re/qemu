@@ -155,43 +155,29 @@ int qpp_remove_cb_##cb_name(cb_name##_t fptr)               \
 /*
  * A header file that defines an exported function should use
  * the QPP_FUN_PROTOTYPE macro to create the necessary types.
- * When other plugins include this header, this will also handle
- * the required dynamic symbol resolution.
  *
  * The generated function named after the output of QPP_SETUP_NAME should
  * dynamically resolve a target function in another plugin or raise a fatal
- * error on failure. In particular, it must handle the following three cases:
+ * error on failure. In particular, it must handle the following two cases:
  * 1) When the header is loaded by the plugin that defines the function.
  *    In this case, we do not need to find the symbol externally.
  *    qemu_plugin_name_to_handle will return NULL, we see that the
  *    target plugin matches CURRENT_PLUGIN and do nothing.
- * 2) When the header is loaded by another plugin but the function
- *    is not available (i.e., the providing plugin isn't loaded or the
- *    header or plugin contains an error). In this case we must raise
- *    a fatal error or we risk the user calling a null function pointer.
  * 3) When the header is loaded by another plugin. In this case
- *    we need to get a handle to the target plugin and then use
- *    g_module_symbol to resolve the symbol and store it as the fn_name.
- *    If we get the handle, but can't resolve the symbol, raise a fatal error.
+ *    we get the function pointer from qemu_plugin_import_function
+ *    and correctly cast and assign the function pointer
  */
-#define QPP_FUN_PROTOTYPE(plugin_name, fn_ret, fn, args)                      \
-  fn_ret fn(args);                                                            \
+
+/* this is the new one, yay */
+#define QPP_FUN_PROTOTYPE2(plugin_name, fn_ret, fn, args)                     \
   typedef fn_ret(*PLUGIN_CONCAT(fn, _t))(args);                               \
   fn##_t QPP_NAME(plugin_name, fn);                                           \
   void _QPP_SETUP_NAME(plugin_name, fn) (void);                               \
                                                                               \
-  void __attribute__ ((constructor)) _QPP_SETUP_NAME(plugin_name, fn) (void) {\
-    GModule *h = qemu_plugin_name_to_handle(#plugin_name);                    \
-    if (!h && strcmp(CURRENT_PLUGIN, #plugin_name) != 0) {        \
-      fprintf(stderr, "Error plugin %s cannot access %s. Is it loaded?\n",    \
-                       PLUGIN_STR(CURRENT_PLUGIN), #plugin_name);             \
-      abort();                                                                \
-    } else if (h && !g_module_symbol(h, #fn,                                  \
-                           (gpointer *)&QPP_NAME(plugin_name, fn))) {         \
-      fprintf(stderr, "Error loading symbol " # fn " in plugin "              \
-                      # plugin_name " from %s\n", PLUGIN_STR(CURRENT_PLUGIN));\
-      abort();                                                                \
-    }                                                                         \
+  void __attribute__ ((constructor)) _QPP_SETUP_NAME(plugin_name, fn) (void) { \
+    if (strcmp(CURRENT_PLUGIN, #plugin_name) != 0) {        \
+      QPP_NAME(plugin_name, fn) = qemu_plugin_import_function(PLUGIN_STR(plugin_name), PLUGIN_STR(fn)); \
+    } \
   }
 
 /*

@@ -14,6 +14,7 @@
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <gmodule.h>
 
 /*
  * For best performance, build the plugin with -fvisibility=hidden so that
@@ -376,6 +377,15 @@ int32_t qemu_plugin_get_reg32(unsigned int reg_idx, bool* error);
  *
  */
 int64_t qemu_plugin_get_reg64(unsigned int reg_idx, bool* error);
+
+/**
+* qemu_plugin_import_function() - return pointer to a function in another plugin
+* @plugin: plugin name
+* @function: function name
+*
+* Returns: NULL on failure, function pointer on success
+*/
+gpointer qemu_plugin_import_function(const char *plugin, const char *function);
 
 /**
  * qemu_plugin_read_guest_virt_mem() - Read a buffer of guest memory

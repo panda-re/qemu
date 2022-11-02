@@ -5,22 +5,23 @@
 #include "qpp_srv.h"
 
 QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
+QEMU_PLUGIN_EXPORT const char *qemu_plugin_name = "qpp_server";
 
-QPP_CREATE_CB(on_exit);
+//QPP_CREATE_CB(on_exit);
 
 static void plugin_exit(qemu_plugin_id_t id, void *p)
 {
   qemu_plugin_outs(CURRENT_PLUGIN "exit triggered, running all registered"
                   " QPP callbacks\n");
-  QPP_RUN_CB(on_exit, 0, true);
+  //QPP_RUN_CB(on_exit, 0, true);
 }
 
-QEMU_PLUGIN_EXPORT int do_add(int x)
+QEMU_PLUGIN_EXPORT int qpp_srv_do_add(int x)
 {
   return x + 1;
 }
 
-QEMU_PLUGIN_EXPORT int do_sub(int x)
+QEMU_PLUGIN_EXPORT int qpp_srv_do_sub(int x)
 {
   return x - 1;
 }
