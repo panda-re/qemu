@@ -387,6 +387,12 @@ int64_t qemu_plugin_get_reg64(unsigned int reg_idx, bool* error);
 */
 gpointer qemu_plugin_import_function(const char *plugin, const char *function);
 
+void qemu_plugin_create_callback(GString name);
+
+void qemu_plugin_run_callback(GString name, gpointer evdata, gpointer udata);
+
+void qemu_plugin_reg_callback(GString name, gpointer function_pointer);
+
 /**
  * qemu_plugin_read_guest_virt_mem() - Read a buffer of guest memory
  * @gva: Guest virtual address

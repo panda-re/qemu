@@ -272,6 +272,21 @@ gpointer qemu_plugin_import_function(const char *plugin, const char *function) {
     return NULL;
 }
 
+void qemu_plugin_create_callback(GString name) {
+    // iterate through structs to see if one already has name
+    // if not, initialize it
+}
+
+void qemu_plugin_run_callback(GString name, gpointer evdata, gpointer udata) {
+    // find callback with name
+    // run all functions in list with args evdata and udata
+}
+
+void qemu_plugin_reg_callback(GString name, gpointer function_pointer) {
+    // find callback with name
+    // append function pointer to list of functions
+}
+
 inline uint64_t qemu_plugin_virt_to_phys(uint64_t addr) {
 #ifdef CONFIG_USER_ONLY
   return false;

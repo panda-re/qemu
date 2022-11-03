@@ -30,8 +30,8 @@ GModule * qemu_plugin_name_to_handle(const char *);
 
 #define QPP_MAX_CB 256
 
-#define _QPP_SETUP_NAME(plugin, fn) PLUGIN_CONCAT(_qpp_setup_, \
-                                    QPP_NAME(plugin, fn))
+#define _QPP_SETUP_NAME(fn) PLUGIN_CONCAT(_qpp_setup_, \
+                                    fn)
 
 /*
  **************************************************************************
@@ -171,12 +171,12 @@ int qpp_remove_cb_##cb_name(cb_name##_t fptr)               \
 /* this is the new one, yay */
 #define QPP_FUN_PROTOTYPE2(plugin_name, fn_ret, fn, args)                     \
   typedef fn_ret(*PLUGIN_CONCAT(fn, _t))(args);                               \
-  fn##_t QPP_NAME(plugin_name, fn);                                           \
-  void _QPP_SETUP_NAME(plugin_name, fn) (void);                               \
+  fn##_t fn;                                           \
+  void _QPP_SETUP_NAME(fn) (void);                               \
                                                                               \
-  void __attribute__ ((constructor)) _QPP_SETUP_NAME(plugin_name, fn) (void) { \
+  void __attribute__ ((constructor)) _QPP_SETUP_NAME(fn) (void) { \
     if (strcmp(CURRENT_PLUGIN, #plugin_name) != 0) {        \
-      QPP_NAME(plugin_name, fn) = qemu_plugin_import_function(PLUGIN_STR(plugin_name), PLUGIN_STR(fn)); \
+      fn = qemu_plugin_import_function(PLUGIN_STR(plugin_name), PLUGIN_STR(fn)); \
     } \
   }
 

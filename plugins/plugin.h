@@ -46,11 +46,18 @@ struct qemu_plugin_state {
     struct qht dyn_cb_arr_ht;
 };
 
+struct qemu_plugin_callbacks {
+    GString name;
+    gpointer registered_callbacks[32];
+    int counter;
+    QTAILQ_ENTRY(qemu_plugin_callbacks) entry;
+};
 
 struct qemu_plugin_ctx {
     GModule *handle;
     qemu_plugin_id_t id;
     struct qemu_plugin_cb *callbacks[QEMU_PLUGIN_EV_MAX];
+    struct qemu_plugin_callbacks *qpp_callbacks;
     QTAILQ_ENTRY(qemu_plugin_ctx) entry;
     /*
      * keep a reference to @desc until uninstall, so that plugins do not have
