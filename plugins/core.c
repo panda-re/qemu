@@ -248,6 +248,10 @@ GModule *qemu_plugin_name_to_handle(const char* name)
     return NULL;
 }
 
+qemu_plugin_callbacks *qemu_plugin_grab_qpp_callbacks(qemu_plugin_id_t id) {
+    return plugin_id_to_ctx_locked(id)->qpp_callbacks;
+}
+
 struct plugin_for_each_args {
     struct qemu_plugin_ctx *ctx;
     qemu_plugin_vcpu_simple_cb_t cb;

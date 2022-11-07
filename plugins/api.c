@@ -272,19 +272,32 @@ gpointer qemu_plugin_import_function(const char *plugin, const char *function) {
     return NULL;
 }
 
-void qemu_plugin_create_callback(GString name) {
+int qemu_plugin_create_callback(qemu_plugin_id_t id, const char *name) {
     // iterate through structs to see if one already has name
     // if not, initialize it
+    qemu_plugin_callbacks *qpp_cbs = qemu_plugin_grab_qpp_callbacks(id);
+    QTAILQ_FOREACH(cb, qpp_cbs, entry) {
+        // if name in cb list it exists, quit
+        if (strcmp(cb->name, name) == 0)
+            return 1;
+    }
+    // if not add cb to end of list and name it
+    qemu_plugin_callbacks new_cb;
+    new_cb->name = name;
+    QTAILQ_INSERT_TAIL(qpp_cbs, cb, entry);
+    return 0;
 }
 
-void qemu_plugin_run_callback(GString name, gpointer evdata, gpointer udata) {
+int qemu_plugin_run_callback(qemu_plugin_id_t id, const char *name, gpointer evdata, gpointer udata) {
     // find callback with name
     // run all functions in list with args evdata and udata
+    return 0;
 }
 
-void qemu_plugin_reg_callback(GString name, gpointer function_pointer) {
+int qemu_plugin_reg_callback(qemu_plugin_id_t id, const char *name, gpointer function_pointer) {
     // find callback with name
     // append function pointer to list of functions
+    return 0;
 }
 
 inline uint64_t qemu_plugin_virt_to_phys(uint64_t addr) {

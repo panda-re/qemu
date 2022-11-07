@@ -7,6 +7,9 @@
   qemu_plugin_get_reg32;
   qemu_plugin_get_reg64;
   qemu_plugin_import_function;
+  qemu_plugin_create_callback;
+  qemu_plugin_run_callback;
+  qemu_plugin_reg_callback;
   qemu_plugin_hwaddr_device_name;
   qemu_plugin_hwaddr_is_io;
   qemu_plugin_hwaddr_phys_addr;
