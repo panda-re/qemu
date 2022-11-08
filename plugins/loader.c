@@ -289,6 +289,14 @@ bool is_plugin_named(struct qemu_plugin_ctx ctx, const char *name)
                  strlen(plugin_basename) - 6) == 0;
 }
 
+void plugin_add_qpp_cb(const char *name) { 
+    struct qemu_plugin_qpp_cb *new_cb;
+    new_cb = qemu_memalign(qemu_dcache_linesize, sizeof(*new_cb));
+    memset(new_cb, 0, sizeof(*new_cb));
+    new_cb->name = name;
+    QTAILQ_INSERT_TAIL(&plugin.qpp_cbs, new_cb, entry);
+}
+
 /* call after having removed @desc from the list */
 static void plugin_desc_free(struct qemu_plugin_desc *desc)
 {

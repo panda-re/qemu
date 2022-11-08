@@ -272,32 +272,50 @@ gpointer qemu_plugin_import_function(const char *plugin, const char *function) {
     return NULL;
 }
 
-int qemu_plugin_create_callback(qemu_plugin_id_t id, const char *name) {
+int qemu_plugin_create_callback(const char *name) {
     // iterate through structs to see if one already has name
-    // if not, initialize it
-    qemu_plugin_callbacks *qpp_cbs = qemu_plugin_grab_qpp_callbacks(id);
-    QTAILQ_FOREACH(cb, qpp_cbs, entry) {
-        // if name in cb list it exists, quit
-        if (strcmp(cb->name, name) == 0)
-            return 1;
+    if (qemu_plugin_match_cb_name(name)) {
+        return 1;
     }
-    // if not add cb to end of list and name it
-    qemu_plugin_callbacks new_cb;
-    new_cb->name = name;
-    QTAILQ_INSERT_TAIL(qpp_cbs, cb, entry);
+
+    // if not, initialize it
+    plugin_add_qpp_cb(name);
     return 0;
 }
 
-int qemu_plugin_run_callback(qemu_plugin_id_t id, const char *name, gpointer evdata, gpointer udata) {
+int qemu_plugin_run_callback(const char *name, gpointer evdata, gpointer udata) {
     // find callback with name
+    struct qemu_plugin_qpp_cb *cb = qemu_plugin_match_cb_name(name);
+    if (!cb)
+        return 1;
     // run all functions in list with args evdata and udata
+    int i = 0;
+    for (; i < 32; i++) {
+        if (cb->registered_cb_funcs[i]) {
+            cb_func_t qpp_cb_func = cb->registered_cb_funcs[i];
+            qpp_cb_func(evdata, udata);
+        }
+        else 
+            break;
+    }
+    if (i == 0)
+        return 1;
     return 0;
 }
 
-int qemu_plugin_reg_callback(qemu_plugin_id_t id, const char *name, gpointer function_pointer) {
+int qemu_plugin_reg_callback(const char *name, cb_func_t function_pointer) {
     // find callback with name
+    struct qemu_plugin_qpp_cb *cb = qemu_plugin_match_cb_name(name);
+    if (!cb)
+        return 1;
     // append function pointer to list of functions
-    return 0;
+    for (int i = 0; i < 32; i++) {
+        if (!(cb->registered_cb_funcs[i])) {
+            cb->registered_cb_funcs[i] = function_pointer;
+            return 0;
+        }
+    }
+    return 1;
 }
 
 inline uint64_t qemu_plugin_virt_to_phys(uint64_t addr) {

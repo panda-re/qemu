@@ -24,11 +24,11 @@ NAMES += drcov
 NAMES += qpp_srv
 NAMES += qpp_client
 NAMES += syscalls
-NAMES += syscalls_logger
+# NAMES += syscalls_logger
 NAMES += sc_file_log
 NAMES += stringsearch
-NAMES += osi_linux
-NAMES += osi
+# NAMES += osi_linux
+# NAMES += osi
 
 SONAMES := $(addsuffix .so,$(addprefix lib,$(NAMES)))
 

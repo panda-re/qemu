@@ -39,6 +39,8 @@
  */
 typedef uint64_t qemu_plugin_id_t;
 
+typedef void (*cb_func_t) (gpointer evdata, gpointer udata);
+
 /*
  * Versioning plugins:
  *
@@ -387,11 +389,17 @@ int64_t qemu_plugin_get_reg64(unsigned int reg_idx, bool* error);
 */
 gpointer qemu_plugin_import_function(const char *plugin, const char *function);
 
-int qemu_plugin_create_callback(qemu_plugin_id_t id, const char *name);
+/** 
+* qemu_plugin_create_callback() - create a new cb with given name
+* @name: name of cb
+*
+* Returns: 0 on success, 1 on failure
+*/
+int qemu_plugin_create_callback(const char *name);
 
-int qemu_plugin_run_callback(qemu_plugin_id_t id, const char *name, gpointer evdata, gpointer udata);
+int qemu_plugin_run_callback(const char *name, gpointer evdata, gpointer udata);
 
-int qemu_plugin_reg_callback(qemu_plugin_id_t id, const char *name, gpointer function_pointer);
+int qemu_plugin_reg_callback(const char *name, cb_func_t function_pointer);
 
 /**
  * qemu_plugin_read_guest_virt_mem() - Read a buffer of guest memory

@@ -17,7 +17,6 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
     g_string_append_printf(report, "%d %d\n", qpp_srv_do_add(0), qpp_srv_do_sub(3));
     qemu_plugin_outs(report->str);
 
-    assert(0);
     return 0;
 }
 

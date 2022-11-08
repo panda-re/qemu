@@ -248,8 +248,14 @@ GModule *qemu_plugin_name_to_handle(const char* name)
     return NULL;
 }
 
-qemu_plugin_callbacks *qemu_plugin_grab_qpp_callbacks(qemu_plugin_id_t id) {
-    return plugin_id_to_ctx_locked(id)->qpp_callbacks;
+struct qemu_plugin_qpp_cb *qemu_plugin_match_cb_name(const char *name) {
+    // iterate through structs to see if one already has name
+    struct qemu_plugin_qpp_cb *cb;
+    QTAILQ_FOREACH(cb, &plugin.qpp_cbs, entry) {
+        if (strcmp(cb->name, name) == 0)
+            return cb;
+    }
+    return NULL;
 }
 
 struct plugin_for_each_args {
@@ -599,6 +605,7 @@ static void __attribute__((__constructor__)) plugin_init(void)
     plugin.id_ht = g_hash_table_new(g_int64_hash, g_int64_equal);
     plugin.cpu_ht = g_hash_table_new(g_int_hash, g_int_equal);
     QTAILQ_INIT(&plugin.ctxs);
+    QTAILQ_INIT(&plugin.qpp_cbs);
     qht_init(&plugin.dyn_cb_arr_ht, plugin_dyn_cb_arr_cmp, 16,
              QHT_MODE_AUTO_RESIZE);
     atexit(qemu_plugin_atexit_cb);
