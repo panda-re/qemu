@@ -170,13 +170,14 @@ int qpp_remove_cb_##cb_name(cb_name##_t fptr)               \
 
 /* this is the new one, yay */
 #define QPP_FUN_PROTOTYPE2(plugin_name, fn_ret, fn, args)                     \
+  fn_ret fn(args); \
   typedef fn_ret(*PLUGIN_CONCAT(fn, _t))(args);                               \
-  fn##_t fn;                                           \
+  fn##_t fn##_qpp;                                           \
   void _QPP_SETUP_NAME(fn) (void);                               \
                                                                               \
   void __attribute__ ((constructor)) _QPP_SETUP_NAME(fn) (void) { \
     if (strcmp(CURRENT_PLUGIN, #plugin_name) != 0) {        \
-      fn = qemu_plugin_import_function(PLUGIN_STR(plugin_name), PLUGIN_STR(fn)); \
+      fn##_qpp = qemu_plugin_import_function(PLUGIN_STR(plugin_name), PLUGIN_STR(fn)); \
     } \
   }
 

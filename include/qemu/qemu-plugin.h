@@ -54,7 +54,7 @@ typedef void (*cb_func_t) (gpointer evdata, gpointer udata);
 
 extern QEMU_PLUGIN_EXPORT int qemu_plugin_version;
 
-#define QEMU_PLUGIN_VERSION 1
+#define QEMU_PLUGIN_VERSION 2
 
 /**
  * struct qemu_info_t - system information for plugins
@@ -395,11 +395,11 @@ gpointer qemu_plugin_import_function(const char *plugin, const char *function);
 *
 * Returns: 0 on success, 1 on failure
 */
-int qemu_plugin_create_callback(const char *name);
+int qemu_plugin_create_callback(qemu_plugin_id_t id, const char *name);
 
-int qemu_plugin_run_callback(const char *name, gpointer evdata, gpointer udata);
+int qemu_plugin_run_callback(qemu_plugin_id_t id, const char *name, gpointer evdata, gpointer udata);
 
-int qemu_plugin_reg_callback(const char *name, cb_func_t function_pointer);
+int qemu_plugin_reg_callback(qemu_plugin_id_t id, const char *name, cb_func_t function_pointer);
 
 /**
  * qemu_plugin_read_guest_virt_mem() - Read a buffer of guest memory

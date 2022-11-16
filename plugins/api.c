@@ -261,33 +261,46 @@ int64_t qemu_plugin_get_reg64(unsigned int reg_idx, bool* error) {
 
 gpointer qemu_plugin_import_function(const char *plugin, const char *function) {
     gpointer function_pointer = NULL;
-    GModule *function_handle = qemu_plugin_name_to_handle(plugin);
+    GModule *plugin_handle = qemu_plugin_name_to_handle(plugin);
     // resolve symbol to a pointer
-    if (g_module_symbol(function_handle, function, (gpointer *)&function_pointer)) {
+    if (g_module_symbol(plugin_handle, function, (gpointer *)&function_pointer)) {
         return function_pointer;
     }
 
-    error_report("function: %s not found in plugin: %s", function, plugin);
+    error_report("function: %s not found in plugin: %s\n", function, plugin);
     abort();
     return NULL;
 }
 
-int qemu_plugin_create_callback(const char *name) {
+int qemu_plugin_create_callback(qemu_plugin_id_t id, const char *name) {
+    const char *plugin = id_to_plugin_name(id);
+    if (!plugin) {
+        error_report("CREATE CB ERR\n");
+        return 1;
+    }
     // iterate through structs to see if one already has name
-    if (qemu_plugin_match_cb_name(name)) {
+    if (qemu_plugin_match_cb_name(plugin, name)) {
+        error_report("CREATE CB ERR 2\n");
         return 1;
     }
 
     // if not, initialize it
-    plugin_add_qpp_cb(name);
+    plugin_add_qpp_cb(plugin, name);
     return 0;
 }
 
-int qemu_plugin_run_callback(const char *name, gpointer evdata, gpointer udata) {
-    // find callback with name
-    struct qemu_plugin_qpp_cb *cb = qemu_plugin_match_cb_name(name);
-    if (!cb)
+int qemu_plugin_run_callback(qemu_plugin_id_t id, const char *name, gpointer evdata, gpointer udata) {
+    const char *plugin = id_to_plugin_name(id);
+    if (!plugin) {
+        error_report("RUN CB ERR\n");
         return 1;
+    }
+    // find callback with name
+    struct qemu_plugin_qpp_cb *cb = qemu_plugin_match_cb_name(plugin, name);
+    if (!cb) {
+        error_report("RUN CB ERR 2\n");
+        return 1;
+    }
     // run all functions in list with args evdata and udata
     int i = 0;
     for (; i < 32; i++) {
@@ -303,11 +316,18 @@ int qemu_plugin_run_callback(const char *name, gpointer evdata, gpointer udata) 
     return 0;
 }
 
-int qemu_plugin_reg_callback(const char *name, cb_func_t function_pointer) {
-    // find callback with name
-    struct qemu_plugin_qpp_cb *cb = qemu_plugin_match_cb_name(name);
-    if (!cb)
+int qemu_plugin_reg_callback(qemu_plugin_id_t id, const char *name, cb_func_t function_pointer) {
+    const char *plugin = id_to_plugin_name(id);
+    if (!plugin) {  
+        error_report("REG CB ERR\n");
         return 1;
+    }
+    // find callback with name
+    struct qemu_plugin_qpp_cb *cb = qemu_plugin_match_cb_name(plugin, name);
+    if (!cb) {
+        error_report("REG CB ERR 2\n");
+        return 1;
+    }
     // append function pointer to list of functions
     for (int i = 0; i < 32; i++) {
         if (!(cb->registered_cb_funcs[i])) {
@@ -315,6 +335,7 @@ int qemu_plugin_reg_callback(const char *name, cb_func_t function_pointer) {
             return 0;
         }
     }
+    error_report("REG CB ERR 3\n");
     return 1;
 }
 

@@ -220,6 +220,22 @@ static int plugin_load(struct qemu_plugin_desc *desc, const qemu_info_t *info, E
                        desc->path, version, QEMU_PLUGIN_VERSION);
             goto err_symbol;
         }
+        else if (version < 2) {
+            // name stays as NULL, QPP disabled
+            ctx->name = NULL;
+            ctx->qpp_enabled = 0;
+        }
+        else {
+            if (!g_module_symbol(ctx->handle, "qemu_plugin_name", &sym)) {
+                error_setg(errp, "Could not load plugin %s: plugin does not declare name %s",
+                           desc->path, g_module_error());
+                goto err_symbol;
+            }
+            else {
+                ctx->name = (const char *)sym;
+                ctx->qpp_enabled = 1;
+            }
+        }
     }
 
     qemu_rec_mutex_lock(&plugin.lock);
@@ -276,8 +292,7 @@ static int plugin_load(struct qemu_plugin_desc *desc, const qemu_info_t *info, E
 bool is_plugin_named(struct qemu_plugin_ctx ctx, const char *name)
 {
   char *plugin_basename = basename(ctx.desc->path);
-  /*
-   * First resolve the name of the shared object for the current plugin,
+   /* First resolve the name of the shared object for the current plugin,
    * then check if it could possibly be of the form libNAME.so
    * where NAME is the provided name. If so, compare the strings.
    */
@@ -289,11 +304,12 @@ bool is_plugin_named(struct qemu_plugin_ctx ctx, const char *name)
                  strlen(plugin_basename) - 6) == 0;
 }
 
-void plugin_add_qpp_cb(const char *name) { 
+void plugin_add_qpp_cb(const char *plugin_name, const char *name) { 
     struct qemu_plugin_qpp_cb *new_cb;
     new_cb = qemu_memalign(qemu_dcache_linesize, sizeof(*new_cb));
     memset(new_cb, 0, sizeof(*new_cb));
     new_cb->name = name;
+    new_cb->plugin = plugin_name;
     QTAILQ_INSERT_TAIL(&plugin.qpp_cbs, new_cb, entry);
 }
 

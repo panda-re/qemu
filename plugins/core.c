@@ -248,11 +248,21 @@ GModule *qemu_plugin_name_to_handle(const char* name)
     return NULL;
 }
 
-struct qemu_plugin_qpp_cb *qemu_plugin_match_cb_name(const char *name) {
+const char *id_to_plugin_name(qemu_plugin_id_t id) {
+    const char *plugin = plugin_id_to_ctx_locked(id)->name;
+    if (plugin)
+        return plugin;
+    else {
+        warn_report("Unnamed plugin cannot use QPP, not supported in plugin version. Please update plugin.\n");
+        return NULL;
+    }
+}
+
+struct qemu_plugin_qpp_cb *qemu_plugin_match_cb_name(const char *plugin_name, const char *name) {
     // iterate through structs to see if one already has name
     struct qemu_plugin_qpp_cb *cb;
     QTAILQ_FOREACH(cb, &plugin.qpp_cbs, entry) {
-        if (strcmp(cb->name, name) == 0)
+        if ((strcmp(cb->name, name) == 0) && (strcmp(cb->plugin, plugin_name) == 0))
             return cb;
     }
     return NULL;

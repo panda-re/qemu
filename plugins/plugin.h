@@ -50,6 +50,7 @@ struct qemu_plugin_state {
 typedef void (*cb_func_t) (gpointer evdata, gpointer udata);
 
 struct qemu_plugin_qpp_cb {
+    const char *plugin;
     const char *name;
     cb_func_t registered_cb_funcs[32];
     int counter;
@@ -59,6 +60,8 @@ struct qemu_plugin_qpp_cb {
 struct qemu_plugin_ctx {
     GModule *handle;
     qemu_plugin_id_t id;
+    const char *name;
+    int qpp_enabled;
     struct qemu_plugin_cb *callbacks[QEMU_PLUGIN_EV_MAX];
     struct qemu_plugin_qpp_cb *qpp_callbacks;
     QTAILQ_ENTRY(qemu_plugin_ctx) entry;
@@ -109,12 +112,16 @@ void exec_inline_op(struct qemu_plugin_dyn_cb *cb);
 
 GModule *qemu_plugin_name_to_handle(const char* name);
 
-struct qemu_plugin_qpp_cb *qemu_plugin_match_cb_name(const char *name);
+struct qemu_plugin_qpp_cb *qemu_plugin_match_cb_name(const char *plugin_name, const char *name);
+
+int qpp_enabled_check(const char *name);
+
+const char *id_to_plugin_name(qemu_plugin_id_t id);
 
 
 /* loader.c */
 bool is_plugin_named(struct qemu_plugin_ctx ctx, const char *name);
 
-void plugin_add_qpp_cb(const char *name);
+void plugin_add_qpp_cb(const char *plugin_name, const char *name);
 
 #endif /* PLUGIN_H */
