@@ -16,12 +16,12 @@
 #include "qemu/qht.h"
 
 #define QEMU_PLUGIN_MIN_VERSION 0
+#define QPP_MINIMUM_VERSION 2
 
 /* global state */
 struct qemu_plugin_state {
     QTAILQ_HEAD(, qemu_plugin_ctx) ctxs;
     QLIST_HEAD(, qemu_plugin_cb) cb_lists[QEMU_PLUGIN_EV_MAX];
-    QTAILQ_HEAD(, qemu_plugin_qpp_cb) qpp_cbs;
     /*
      * Use the HT as a hash map by inserting k == v, which saves memory as
      * documented by GLib. The parent struct is obtained with container_of().
@@ -50,9 +50,8 @@ struct qemu_plugin_state {
 typedef void (*cb_func_t) (gpointer evdata, gpointer udata);
 
 struct qemu_plugin_qpp_cb {
-    const char *plugin;
     const char *name;
-    cb_func_t registered_cb_funcs[32];
+    cb_func_t registered_cb_funcs[QEMU_PLUGIN_EV_MAX];
     int counter;
     QTAILQ_ENTRY(qemu_plugin_qpp_cb) entry;
 };
@@ -63,7 +62,7 @@ struct qemu_plugin_ctx {
     const char *name;
     int version;
     struct qemu_plugin_cb *callbacks[QEMU_PLUGIN_EV_MAX];
-    struct qemu_plugin_qpp_cb *qpp_callbacks;
+    QTAILQ_HEAD(, qemu_plugin_qpp_cb) qpp_cbs;
     QTAILQ_ENTRY(qemu_plugin_ctx) entry;
     /*
      * keep a reference to @desc until uninstall, so that plugins do not have
@@ -116,9 +115,11 @@ int name_to_plugin_version(const char *name);
 
 const char *id_to_plugin_name(qemu_plugin_id_t id);
 
-struct qemu_plugin_qpp_cb *plugin_find_qpp_cb(qemu_plugin_ctx *plugin_ctx, const char *cb_name);
+struct qemu_plugin_qpp_cb *qemu_plugin_match_cb_name(const char *plugin_name, const char *name);
+
+struct qemu_plugin_qpp_cb *plugin_find_qpp_cb(struct qemu_plugin_ctx *plugin_ctx, const char *cb_name);
 
 /* loader.c */
-void plugin_add_qpp_cb(const char *plugin_name, const char *name);
+void plugin_add_qpp_cb(struct qemu_plugin_ctx *ctx, const char *name);
 
 #endif /* PLUGIN_H */
