@@ -163,13 +163,13 @@ int qpp_remove_cb_##cb_name(cb_name##_t fptr)               \
  *    In this case, we do not need to find the symbol externally.
  *    qemu_plugin_name_to_handle will return NULL, we see that the
  *    target plugin matches CURRENT_PLUGIN and do nothing.
- * 3) When the header is loaded by another plugin. In this case
+ * 2) When the header is loaded by another plugin. In this case
  *    we get the function pointer from qemu_plugin_import_function
  *    and correctly cast and assign the function pointer
  */
 
 /* this is the new one, yay */
-#define QPP_FUN_PROTOTYPE2(plugin_name, fn_ret, fn, args)                     \
+#define QPP_FUN_PROTOTYPE(plugin_name, fn_ret, fn, args)                     \
   fn_ret fn(args); \
   typedef fn_ret(*PLUGIN_CONCAT(fn, _t))(args);                               \
   fn##_t fn##_qpp;                                           \

@@ -227,7 +227,7 @@ static int plugin_load(struct qemu_plugin_desc *desc, const qemu_info_t *info, E
         }
         else {
             if (!g_module_symbol(ctx->handle, "qemu_plugin_name", &sym)) {
-                error_setg(errp, "Could not load plugin %s: plugin does not declare name %s",
+                error_setg(errp, "Could not load plugin %s: plugin does not declare plugin name %s",
                            desc->path, g_module_error());
                 goto err_symbol;
             }

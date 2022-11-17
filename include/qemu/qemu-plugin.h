@@ -391,14 +391,32 @@ gpointer qemu_plugin_import_function(const char *plugin, const char *function);
 
 /** 
 * qemu_plugin_create_callback() - create a new cb with given name
+* @id: unique plugin id
 * @name: name of cb
 *
 * Returns: 0 on success, 1 on failure
 */
 int qemu_plugin_create_callback(qemu_plugin_id_t id, const char *name);
 
+/**
+* qemu_plugin_run_callback() - run all functions registered to cb with given name using given args
+* @id: unique plugin id
+* @name: name of cb
+* @evdata: pointer to evdata struct
+* @udata: pointer to udata struct
+*
+* Returns: 0 on success, 1 on failure
+*/
 int qemu_plugin_run_callback(qemu_plugin_id_t id, const char *name, gpointer evdata, gpointer udata);
 
+/**
+* qemu_plugin_reg_callback() - register a function to be called on cb with given name
+* @id: unique plugin id
+* @name: name of cb
+* @function_pointer: pointer to function being registered
+*
+* Returns: 0 on success, 1 on failure
+*/
 int qemu_plugin_reg_callback(qemu_plugin_id_t id, const char *name, cb_func_t function_pointer);
 
 /**
