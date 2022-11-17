@@ -248,6 +248,18 @@ GModule *qemu_plugin_name_to_handle(const char* name)
     return NULL;
 }
 
+int qpp_enabled_check(const char *name) {
+    struct qemu_plugin_ctx *ctx;
+    QTAILQ_FOREACH(ctx, &plugin.ctxs, entry) {
+        if (is_plugin_named(*ctx, name) && (plugin_id_to_ctx_locked(ctx->id)->qpp_enabled))
+            return 1;
+        else
+            break;
+    }
+    warn_report("Plugin %s cannot use QPP, not supported in plugin version. Please update plugin.\n", name);
+    return 0;
+}
+
 const char *id_to_plugin_name(qemu_plugin_id_t id) {
     const char *plugin = plugin_id_to_ctx_locked(id)->name;
     if (plugin)

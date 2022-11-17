@@ -260,6 +260,8 @@ int64_t qemu_plugin_get_reg64(unsigned int reg_idx, bool* error) {
 }
 
 gpointer qemu_plugin_import_function(const char *plugin, const char *function) {
+    if (!qpp_enabled_check(plugin)) 
+        return NULL;
     gpointer function_pointer = NULL;
     GModule *plugin_handle = qemu_plugin_name_to_handle(plugin);
     // resolve symbol to a pointer

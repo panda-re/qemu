@@ -118,7 +118,6 @@ int qpp_enabled_check(const char *name);
 
 const char *id_to_plugin_name(qemu_plugin_id_t id);
 
-
 /* loader.c */
 bool is_plugin_named(struct qemu_plugin_ctx ctx, const char *name);
 
