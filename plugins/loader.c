@@ -230,17 +230,15 @@ static int plugin_load(struct qemu_plugin_desc *desc, const qemu_info_t *info, E
                            desc->path, g_module_error());
                 goto err_symbol;
             }
-            else {
-                // Ensure plugin name is unique
-                QTAILQ_FOREACH(ctx2, &plugin.ctxs, entry) {
-                    if (strcmp(ctx2->name, ctx->name) == 0) {
-                      error_setg(errp, "Could not load plugin %s as the name %s is already in use by "
-                                 "plugin at %s",
-                                 desc->path, ctx->name, ctx2->desc->path);
-                      goto err_symbol;
-                    }
+            // Ensure plugin name is unique
+            ctx->name = (const char *)strdup(*(const char **)sym);
+            QTAILQ_FOREACH(ctx2, &plugin.ctxs, entry) {
+                if (strcmp(ctx2->name, ctx->name) == 0) {
+                  error_setg(errp, "Could not load plugin %s as the name %s is already in use by "
+                             "plugin at %s",
+                             desc->path, ctx->name, ctx2->desc->path);
+                  goto err_symbol;
                 }
-                ctx->name = (const char *)sym;
             }
         }
     }
@@ -262,6 +260,7 @@ static int plugin_load(struct qemu_plugin_desc *desc, const qemu_info_t *info, E
             break;
         }
     }
+    QTAILQ_INIT(&ctx->qpp_cbs);
     QTAILQ_INSERT_TAIL(&plugin.ctxs, ctx, entry);
     ctx->installing = true;
     rc = install(ctx->id, info, desc->argc, desc->argv);
@@ -288,15 +287,13 @@ static int plugin_load(struct qemu_plugin_desc *desc, const qemu_info_t *info, E
     return 1;
 }
 
-void plugin_add_qpp_cb(const char *plugin_name, const char *name) {
+void plugin_add_qpp_cb(struct qemu_plugin_ctx *ctx, const char *name) {
     struct qemu_plugin_qpp_cb *new_cb;
     new_cb = qemu_memalign(qemu_dcache_linesize, sizeof(*new_cb));
     memset(new_cb, 0, sizeof(*new_cb));
     new_cb->name = name;
-    new_cb->plugin = plugin_name;
-    qemu_rec_mutex_lock(&plugin.lock);
-    QTAILQ_INSERT_TAIL(&plugin.qpp_cbs, new_cb, entry);
-    qemu_rec_mutex_unlock(&plugin.lock);
+    new_cb->plugin = ctx->name;
+    QTAILQ_INSERT_TAIL(&ctx->qpp_cbs, new_cb, entry);
 }
 
 /* call after having removed @desc from the list */

@@ -266,11 +266,11 @@ const char *id_to_plugin_name(qemu_plugin_id_t id) {
     }
 }
 
-struct qemu_plugin_qpp_cb *qemu_plugin_match_cb_name(const char *plugin_name, const char *name) {
+struct qemu_plugin_qpp_cb *plugin_find_qpp_cb(struct qemu_plugin_ctx *ctx, const char *name) {
     // iterate through structs to see if one already has name
     struct qemu_plugin_qpp_cb *cb;
-    QTAILQ_FOREACH(cb, &plugin.qpp_cbs, entry) {
-        if ((strcmp(cb->name, name) == 0) && (strcmp(cb->plugin, plugin_name) == 0))
+    QTAILQ_FOREACH(cb, &ctx->qpp_cbs, entry) {
+        if ((strcmp(cb->name, name) == 0) && (strcmp(cb->plugin, ctx->name) == 0))
             return cb;
     }
     return NULL;
@@ -612,7 +612,6 @@ static void __attribute__((__constructor__)) plugin_init(void)
     plugin.id_ht = g_hash_table_new(g_int64_hash, g_int64_equal);
     plugin.cpu_ht = g_hash_table_new(g_int_hash, g_int_equal);
     QTAILQ_INIT(&plugin.ctxs);
-    QTAILQ_INIT(&plugin.qpp_cbs);
     qht_init(&plugin.dyn_cb_arr_ht, plugin_dyn_cb_arr_cmp, 16,
              QHT_MODE_AUTO_RESIZE);
     atexit(qemu_plugin_atexit_cb);

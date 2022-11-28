@@ -445,7 +445,7 @@ int qemu_plugin_create_callback(qemu_plugin_id_t id, const char *cb_name) {
     }
 
     // if not, initialize it
-    plugin_add_qpp_cb(ctx->name, cb_name);
+    plugin_add_qpp_cb(ctx, cb_name);
     return 0;
 }
 
