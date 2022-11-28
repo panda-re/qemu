@@ -7,9 +7,6 @@
 QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
 QEMU_PLUGIN_EXPORT const char *qemu_plugin_name = "qpp_srv";
 
-void my_cb_exit_callback(gpointer evdata, gpointer udata);
-
-
 static void plugin_exit(qemu_plugin_id_t id, void *p)
 {
   qemu_plugin_outs(CURRENT_PLUGIN "exit triggered, running all registered"
