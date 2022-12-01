@@ -361,9 +361,9 @@ gpointer qemu_plugin_import_function(const char *plugin, const char *function);
 * @id: unique plugin id
 * @name: name of cb
 *
-* Returns: 0 on success, 1 on failure
+* Returns: true on success, false otherwise
 */
-int qemu_plugin_create_callback(qemu_plugin_id_t id, const char *name);
+bool qemu_plugin_create_callback(qemu_plugin_id_t id, const char *name);
 
 /**
 * qemu_plugin_run_callback() - run all functions registered to cb with given name using given args
