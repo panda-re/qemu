@@ -176,7 +176,7 @@ int qpp_remove_cb_##cb_name(cb_name##_t fptr)               \
   void _QPP_SETUP_NAME(fn) (void);                               \
                                                                               \
   void __attribute__ ((constructor)) _QPP_SETUP_NAME(fn) (void) { \
-    if (strcmp(CURRENT_PLUGIN, #plugin_name) != 0) {        \
+    if (strcmp(qemu_plugin_name, #plugin_name) != 0) {        \
       fn##_qpp = qemu_plugin_import_function(PLUGIN_STR(plugin_name), PLUGIN_STR(fn)); \
     } \
   }

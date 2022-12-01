@@ -2,10 +2,10 @@
 #include <qemu-plugin.h>
 #include <plugin-qpp.h>
 #include <gmodule.h>
-#include "qpp_srv.h"
 
 QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
 QEMU_PLUGIN_EXPORT const char *qemu_plugin_name = "qpp_srv";
+#include "qpp_srv.h"
 
 static void plugin_exit(qemu_plugin_id_t id, void *p)
 {
