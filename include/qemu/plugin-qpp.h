@@ -168,7 +168,6 @@ int qpp_remove_cb_##cb_name(cb_name##_t fptr)               \
  *    and correctly cast and assign the function pointer
  */
 
-/* this is the new one, yay */
 #define QPP_FUN_PROTOTYPE(plugin_name, fn_ret, fn, args)                     \
   fn_ret fn(args); \
   typedef fn_ret(*PLUGIN_CONCAT(fn, _t))(args);                               \
