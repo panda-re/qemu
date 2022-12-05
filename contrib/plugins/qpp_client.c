@@ -17,7 +17,7 @@ QEMU_PLUGIN_EXPORT void my_cb_exit_callback(gpointer evdata, gpointer udata) {
 QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
                    const qemu_info_t *info, int argc, char **argv) {
 
-    g_autoptr(GString) report = g_string_new(CURRENT_PLUGIN ": Call "
+    g_autoptr(GString) report = g_string_new("QPP client: Call "
                                              "qpp_srv's do_add(0) do_sub(3) => ");
     g_string_append_printf(report, "%d %d\n", qpp_srv_do_add_qpp(0), qpp_srv_do_sub_qpp(3));
     qemu_plugin_outs(report->str);

@@ -9,7 +9,7 @@ QEMU_PLUGIN_EXPORT const char *qemu_plugin_name = "qpp_srv";
 
 static void plugin_exit(qemu_plugin_id_t id, void *p)
 {
-  qemu_plugin_outs(CURRENT_PLUGIN "exit triggered, running all registered"
+  qemu_plugin_outs("QPP srv: exit triggered, running all registered"
                   " QPP callbacks\n");
   qemu_plugin_run_callback(id, "my_on_exit", NULL, NULL);
 }

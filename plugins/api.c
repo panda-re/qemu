@@ -404,101 +404,100 @@ bool qemu_plugin_bool_parse(const char *name, const char *value, bool *ret)
  * QPP: inter-plugin function resolution and callbacks
  */
 
-gpointer qemu_plugin_import_function(const char *target_plugin, const char *function) {
+gpointer qemu_plugin_import_function(const char *target_plugin,
+                                     const char *function) {
     gpointer function_pointer = NULL;
     struct qemu_plugin_ctx *ctx = plugin_name_to_ctx_locked(target_plugin);
     if (ctx == NULL) {
       error_report("Unable to load plugin %s by name\n", target_plugin);
-      abort();
-      return NULL;
-    }
-    // resolve symbol to a pointer
-    if (g_module_symbol(ctx->handle, function, (gpointer *)&function_pointer)) {
+    } else if (g_module_symbol(ctx->handle, function,
+               (gpointer *)&function_pointer)) {
+        // resolve symbol to a pointer
         return function_pointer;
+    } else {
+      error_report("function: %s not found in plugin: %s\n", function,
+                   target_plugin);
     }
-
-    error_report("function: %s not found in plugin: %s\n", function, target_plugin);
     abort();
     return NULL;
 }
 
-int qemu_plugin_create_callback(qemu_plugin_id_t id, const char *cb_name) {
+bool qemu_plugin_create_callback(qemu_plugin_id_t id, const char *cb_name) {
     struct qemu_plugin_ctx *ctx = plugin_id_to_ctx_locked(id);
     if (ctx == NULL) {
       error_report("Cannot create callback with invalid plugin ID");
-      return 1;
+      return false;
     }
 
     if (ctx->version < QPP_MINIMUM_VERSION) {
       error_report("Plugin %s cannot create callbacks as its PLUGIN_VERSION"
                    " %d is below QPP_MINIMUM_VERSION (%d).",
                    ctx->name, ctx->version, QPP_MINIMUM_VERSION);
-      return 1;
+      return false;
     }
 
-    // iterate through structs to see if one already has name
+    // Iterate through structs to see if one already has name
     if (plugin_find_qpp_cb(ctx, cb_name)) {
-        error_report("Plugin %s already created callback %s\n", ctx->name, cb_name);
-        return 1;
+        error_report("Plugin %s already created callback %s\n", ctx->name,
+                     cb_name);
+        return false;
     }
 
-    // if not, initialize it
+    // Callback name isn't already used, initialize it in this plugin
     plugin_add_qpp_cb(ctx, cb_name);
-    return 0;
+    return true;
 }
 
-int qemu_plugin_run_callback(qemu_plugin_id_t id, const char *cb_name, gpointer evdata, gpointer udata) {
+bool qemu_plugin_run_callback(qemu_plugin_id_t id, const char *cb_name,
+                              gpointer evdata, gpointer udata) {
     struct qemu_plugin_ctx *ctx = plugin_id_to_ctx_locked(id);
     if (ctx == NULL) {
       error_report("Cannot run callback with invalid plugin ID");
-      return 1;
+      return false;
     }
-    // find callback with name
+    // Find callback with name
     struct qemu_plugin_qpp_cb *cb = plugin_find_qpp_cb(ctx, cb_name);
     if (!cb) {
-        error_report("Can not run previously-unregistered callback %s in plugin %s\n", cb_name, ctx->name);
-        return 1;
+        error_report("Can not run previously-unregistered callback %s in "
+                     "plugin %s\n", cb_name, ctx->name);
+        return false;
     }
-    // run all functions in list with args evdata and udata
-    int i = 0;
-    for (; i < 32; i++) {
-        if (cb->registered_cb_funcs[i]) {
-            cb_func_t qpp_cb_func = cb->registered_cb_funcs[i];
-            qpp_cb_func(evdata, udata);
-        }
-        else
-            break;
+    // Run all functions in list with args evdata and udata
+    for (int i =0; i < 32 && cb->registered_cb_funcs[i]; i++) {
+        cb_func_t qpp_cb_func = cb->registered_cb_funcs[i];
+        qpp_cb_func(evdata, udata);
     }
-    if (i == 0)
-        return 1;
-    return 0;
+    // If no callbacks exist we return false, else true
+    return (cb->registered_cb_funcs[0]!=NULL);
 }
 
-int qemu_plugin_reg_callback(const char *target_plugin, const char *cb_name, cb_func_t function_pointer) {
+bool qemu_plugin_reg_callback(const char *target_plugin, const char *cb_name,
+                              cb_func_t function_pointer) {
     struct qemu_plugin_ctx *ctx = plugin_name_to_ctx_locked(target_plugin);
     if (ctx == NULL) {
-      error_report("Cannot register callback with unknown plugin %s", target_plugin);
-      return 1;
+      error_report("Cannot register callback with unknown plugin %s",
+                   target_plugin);
+      return false;
     }
     // find callback with name
     struct qemu_plugin_qpp_cb *cb = plugin_find_qpp_cb(ctx, cb_name);
     if (!cb) {
-        error_report("Cannot register a function to run on callback %s in plugin %s"
-                     " as that callback does not exist\n",
+        error_report("Cannot register a function to run on callback %s in "
+                     "plugin %s as that callback does not exist\n",
                      cb_name, target_plugin);
-        return 1;
+        return false;
     }
     // append function pointer to list of functions
     for (int i = 0; i < 32; i++) {
         if (!(cb->registered_cb_funcs[i])) {
             cb->registered_cb_funcs[i] = function_pointer;
-            return 0;
+            return true;
         }
     }
-    error_report("The maximum number of allowed callbacks are already registered for"
-                 "callback %s in plugin %s\n",
+    error_report("The maximum number of allowed callbacks are already "
+                 "registered for callback %s in plugin %s\n",
                  cb_name, target_plugin);
-    return 1;
+    return false;
 }
 
 /*

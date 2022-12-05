@@ -240,8 +240,9 @@ struct qemu_plugin_ctx *plugin_name_to_ctx_locked(const char* name)
 {
     struct qemu_plugin_ctx *ctx;
     QTAILQ_FOREACH(ctx, &plugin.ctxs, entry) {
-        if (strcmp(ctx->name, name) == 0)
+        if (strcmp(ctx->name, name) == 0) {
             return plugin_id_to_ctx_locked(ctx->id);
+        }
     }
     return NULL;
 }
@@ -249,8 +250,9 @@ struct qemu_plugin_ctx *plugin_name_to_ctx_locked(const char* name)
 int name_to_plugin_version(const char *name) {
     struct qemu_plugin_ctx *ctx;
     QTAILQ_FOREACH(ctx, &plugin.ctxs, entry) {
-        if (strcmp(ctx->name, name) == 0)
+        if (strcmp(ctx->name, name) == 0) {
             return ctx->version;
+        }
     }
     warn_report("Could not find any plugin named %s.\n", name);
     return -1;
@@ -258,9 +260,9 @@ int name_to_plugin_version(const char *name) {
 
 const char *id_to_plugin_name(qemu_plugin_id_t id) {
     const char *plugin = plugin_id_to_ctx_locked(id)->name;
-    if (plugin)
+    if (plugin) {
         return plugin;
-    else {
+    } else {
         warn_report("Unnamed plugin cannot use QPP, not supported in plugin version. Please update plugin.\n");
         return NULL;
     }
@@ -270,8 +272,9 @@ struct qemu_plugin_qpp_cb *plugin_find_qpp_cb(struct qemu_plugin_ctx *ctx, const
     // iterate through structs to see if one already has name
     struct qemu_plugin_qpp_cb *cb;
     QTAILQ_FOREACH(cb, &ctx->qpp_cbs, entry) {
-        if (strcmp(cb->name, name) == 0)
+        if (strcmp(cb->name, name) == 0) {
             return cb;
+        }
     }
     return NULL;
 }
