@@ -393,6 +393,16 @@ QEMU_PLUGIN_API
 uint64_t qemu_plugin_tb_vaddr(const struct qemu_plugin_tb *tb);
 
 /**
+ * qemu_plugin_import_function() - return pointer to a function in another
+ * plugin
+ * @plugin: plugin name
+ * @function: function name
+ *
+ * Returns: NULL on failure, function pointer on success
+ */
+gpointer qemu_plugin_import_function(const char *plugin, const char *function);
+
+/**
  * qemu_plugin_create_callback() - create a new cb with given name
  * @id: unique plugin id
  * @name: name of cb
