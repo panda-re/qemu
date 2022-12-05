@@ -584,9 +584,12 @@ callback system is supported within the core code as long as
 
 Plugin names
 ~~~~~~~~~~~~
-Plugin names must be exported to use the QPP API in the same way 
+Plugin names must be exported as ``qemu_plugin_name`` to use the QPP API in the same way 
 ``qemu_plugin_version`` is exported. This name can then be used by other plugins
-to import functions and use callbacks belonging to that plugin.
+to import functions and use callbacks belonging to that plugin. Additionally, for a 
+plugin to use another plugin's functions or callbacks it must declare that dependency
+through exporting ``qemu_plugin_uses`` which is a string array containing names of 
+plugins used by that plugin. Those plugins must be loaded first.
 
 QPP function calls
 ~~~~~~~~~~~~~~~~~~

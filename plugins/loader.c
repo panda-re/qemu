@@ -240,6 +240,27 @@ static int plugin_load(struct qemu_plugin_desc *desc, const qemu_info_t *info, E
                   goto err_symbol;
                 }
             }
+            if (g_module_symbol(ctx->handle, "qemu_plugin_uses", &sym)) {
+                const char **dependencies = &(*(const char **)sym);
+                bool found = false;
+                while (*dependencies) {
+                    // iterate through plugin ctxs and find one with that name
+                    found = false;
+                    QTAILQ_FOREACH(ctx2, &plugin.ctxs, entry) {
+                        if (strcmp(ctx2->name, *dependencies) == 0) {
+                            dependencies++;
+                            found = true;
+                            break;
+                        }
+                    }
+                    // if any fail, quit with error
+                    if (!found) {
+                        error_setg(errp, "Could not load plugin %s as it is dependent on %s which is not loaded",
+                                   ctx->name, *dependencies);
+                        goto err_symbol;
+                    }
+                }
+            }
         }
     }
 
