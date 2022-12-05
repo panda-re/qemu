@@ -577,15 +577,16 @@ Plugin-to-Plugin Interactions
 -----------------------------
 
 Plugins may interact with other plugins through the QEMU Plugin-to-Plugin
-("QPP") API by including ``qemu/plugin-qpp.h``. This API supports direct
-function calls between plugins as well as an inter-plugin callback system.
+("QPP") API by including ``<plugin-qpp.h>`` in addition to ``<qemu_plugin.h>``. 
+This API supports direct function calls between plugins. An inter-plugin 
+callback system is supported within the core code as long as 
+``qemu_plugin_version >= 2``.
 
 Plugin names
 ~~~~~~~~~~~~
-Plugins are automatically given a name by removing the suffix from their
-filename.  These plugin names will be used (unquoted) during QPP interactions as
-described below.  A plugin can access its own name through the preprocessor
-variable ``CURRENT_PLUGIN``.
+Plugin names must be exported to use the QPP API in the same way 
+``qemu_plugin_version`` is exported. This name can then be used by other plugins
+to import functions and use callbacks belonging to that plugin.
 
 QPP function calls
 ~~~~~~~~~~~~~~~~~~
@@ -621,31 +622,23 @@ In particular, these plugins must:
 When a plugin (e.g., ``plugin_a``) wishes to define a callback (an event that
 other plugins can request to be notified about), it must:
 
-1. Define the callback using the ``QPP_CREATE_CB`` macro with a single argument
-   of the callback's name. For example, ``QPP_CREATE_CB(on_plugina_event);``.
-2. In a header file create a prototype for the callback type with
-   ``QPP_CB_PROTOTYPE`` with arguments of the callback's return type (only
-   ``bool`` and ``void`` are currently supported), the name of the callback, and
-   any arguments the callback function will be called with. For example with a
-   callback named ``on_plugina_event`` that returns a void and takes an int and
-   a bool as an argument, you would use: ``QPP_CB_PROTOTYPE(void,
-   on_plugina_event, int, bool)``.
-3. When the plugin wishes to run any registered callback functions, it should
-   use the macro ``QPP_RUN_CB`` with the first argument being the event name
-   followed by the arguments as specified in the header. For example:
-   ``QPP_RUN_CB(on_exit, 2, true);``.
+1. Define the callback using the ``qemu_plugin_create_callback`` function which
+   takes two arguments: the unique ``qemu_plugin_id_t id`` and the callback name.
+2. Call ``qemu_plugin_run_cb`` at appropriate places in the code to call registered 
+   callback functions. It takes four arguments: the unique ``qemu_plugin_id_t id``, 
+   the callback name, and the callback arguments which are standardized to be 
+   ``gpointer evdata, gpointer udata``. The callback arguments point to two structs 
+   which are defined by the plugin and can vary based on the use case of the callback. 
 
 When other plugins wish to register a function to run on such an event, they
 must:
 
-1. Import the header file with the callback prototype(s)
-2. Define a function, e.g., ``pluginb_callback`` that matches the callback
-   signature, for example ``void pluginb_callback(int, bool) {...}``.
-3. Register this function to be run on the callback using the ``QPP_REG_CB``
-   macro with the first argument being the name of the plugin that provides the
-   callback as a string, the second being the callback name, and the third as
-   the function that should be run. For example: ``QPP_REG_CB("plugin_a",
-   on_plugina_event, pluginb_callback);``
+1. Define a function that matches the ``cb_func_t`` type: 
+   ``typedef void (*cb_func_t) (gpointer evdata, gpointer udata)``.
+2. Register this function to be run on the plugin defined callback using 
+   ``qemu_plugin_reg_callback``. This function takes three arguments: the name of the 
+   plugin which defines the callback, the callback name, and a ``cb_func_t`` function 
+   pointer.
 
 API
 ---
