@@ -389,7 +389,7 @@ bool qemu_plugin_run_callback(qemu_plugin_id_t id, const char *name, gpointer ev
 */
 bool qemu_plugin_reg_callback(const char *target_plugin, const char *cb_name, cb_func_t function_pointer);
 
-bool qemu_plugin_remove_callback(const char *target_plugin, const char *cb_name, cb_func_t function_pointer);
+bool qemu_plugin_unreg_callback(const char *target_plugin, const char *cb_name, cb_func_t function_pointer);
 
 /**
  * qemu_plugin_tb_get_insn() - retrieve handle for instruction
