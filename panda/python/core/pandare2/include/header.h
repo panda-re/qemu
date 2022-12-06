@@ -6,8 +6,14 @@
 #define __attribute__(s)
 #define __restrict
 #define asm(...)
+
+// don't import gmodule in python
+#define __GMODULE_H__
+typedef void* gpointer;
+
 #define G_GNUC_PRINTF(...)
 #define ULONG_MAX UINT64_MAX
+typedef void* __builtin_va_list;
 #include <stdint.h>
 void qemu_init(int argc, char **argv);
 int qemu_main_loop(void);
