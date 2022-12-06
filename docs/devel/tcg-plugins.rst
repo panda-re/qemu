@@ -627,7 +627,7 @@ other plugins can request to be notified about), it must:
 
 1. Define the callback using the ``qemu_plugin_create_callback`` function which
    takes two arguments: the unique ``qemu_plugin_id_t id`` and the callback name.
-2. Call ``qemu_plugin_run_cb`` at appropriate places in the code to call registered 
+2. Call ``qemu_plugin_run_callback`` at appropriate places in the code to call registered 
    callback functions. It takes four arguments: the unique ``qemu_plugin_id_t id``, 
    the callback name, and the callback arguments which are standardized to be 
    ``gpointer evdata, gpointer udata``. The callback arguments point to two structs 
