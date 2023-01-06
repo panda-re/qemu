@@ -43,8 +43,10 @@ static int panda_virtual_memory_rw(uint64_t gva, void* buf, size_t length, bool 
 
 // PANDA types from panda/include/panda.types.h
 #define TARGET_PTR_FMT "%lx"
+//#define TARGET_PTR_FMT "%x"
 #define TARGET_PID_FMT "%u"
 typedef target_ulong target_ptr_t;
+//typedef uint32_t target_ptr_t;
 typedef int32_t target_pid_t;
 
 

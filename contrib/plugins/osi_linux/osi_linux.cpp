@@ -22,9 +22,10 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
 QEMU_PLUGIN_EXPORT const char *qemu_plugin_name = "osi_linux";
 #include "../osi.h"
 #include "../hw_proc_id.h"
-}
 #include "../syscalls.h"
+}
 
+static uint64_t mask = (uint32_t)-1;
 void on_first_syscall(gpointer evdata, gpointer udata);
 
 // Using these
@@ -121,7 +122,7 @@ static void fill_osiprochandle(OsiProcHandle *h,
     struct_get_ret_t UNUSED(err);
 
     // h->asid = taskd->mm->pgd (some kernel tasks are expected to return error)
-    err = struct_get(&h->asid, task_addr, {ki.task.mm_offset, ki.mm.pgd_offset});
+    err = struct_get(&h->asid, task_addr, {ki.task.mm_offset, ki.mm.pgd_offset}, mask);
 
     // Convert asid to physical to be able to compare it with the pgd register.
     h->asid = qemu_plugin_virt_to_phys(h->asid);
@@ -135,17 +136,19 @@ void fill_osiproc(OsiProc *p, target_ptr_t task_addr) {
     struct_get_ret_t UNUSED(err);
     memset(p, 0, sizeof(OsiProc));
 
+    //printf("Try reading asid from task addr %lx, mm_offset %x, pgd_offset %x\n", task_addr, ki.task.mm_offset, ki.mm.pgd_offset);
     // p->asid = taskd->mm->pgd (some kernel tasks are expected to return error)
-    err = struct_get(&p->asid, task_addr, {ki.task.mm_offset, ki.mm.pgd_offset});
+    err = struct_get(&p->asid, task_addr, {ki.task.mm_offset, ki.mm.pgd_offset}, mask);
     //assert(err == struct_get_ret_t::SUCCESS);
     if(err != struct_get_ret_t::SUCCESS) {
-      p->asid = 0;
-      printf("Yikes, couldn't read asid\n");
+      printf("Yikes, couldn't read asid. BAIL\n");
+      return;
     }
 
+    //printf("Try reading ppid from task addr %lx, parent_offset %x, tgid_offset %x\n", task_addr, ki.task.real_parent_offset, ki.task.tgid_offset);
     // p->ppid = taskd->real_parent->pid
     err = struct_get( &p->ppid, task_addr,
-                     {ki.task.real_parent_offset, ki.task.tgid_offset});
+                     {ki.task.real_parent_offset, ki.task.tgid_offset}, mask);
     assert(err == struct_get_ret_t::SUCCESS);
 
     // Convert asid to physical to be able to compare it with the pgd register.
@@ -161,6 +164,7 @@ void fill_osiproc(OsiProc *p, target_ptr_t task_addr) {
     if(ki.version.a < 3 || (ki.version.a == 3 && ki.version.b < 17)) {
         uint64_t tmp = get_start_time(task_addr);
 
+      #if 0
         //if there's an endianness mismatch TODO PORT TO Q7 XXX
         #if defined(TARGET_WORDS_BIGENDIAN) != defined(HOST_WORDS_BIGENDIAN)
             //convert the most significant half into nanoseconds, then add the rest of the nanoseconds
@@ -168,6 +172,9 @@ void fill_osiproc(OsiProc *p, target_ptr_t task_addr) {
         #else
             //convert the least significant half into nanoseconds, then add the rest of the nanoseconds
             p->create_time = ((tmp & 0x00000000FFFFFFFF) * 1000000000) + ((tmp & 0xFFFFFFFF00000000) >> 32);
+        #endif
+      #else
+            p->create_time = -1; // TODO port to Q7
         #endif
        
     } else {
@@ -358,19 +365,21 @@ void on_get_current_process(gpointer evdata, gpointer udata) {
             (0 != strncmp((char *)cached_comm_ptr, cached_name,
                           ki.task.comm_size))) {
             last_ts = ts;
-            printf("Task struct is %lx\n", ts);
             fill_osiproc(p, ts);
 
-            // update the cache
-            cached_taskd = p->taskd;
-            cached_asid = p->asid;
-            memset(cached_name, 0, ki.task.comm_size);
-            strncpy(cached_name, p->name, ki.task.comm_size);
-            cached_pid = p->pid;
-            cached_ppid = p->ppid;
-            cached_start_time = p->create_time;
-            cached_comm_ptr = qemu_plugin_virt_to_host(
-                ts + ki.task.comm_offset, ki.task.comm_size);
+            if (p->taskd != 0) {
+              // update the cache
+              cached_taskd = p->taskd;
+              cached_asid = p->asid;
+              memset(cached_name, 0, ki.task.comm_size);
+              strncpy(cached_name, p->name, ki.task.comm_size);
+              cached_pid = p->pid;
+              cached_ppid = p->ppid;
+              cached_start_time = p->create_time;
+              cached_comm_ptr = qemu_plugin_virt_to_host(
+                  ts + ki.task.comm_offset, ki.task.comm_size);
+              printf("NAME: %s, PID: %d\n", p->name, p->pid);
+            }
         } else {
             p->taskd = cached_taskd;
             p->asid = cached_asid;
@@ -436,7 +445,6 @@ void on_get_mappings(gpointer evdata, gpointer udata) {
 
     OsiModule m;
     target_ptr_t vma_first, vma_current;
-    __asm__("int3");
 
     if (p == 0) {
       printf("taskd invalid\n");
@@ -526,7 +534,7 @@ void on_get_process_ppid(const OsiProcHandle *h, target_pid_t *ppid) {
     } else {
         // ppid = taskd->real_parent->pid
         err = struct_get(ppid, h->taskd,
-                         {ki.task.real_parent_offset, ki.task.pid_offset});
+                         {ki.task.real_parent_offset, ki.task.pid_offset}, mask);
         if (err != struct_get_ret_t::SUCCESS) {
             *ppid = (target_pid_t)-1;
         }
@@ -669,14 +677,14 @@ void init_per_cpu_offsets() {
     // skip update because there's no per_cpu_offsets_addr
     if (ki.task.per_cpu_offsets_addr == 0) {
         LOG_INFO("Using profile-provided value for ki.task.per_cpu_offset_0_addr: "
-                 TARGET_PTR_FMT, (target_ptr_t)ki.task.per_cpu_offset_0_addr);
+                 TARGET_PTR_FMT "\n", (target_ptr_t)ki.task.per_cpu_offset_0_addr);
         return;
     }
 
     // skip update because of failure to read from per_cpu_offsets_addr
     target_ptr_t per_cpu_offset_0_addr;
     auto r = struct_get(&per_cpu_offset_0_addr, ki.task.per_cpu_offsets_addr,
-                        0*sizeof(target_ptr_t));
+                        0*sizeof(target_ptr_t), mask);
     if (r != struct_get_ret_t::SUCCESS) {
         LOG_ERROR("Unable to update value of ki.task.per_cpu_offset_0_addr.\n");
         assert(false);
@@ -851,7 +859,7 @@ error:
 /**
  * @brief Retrieves the task_struct address using per cpu information.
  */
-target_ptr_t default_get_current_task_struct(char* target_name)
+target_ptr_t default_get_current_task_struct(char* target_name) // get_current_task_struct
 {
     struct_get_ret_t err;
     target_ptr_t current_task_addr;
@@ -859,7 +867,7 @@ target_ptr_t default_get_current_task_struct(char* target_name)
 
     if (strcmp(target_name, "x86_64") == 0) {
       current_task_addr = ki.task.current_task_addr;
-    } else if (strcmp(target_name, "mipsel") == 0) {
+    } else if (strcmp(target_name, "mips") == 0 || strcmp(target_name, "mipsel") == 0) {
       // __current_thread_info is stored in KERNEL r28
       // userspace clobbers it but kernel restores (somewhow?)
       // First field of struct is task - no offset needed
@@ -868,13 +876,16 @@ target_ptr_t default_get_current_task_struct(char* target_name)
       printf("ERROR: Unsupported target\n");
       assert(0);
     }
-    err = struct_get(&ts, current_task_addr, ki.task.per_cpu_offset_0_addr);
+
+    printf("get current task struct with offset %lx\n", ki.task.per_cpu_offset_0_addr);
+    err = struct_get(&ts, current_task_addr, ki.task.per_cpu_offset_0_addr, mask);
     //assert(err == struct_get_ret_t::SUCCESS && "failed to get current task struct");
     if (err != struct_get_ret_t::SUCCESS) {
       // Callers need to check if we return NULL!
       return 0;
     }
     fixupendian(ts);
+    printf("Success: found task struct %lx\n", ts);
     return ts;
 }
 
@@ -885,7 +896,8 @@ target_ptr_t default_get_task_struct_next(target_ptr_t task_struct)
 {
     struct_get_ret_t err;
     target_ptr_t tasks;
-    err = struct_get(&tasks, task_struct, ki.task.tasks_offset);
+    printf("get task struct next\n");
+    err = struct_get(&tasks, task_struct, ki.task.tasks_offset, mask);
     fixupendian(tasks);
     assert(err == struct_get_ret_t::SUCCESS && "failed to get next task");
     return tasks-ki.task.tasks_offset;
@@ -898,7 +910,8 @@ target_ptr_t default_get_group_leader(target_ptr_t ts)
 {
     struct_get_ret_t err;
     target_ptr_t group_leader;
-    err = struct_get(&group_leader, ts, ki.task.group_leader_offset);
+    printf("get group leader\n");
+    err = struct_get(&group_leader, ts, ki.task.group_leader_offset, mask);
     fixupendian(group_leader);
     assert(err == struct_get_ret_t::SUCCESS && "failed to get group leader for task");
     return group_leader;
@@ -912,7 +925,7 @@ target_ptr_t default_get_file_fds(target_ptr_t files)
 {
     struct_get_ret_t err;
     target_ptr_t files_fds;
-    err = struct_get(&files_fds, files, {ki.fs.fdt_offset, ki.fs.fd_offset});
+    err = struct_get(&files_fds, files, {ki.fs.fdt_offset, ki.fs.fd_offset}, mask);
     if (err != struct_get_ret_t::SUCCESS) {
         printf("Failed to retrieve file structs (error code: %d)", err);
         return (target_ptr_t)NULL;

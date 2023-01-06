@@ -35,10 +35,6 @@ extern "C" {
 #include <qemu-plugin.h>
 }
 
-#ifdef TARGET_MIPS
-#include "hw_proc_id/hw_proc_id_ext.h"
-#endif
-
 //Intentional changes for QEMU
 typedef void CPUState;
 typedef uint64_t target_ulong; // This is iffy?
@@ -49,8 +45,10 @@ typedef uint64_t target_ulong; // This is iffy?
 
 // PANDA types from panda/include/panda.types.h
 #define TARGET_PTR_FMT "%lx"
+//#define TARGET_PTR_FMT "%x"
 #define TARGET_PID_FMT "%u"
 typedef target_ulong target_ptr_t;
+//typedef uint32_t target_ptr_t;
 typedef int32_t target_pid_t;
 
 extern struct kernelinfo ki;
@@ -65,6 +63,8 @@ typedef enum : int8_t {
 
 // End shims
 
+// XXX XXX: fixupendian is a noop for now! This cannot support big endian guests!
+
 /**
  * @brief Template function for reading a struct member given a pointer
  * to the struct and the offset of the member.
@@ -72,19 +72,26 @@ typedef enum : int8_t {
  * IMPLEMENT_OFFSET_GET.
  */
 template <typename T>
-struct_get_ret_t struct_get(T *v, target_ptr_t ptr, off_t offset) {
+struct_get_ret_t struct_get(T *v, target_ptr_t ptr, off_t offset, uint64_t mask) {
+    //printf("Struct get with mask %lx\n", mask);
+    ptr &= mask;
     if (ptr == (target_ptr_t)NULL) {
-        printf("WARNING: struct get of NULLPTR\n");
+        //printf("WARNING: struct get of NULLPTR\n");
         memset((uint8_t *)v, 0, sizeof(T));
         return struct_get_ret_t::ERROR_DEREF;
     }
 
+    //printf("Read %lx + %lx\n", (uint64_t)ptr, offset);
+
     switch(panda_virtual_memory_rw(ptr+offset, (void *)v, sizeof(T), 0)) {
         case -1:
             memset((uint8_t *)v, 0, sizeof(T));
+            //printf("=> ERROR\n");
             return struct_get_ret_t::ERROR_MEMORY;
             break;
         default:
+            *v = (T)((uint64_t)v & mask);
+            //printf("=> %lx\n", (uint64_t)*v);
             return struct_get_ret_t::SUCCESS;
             break;
     }
@@ -97,28 +104,37 @@ struct_get_ret_t struct_get(T *v, target_ptr_t ptr, off_t offset) {
  * IMPLEMENT_OFFSET_GET*.
  */
 template <typename T>
-struct_get_ret_t struct_get(T *v, target_ptr_t ptr, std::initializer_list<off_t> offsets) {
+struct_get_ret_t struct_get(T *v, target_ptr_t ptr, std::initializer_list<off_t> offsets, uint64_t mask) {
     // read all but last item as pointers
     // After each pointer read, flip endianness as necessary
     auto it = offsets.begin();
     auto o = *it;
+
     while (true) {
         it++;
         if (it == offsets.end()) break;
-        auto r = struct_get(&ptr, ptr, o);
+        //printf("Dereference %lx ", ptr & mask);
+        auto r = struct_get(&ptr, ptr, o, mask);
         if (r != struct_get_ret_t::SUCCESS) {
+            //printf("\t FAILS\n");
             memset((uint8_t *)v, 0, sizeof(T));
             return r;
         }
-        o = *it;
+        //printf("\t => %lx", ptr);
         // We just read a pointer so we may need to fix its endianness
-        if (sizeof(T) == 4) fixupendian(ptr); // XXX wrong for 64-bit guests
+        // If offset is 0, we might be *rereading* in which case we can't flip
+        //if (o != 0 && sizeof(T) == 4) fixupendian(ptr); // XXX wrong for 64-bit guests
+        if (mask == (uint32_t)-1) fixupendian(ptr); // XXX wrong for 64-bit guests
+        o = *it;
+        //printf("\t => %lx\n", ptr);
     }
 
     // last item is read using the size of the type of v
     // this isn't a pointer so there's no need to fix its endianness
-    auto ret = struct_get(v, ptr, o); // deref ptr into v, result in ret
+    //printf("Final struct get of %lx ", ptr);
+    auto ret = struct_get(v, ptr, o, mask); // deref ptr into v, result in ret
     fixupendian(*v);
+    //printf("(status %d) value %lx\n", ret, *v);
     return ret;
 }
 #endif
