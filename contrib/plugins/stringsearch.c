@@ -2,16 +2,16 @@
 #include <assert.h>
 #include <math.h>
 #include <string.h>
-
-#include <map>
-#include <string>
-
-extern "C" {
+#include <stdio.h>
 #include <qemu-plugin.h>
-}
+#include <plugin-qpp.h>
 
 QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
 QEMU_PLUGIN_EXPORT const char *qemu_plugin_name = "stringsearch";
+
+#include "stringsearch.h"
+
+qemu_plugin_id_t plugin_id;
 
 bool verbose = true;
 
@@ -19,18 +19,46 @@ bool verbose = true;
 #define MAX_CALLERS 128
 #define MAX_STRLEN  1024
 
-using match_strings = std::array<int, MAX_STRINGS>;
-using string_pos = std::array<uint32_t, MAX_STRINGS>;
+//using match_strings = std::array<int, MAX_STRINGS>;
+typedef struct {
+    int32_t val[MAX_STRINGS];
+} match_strings;
 
-std::map<uint64_t, match_strings> matches;
-std::map<uint64_t, string_pos> read_text_tracker;
-std::map<uint64_t, string_pos> write_text_tracker;
+//using string_pos = std::array<uint32_t, MAX_STRINGS>;
+typedef struct {
+    uint32_t val[MAX_STRINGS];
+} string_pos;
+
+//std::map<uint64_t, match_strings> matches;
+GHashTable *matches = NULL;
+
+//std::map<uint64_t, string_pos> read_text_tracker;
+GHashTable *read_text_tracker = NULL;
+
+//std::map<uint64_t, string_pos> write_text_tracker;
+GHashTable *write_text_tracker = NULL;
+
 char tofind[MAX_STRINGS][MAX_STRLEN];
 uint32_t strlens[MAX_STRINGS];
 size_t num_strings = 0;
 
-void mem_callback(uint64_t pc, uint64_t addr, size_t size, bool is_write,
-                  std::map<uint64_t, string_pos> &text_tracker)
+static guint u64_hash(gconstpointer key)
+{
+    uint64_t k = (uint64_t)key;
+
+    return ((guint)k) ^ ((guint)(k >> 32));
+}
+
+static int u64_equality(gconstpointer left, gconstpointer right)
+{
+    uint64_t l = (uint64_t)left;
+    uint64_t r = (uint64_t)right;
+
+    return l == r;
+}
+
+static void mem_callback(uint64_t pc, uint64_t addr, size_t size, bool is_write,
+                  GHashTable *text_tracker)
 {
     static char *big_buf = NULL;
     static uint32_t big_buf_len = 0;
@@ -42,7 +70,11 @@ void mem_callback(uint64_t pc, uint64_t addr, size_t size, bool is_write,
     }
 
     uint64_t p = pc;
-    string_pos &sp = text_tracker[p];
+    string_pos *sp = g_hash_table_lookup(text_tracker, (gconstpointer)p);
+    if(sp == NULL) {
+        sp = (string_pos*)g_malloc0(sizeof(string_pos));
+        g_hash_table_insert(text_tracker, (gpointer)p, (gpointer)sp);
+    }
 
     assert (size < 16);
 
@@ -51,20 +83,25 @@ void mem_callback(uint64_t pc, uint64_t addr, size_t size, bool is_write,
     for (size_t i = 0; i < size; i++) {
         char val = ((char *)buf)[i];
         for(size_t str_idx = 0; str_idx < num_strings; str_idx++) {
-            if (tofind[str_idx][sp[str_idx]] == val) {
-                sp[str_idx]++;
+            if (tofind[str_idx][sp->val[str_idx]] == val) {
+                sp->val[str_idx]++;
             } else {
-                sp[str_idx] = 0;
+                sp->val[str_idx] = 0;
             }
 
-            if (sp[str_idx] == strlens[str_idx]) {
+            if (sp->val[str_idx] == strlens[str_idx]) {
                 /* Victory! */
                 if (verbose) {
                     printf("%s Match of str %li at pc=0x%lx\n", is_write ? "WRITE" : "READ", str_idx, pc);
                 }
 
-                matches[p][str_idx]++;
-                sp[str_idx] = 0;
+                match_strings *match = (match_strings*)g_hash_table_lookup(matches, (gconstpointer)p);
+                if(match == NULL) {
+                    match = g_malloc0(sizeof(match_strings));
+                    g_hash_table_insert(matches, (gpointer)p, match);
+                }
+                match->val[str_idx]++;
+                sp->val[str_idx] = 0;
 
                 /* Check if the full string is in memory. */
                 uint32_t sl = strlens[str_idx];
@@ -78,7 +115,7 @@ void mem_callback(uint64_t pc, uint64_t addr, size_t size, bool is_write,
                 qemu_plugin_read_guest_virt_mem(match_addr, big_buf, sl);
 
                 if (memcmp(big_buf, tofind[str_idx], sl) == 0) {
-                    qemu_plugin_run_callback(id, "my_string_found", &called, NULL);
+                    qemu_plugin_run_callback(plugin_id, "on_string_found", &match_addr, NULL);
                     printf("... its in memory\n");
                 } else {
                     printf("... its not in memory\n");
@@ -92,7 +129,7 @@ void mem_callback(uint64_t pc, uint64_t addr, size_t size, bool is_write,
 
 
 /* Add a string to the list of strings we're searching for. */
-bool add_string(const char* arg_str)
+static bool add_string(const char* arg_str)
 {
   size_t arg_len = strlen(arg_str);
   if (arg_len <= 0) {
@@ -128,8 +165,9 @@ bool add_string(const char* arg_str)
   return true;
 }
 
+/* TODO: export */
 /* Remove the first match from our list */
-bool remove_string(const char* arg_str)
+QEMU_PLUGIN_EXPORT bool stringsearch_remove_string(const char* arg_str)
 {
     for (size_t str_idx = 0; str_idx < num_strings; str_idx++) {
         if (strncmp(arg_str, (char*)tofind[str_idx], strlens[str_idx]) == 0) {
@@ -144,7 +182,8 @@ bool remove_string(const char* arg_str)
     return false;
 }
 
-void reset_strings()
+/* TODO: export */
+QEMU_PLUGIN_EXPORT void stringsearch_reset_strings(void)
 {
     num_strings = 0;
 }
@@ -182,8 +221,14 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
                                            const qemu_info_t *info, int argc,
                                            char **argv)
 {
+    plugin_id = id;
+
     qemu_plugin_register_vcpu_tb_trans_cb(id, vcpu_tb_trans);
-    qemu_plugin_create_callback(id, "my_on_string_found");
+    qemu_plugin_create_callback(id, "on_string_found");
+
+    matches = g_hash_table_new_full(u64_hash, u64_equality, NULL, g_free);
+    read_text_tracker = g_hash_table_new_full(u64_hash, u64_equality, NULL, g_free);
+    write_text_tracker = g_hash_table_new_full(u64_hash, u64_equality, NULL, g_free);
     
     for (int i = 0; i < argc; i++) {
         char *opt = argv[i];
