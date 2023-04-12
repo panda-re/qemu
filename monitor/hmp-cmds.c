@@ -22,6 +22,7 @@
 #include "sysemu/runstate.h"
 #include "qemu/config-file.h"
 #include "qemu/option.h"
+#include "qemu/plugin.h"
 #include "qemu/timer.h"
 #include "qemu/sockets.h"
 #include "qemu/help_option.h"
@@ -2090,6 +2091,16 @@ void hmp_rocker_of_dpa_flows(Monitor *mon, const QDict *qdict)
     }
 
     qapi_free_RockerOfDpaFlowList(list);
+}
+
+void hmp_load_plugin(Monitor *mon, const QDict *qdict)
+{
+    QemuPluginList plugin_list = QTAILQ_HEAD_INITIALIZER(plugin_list);
+
+    const char *args = qdict_get_str(qdict, "args");
+
+    qemu_plugin_opt_parse(args, &plugin_list);
+    qemu_plugin_load_list(&plugin_list, &error_fatal);
 }
 
 void hmp_rocker_of_dpa_groups(Monitor *mon, const QDict *qdict)
