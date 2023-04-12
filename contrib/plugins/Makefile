@@ -27,6 +27,7 @@ NAMES += sc_file_log
 NAMES += stringsearch
 NAMES += osi_linux
 NAMES += osi
+NAMES += pngsearch
 
 SONAMES := $(addsuffix .so,$(addprefix lib,$(NAMES)))
 
