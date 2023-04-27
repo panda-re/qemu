@@ -41,6 +41,7 @@
 #include "sysemu/sysemu.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
+#define snprintf_nowarn(...) (snprintf(__VA_ARGS__) < 0 ? abort() : (void)0)
 
 static int get_str_sep(char *buf, int buf_size, const char **pp, int sep)
 {
@@ -562,7 +563,7 @@ static void slirp_smb_cleanup(SlirpState *s)
     int ret;
 
     if (s->smb_dir[0] != '\0') {
-        snprintf(cmd, sizeof(cmd), "rm -rf %s", s->smb_dir);
+        snprintf_nowarn(cmd, sizeof(cmd), "rm -rf %s", s->smb_dir);
         ret = system(cmd);
         if (ret == -1 || !WIFEXITED(ret)) {
             error_report("'%s' failed.", cmd);
@@ -600,13 +601,13 @@ static int slirp_smb(SlirpState* s, const char *exported_dir,
         return -1;
     }
 
-    snprintf(s->smb_dir, sizeof(s->smb_dir), "/tmp/qemu-smb.XXXXXX");
+    snprintf_nowarn(s->smb_dir, sizeof(s->smb_dir), "/tmp/qemu-smb.XXXXXX");
     if (!mkdtemp(s->smb_dir)) {
         error_report("could not create samba server dir '%s'", s->smb_dir);
         s->smb_dir[0] = 0;
         return -1;
     }
-    snprintf(smb_conf, sizeof(smb_conf), "%s/%s", s->smb_dir, "smb.conf");
+    snprintf_nowarn(smb_conf, sizeof(smb_conf), "%s/%s", s->smb_dir, "smb.conf");
 
     f = fopen(smb_conf, "w");
     if (!f) {
@@ -651,7 +652,7 @@ static int slirp_smb(SlirpState* s, const char *exported_dir,
             );
     fclose(f);
 
-    snprintf(smb_cmdline, sizeof(smb_cmdline), "%s -l %s -s %s",
+    snprintf_nowarn(smb_cmdline, sizeof(smb_cmdline), "%s -l %s -s %s",
              CONFIG_SMBD_COMMAND, s->smb_dir, smb_conf);
 
     if (slirp_add_exec(s->slirp, 0, smb_cmdline, &vserver_addr, 139) < 0 ||

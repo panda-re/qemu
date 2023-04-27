@@ -696,7 +696,8 @@ static void blkdebug_refresh_filename(BlockDriverState *bs, QDict *options)
     }
 
     if (!force_json && bs->file->bs->exact_filename[0]) {
-        snprintf(bs->exact_filename, sizeof(bs->exact_filename),
+        #define snprintf_nowarn(...) (snprintf(__VA_ARGS__) < 0 ? abort() : (void)0)
+        snprintf_nowarn(bs->exact_filename, sizeof(bs->exact_filename),
                  "blkdebug:%s:%s", s->config_file ?: "",
                  bs->file->bs->exact_filename);
     }

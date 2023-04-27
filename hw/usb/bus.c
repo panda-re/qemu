@@ -8,6 +8,7 @@
 #include "monitor/monitor.h"
 #include "trace.h"
 #include "qemu/cutils.h"
+#define snprintf_nowarn(...) (snprintf(__VA_ARGS__) < 0 ? abort() : (void)0)
 
 static void usb_bus_dev_print(Monitor *mon, DeviceState *qdev, int indent);
 
@@ -406,7 +407,7 @@ void usb_register_companion(const char *masterbus, USBPort *ports[],
 void usb_port_location(USBPort *downstream, USBPort *upstream, int portnr)
 {
     if (upstream) {
-        snprintf(downstream->path, sizeof(downstream->path), "%s.%d",
+        snprintf_nowarn(downstream->path, sizeof(downstream->path), "%s.%d",
                  upstream->path, portnr);
         downstream->hubcount = upstream->hubcount + 1;
     } else {
