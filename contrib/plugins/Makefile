@@ -31,6 +31,7 @@ NAMES += drcov
 NAMES += ips
 NAMES += stoptrigger
 NAMES += cflow
+NAMES += stringsearch
 
 ifeq ($(CONFIG_WIN32),y)
 SO_SUFFIX := .dll
