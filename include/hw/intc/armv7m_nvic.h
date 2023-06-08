@@ -192,4 +192,11 @@ int armv7m_nvic_raw_execution_priority(NVICState *s);
 bool armv7m_nvic_neg_prio_requested(NVICState *s, bool secure);
 bool armv7m_nvic_can_take_pending_exception(NVICState *s);
 
+/* Avatar2 Addition to enable interrupt injection
+ */
+#ifdef CONFIG_AVATAR
+bool armv7m_nvic_enable_all_irqs(void *opaque);
+#endif
+
+
 #endif
