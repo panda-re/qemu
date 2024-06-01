@@ -29,6 +29,9 @@ typedef struct {
 
 GHashTable *matches = NULL;
 
+struct qemu_plugin_register *pc_handle = NULL;
+GByteArray *pc_array = NULL;
+
 /* table of recent reads that contained a substring of a match */
 GHashTable *read_text_tracker = NULL;
 
@@ -59,84 +62,49 @@ static int u64_equality(gconstpointer left, gconstpointer right)
     return l == r;
 }
 
-static void mem_callback(uint64_t pc, uint64_t addr, size_t size, bool is_write,
-                  GHashTable *text_tracker)
-{
-    static char *big_buf = NULL;
-    static uint32_t big_buf_len = 0;
-    char buf[16] = { 0 };
+uint64_t get_pc() {
+    if (pc_handle == NULL) {
+        printf("Error: PC handle is NULL\n");
+        return (uint64_t)-1;
+    }
+    qemu_plugin_read_register(pc_handle, pc_array);
 
-    if (big_buf == NULL) {
-        big_buf = (char *) g_malloc0(big_buf_len);
-        big_buf_len = 128;
+    // Convert the byte array data to uint64_t
+    uint64_t int_pc;
+    memcpy(&int_pc, pc_array->data, sizeof(uint64_t));
+    return int_pc;
+}
+
+#define VERBOSE_MSG "%s Match of str \"%s\" at pc=0x%lx in buffer \"%s\"+%lx\n"
+static void mem_callback(uint64_t addr, size_t size, bool is_write) {
+    char buf[64] = { 0 };
+    if (size > 64) { 
+        return;
     }
 
-    uint64_t p = pc;
-    string_pos *sp = g_hash_table_lookup(text_tracker, (gconstpointer)p);
-    if(sp == NULL) {
-        sp = (string_pos*)g_malloc0(sizeof(string_pos));
-        g_hash_table_insert(text_tracker, (gpointer)p, (gpointer)sp);
-    }
-
-    assert (size < 16);
-
+    // The guest is reading data at/writing data from addr, copy it into buf.
     qemu_plugin_read_guest_virt_mem(addr, buf, size);
+    buf[size] = '\0';
 
-    for (size_t i = 0; i < size; i++) {
-        char val = ((char *)buf)[i];
-        for(size_t str_idx = 0; str_idx < num_strings; str_idx++) {
-            if (tofind[str_idx][sp->val[str_idx]] == val) {
-                sp->val[str_idx]++;
-            } else {
-                sp->val[str_idx] = 0;
-            }
+    for (size_t str_idx = 0; str_idx < num_strings; str_idx++) {
+        char *match = strstr(buf, tofind[str_idx]);
+        if (match != NULL) {
+            printf("MATCH\n");
+            /* Match!! */
+            uint64_t pc = get_pc();
+            qemu_plugin_run_callback(plugin_id, "on_string_found", &addr, NULL);
+            if (verbose) {
+                size_t match_offset = (char *)match - buf;
+                /* Log the discovery of a match */
+                size_t output_len = 1 + snprintf(NULL, 0, VERBOSE_MSG, is_write ? "WRITE" : "READ", tofind[str_idx], pc, buf, match_offset);
+                char *output = (char*)g_malloc0(output_len);
+                snprintf(output, output_len, VERBOSE_MSG, is_write ? "WRITE" : "READ", tofind[str_idx], pc, buf, match_offset);
+                qemu_plugin_outs(output);
 
-            if (sp->val[str_idx] == strlens[str_idx]) {
-                /* Victory! */
-                if (verbose) {
-                    /* Log the discovery of a match */
-                    size_t output_len = snprintf(NULL, 0, "%s Match of str %li at pc=0x%lx\n", is_write ? "WRITE" : "READ", str_idx, pc);
-                    char *output = (char*)g_malloc0(output_len + 1);
-
-                    snprintf(output, output_len, "%s Match of str %li at pc=0x%lx\n", is_write ? "WRITE" : "READ", str_idx, pc);
-                    qemu_plugin_outs(output);
-
-                    g_free((gpointer)output);
-                }
-
-                /* Keep track of what matches have been found and where */
-                match_strings *match = (match_strings*)g_hash_table_lookup(matches, (gconstpointer)p);
-                if(match == NULL) {
-                    match = g_malloc0(sizeof(match_strings));
-                    g_hash_table_insert(matches, (gpointer)p, match);
-                }
-                match->val[str_idx]++;
-                sp->val[str_idx] = 0;
-
-                /* Check if the full string is in memory. */
-                uint32_t sl = strlens[str_idx];
-
-                if (big_buf_len < sl) {
-                    big_buf_len = sl * 2;
-                    big_buf = (char *) g_realloc(big_buf, big_buf_len);
-                }
-
-                uint64_t match_addr = (addr + i) - (sl - 1);
-
-                /* Check if the entire string is currently present in memory */
-                qemu_plugin_read_guest_virt_mem(match_addr, big_buf, sl);
-
-                if (memcmp(big_buf, tofind[str_idx], sl) == 0) {
-                    /* Run the callback only if the entire string is present */
-                    qemu_plugin_run_callback(plugin_id, "on_string_found", &match_addr, NULL);
-                    qemu_plugin_outs("... its in memory\n");
-                } else {
-                    qemu_plugin_outs("... its not in memory\n");
-                }
+                g_free((gpointer)output);
             }
         }
     }
- 
     return;
 }
 
@@ -210,13 +178,7 @@ static void vcpu_mem(unsigned int cpu_index, qemu_plugin_meminfo_t info,
                      uint64_t vaddr, void *udata)
 {
     size_t sz = pow(2, qemu_plugin_mem_size_shift(info));
-    uint64_t pc = qemu_plugin_get_pc();
-
-    if (qemu_plugin_mem_is_store(info)) {
-        mem_callback(pc, vaddr, sz, /*is_write=*/true, read_text_tracker);
-    } else {
-        mem_callback(pc, vaddr, sz, /*is_write=*/false, write_text_tracker);
-    }
+    mem_callback(vaddr, sz, qemu_plugin_mem_is_store(info));
 }
 
 
@@ -235,12 +197,39 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
     }
 }
 
+static void vcpu_init(qemu_plugin_id_t id, unsigned int vcpu_index) {
+    // Find PC register
+    g_autoptr(GPtrArray) registers = g_ptr_array_new();
+    g_autoptr(GArray) reg_list = qemu_plugin_get_registers();
+
+    /* Find PC register?? */
+    for (int r = 0; r < reg_list->len; r++) {
+        qemu_plugin_reg_descriptor *rd = &g_array_index(reg_list, qemu_plugin_reg_descriptor, r);
+
+        // TODO: support other arches - can we get these from the API somewhere?
+        if (g_str_equal(rd->name, "rip")) {
+            pc_handle = rd->handle;
+        }
+    }
+    if (pc_handle == NULL) {
+        printf("Fatal: could not find program counter in CPU\n");
+        exit(0); // Should we unload ourself instead of exiting?
+    }
+
+    // Allocate the pc array
+    pc_array = g_byte_array_new();
+    g_byte_array_set_size(pc_array, sizeof(uint64_t)); // Allocate enough space for a 64-bit value
+
+}
+
+
 QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id,
                                            const qemu_info_t *info, int argc,
                                            char **argv)
 {
     plugin_id = id;
 
+    qemu_plugin_register_vcpu_init_cb(id, vcpu_init);
     qemu_plugin_register_vcpu_tb_trans_cb(id, vcpu_tb_trans);
     qemu_plugin_create_callback(id, "on_string_found");
 
