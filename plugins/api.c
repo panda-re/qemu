@@ -225,6 +225,24 @@ qemu_plugin_tb_get_insn(const struct qemu_plugin_tb *tb, size_t idx)
     return insn;
 }
 
+bool qemu_plugin_read_guest_virt_mem(uint64_t gva, char* buf, size_t length) {
+#ifdef CONFIG_USER_ONLY
+  return false;
+#else
+    // Convert virtual address to physical, then read it
+    CPUState *cpu = current_cpu;
+    uint64_t page = gva & TARGET_PAGE_MASK;
+    hwaddr gpa = cpu_get_phys_page_debug(cpu, page);
+    if (gpa == (hwaddr)-1) {
+        return false;
+    }
+
+    gpa += (gva & ~TARGET_PAGE_MASK);
+    cpu_physical_memory_rw(gpa, buf, length, false);
+    return true;
+#endif
+}
+
 /*
  * Instruction information
  *

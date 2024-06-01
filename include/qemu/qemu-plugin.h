@@ -504,6 +504,16 @@ QEMU_PLUGIN_API
 void *qemu_plugin_insn_haddr(const struct qemu_plugin_insn *insn);
 
 /**
+ * qemu_plugin_read_guest_virt_mem() - Read a buffer of guest memory
+ * @gva: Guest virtual address
+ * @buf: Buffer to copy guest memory into
+ * @length: Size of buf
+ *
+ * Returns: True if the memory was successfully copied into buf
+ */
+bool qemu_plugin_read_guest_virt_mem(uint64_t gva, char* buf, size_t length);
+
+/**
  * typedef qemu_plugin_meminfo_t - opaque memory transaction handle
  *
  * This can be further queried using the qemu_plugin_mem_* query
