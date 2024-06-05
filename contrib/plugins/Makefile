@@ -33,6 +33,7 @@ NAMES += stoptrigger
 NAMES += cflow
 NAMES += stringsearch
 NAMES += syscalls
+NAMES += syscalls_logger
 
 ifeq ($(CONFIG_WIN32),y)
 SO_SUFFIX := .dll
