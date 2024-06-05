@@ -32,6 +32,7 @@ NAMES += ips
 NAMES += stoptrigger
 NAMES += cflow
 NAMES += stringsearch
+NAMES += syscalls
 
 ifeq ($(CONFIG_WIN32),y)
 SO_SUFFIX := .dll
