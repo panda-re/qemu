@@ -1008,6 +1008,14 @@ bool qemu_plugin_read_memory_vaddr(uint64_t addr,
                                           GByteArray *data, size_t len);
 
 /**
+ * Translates guest virtual address to a guest physical address.
+ * @gva: Guest virtual address
+ *
+ * Returns: Guest physical address
+ */
+uint64_t qemu_plugin_virt_to_phys(uint64_t addr);
+
+/**
  * qemu_plugin_read_register() - read register for current vCPU
  *
  * @handle: a @qemu_plugin_reg_handle handle

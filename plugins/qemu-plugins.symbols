@@ -63,4 +63,5 @@
   qemu_plugin_uninstall;
   qemu_plugin_update_ns;
   qemu_plugin_vcpu_for_each;
+  qemu_plugin_virt_to_phys;
 };

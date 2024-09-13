@@ -719,6 +719,29 @@ bool qemu_plugin_read_memory_vaddr(vaddr addr, GByteArray *data, size_t len)
     return true;
 }
 
+
+uint64_t qemu_plugin_virt_to_phys(uint64_t addr) {
+#ifdef CONFIG_USER_ONLY
+  return false;
+#endif
+    CPUState *cpu = current_cpu;
+    target_ulong page;
+    hwaddr phys_addr;
+
+    g_assert(current_cpu);
+
+    page = addr & TARGET_PAGE_MASK;
+    phys_addr = cpu_get_phys_page_debug(cpu, page);
+
+    if (phys_addr == -1) {
+        // no physical page mapped
+        return -1;
+    }
+
+    phys_addr += (addr & ~TARGET_PAGE_MASK);
+    return phys_addr;
+}
+
 int qemu_plugin_read_register(struct qemu_plugin_register *reg, GByteArray *buf)
 {
     g_assert(current_cpu);
