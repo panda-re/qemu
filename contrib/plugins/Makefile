@@ -35,6 +35,9 @@ NAMES += stringsearch
 NAMES += syscalls
 NAMES += syscalls_logger
 
+# Replace '/' with '_' in plugin names
+NAMES_UNDERSCORE := $(subst /,_,$(NAMES))
+
 ifeq ($(CONFIG_WIN32),y)
 SO_SUFFIX := .dll
 LDLIBS += $(shell $(PKG_CONFIG) --libs glib-2.0)
@@ -42,7 +45,7 @@ else
 SO_SUFFIX := .so
 endif
 
-SONAMES := $(addsuffix $(SO_SUFFIX),$(addprefix lib,$(NAMES)))
+SONAMES := $(addsuffix $(SO_SUFFIX),$(addprefix lib,$(NAMES_UNDERSCORE)))
 
 # The main QEMU uses Glib extensively so it is perfectly fine to use it
 # in plugins (which many example do).
@@ -59,10 +62,20 @@ COMMA := ,
 
 all: $(SONAMES)
 
-%.o: %.c
+PLUGIN_OBJS := $(addsuffix .o,$(NAMES_UNDERSCORE))
+
+# Helper function to generate object file names from source file paths
+define obj_from_src
+$(subst /,_,$(basename $(1))).o
+endef
+
+# Helper function to build an object file from a source file
+define build_from_src
+$(call obj_from_src,$(1)): $(1)
 	$(call quiet-command, \
-		$(CC) $(CFLAGS) $(PLUGIN_CFLAGS) -c -o $@ $<, \
-	        BUILD, plugin $@)
+		$(CC) $(CFLAGS) $(PLUGIN_CFLAGS) -c -o $$@ $$<, \
+		BUILD, plugin $$@)
+endef
 
 ifeq ($(CONFIG_WIN32),y)
 lib%$(SO_SUFFIX): %.o win32_linker.o ../../plugins/libqemu_plugin_api.a
@@ -81,6 +94,17 @@ lib%$(SO_SUFFIX): %.o
 		LINK, plugin $@)
 endif
 
+# Pattern rule for compiling .c files
+%.o: %.c
+	$(call quiet-command, \
+		$(CC) $(CFLAGS) $(PLUGIN_CFLAGS) -c -o $@ $<, \
+		BUILD, plugin $@)
+
+# Pattern rule for compiling .cpp files
+%.o: %.cpp
+	$(call quiet-command, \
+		$(CXX) $(CXXFLAGS) $(PLUGIN_CFLAGS) -c -o $@ $<, \
+		BUILD, plugin $@)
 
 clean distclean:
 	rm -f *.o *$(SO_SUFFIX) *.d
