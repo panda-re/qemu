@@ -8,6 +8,8 @@
 QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
 QEMU_PLUGIN_EXPORT const char *qemu_plugin_name = "syscalls_logger";
 
+#include "vmi/vmi.h"
+
 typedef enum { CSV, TEXT } LogFormat;
 
 static FILE *log_file = NULL;
@@ -18,13 +20,25 @@ static void log_syscall(gpointer evdata, gpointer udata)
     SyscallDetails *details = (SyscallDetails*)evdata;
     g_autoptr(GString) report = g_string_new(NULL);
 
+    VmiProc *p = get_current_process_qpp();
     if (log_format == CSV) {
         g_string_append_printf(report, "%lx,%lx", details->pc, details->callno);
+        if (p != NULL) {
+            g_string_append_printf(report, "%s,%d,%d,%lx\n",
+            p->name, p->pid, p->ppid, p->asid);
+        } else {
+            // Just blank values for the CSV
+            g_string_append_printf(report, ",,,\n");
+        }
         for (int i = 0; i < SYSCALLS_MAX_ARGS; i++) {
             g_string_append_printf(report, ",%lx", details->args[i]);
         }
         g_string_append_c(report, '\n');
     } else {
+        if (p != NULL) {
+            g_string_append_printf(report, "Process ['%s', pid %d, ppid %d, asid %lx] ",
+            p->name, p->pid, p->ppid, p->asid);
+        }
         g_string_append_printf(report, "PC %lx: syscall %lx(", details->pc, details->callno);
         for (int i = 0; i < SYSCALLS_MAX_ARGS - 1; i++) {
             g_string_append_printf(report, "%lx, ", details->args[i]);
