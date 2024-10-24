@@ -15,6 +15,7 @@
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <gmodule.h>
 
 /*
  * For best performance, build the plugin with -fvisibility=hidden so that
@@ -41,6 +42,15 @@
  * typedef qemu_plugin_id_t - Unique plugin ID
  */
 typedef uint64_t qemu_plugin_id_t;
+
+/**
+ * typedef cb_func_t - callback function pointer type
+ * @evdata: plugin callback defined event data
+ * @udata: plugin defined user data
+ *
+ * No return value.
+ */
+typedef void (*cb_func_t) (gpointer evdata, gpointer udata);
 
 /*
  * Versioning plugins:
@@ -69,7 +79,7 @@ typedef uint64_t qemu_plugin_id_t;
 
 extern QEMU_PLUGIN_EXPORT int qemu_plugin_version;
 
-#define QEMU_PLUGIN_VERSION 4
+#define QEMU_PLUGIN_VERSION 5
 
 /**
  * struct qemu_info_t - system information for plugins
@@ -229,6 +239,17 @@ void qemu_plugin_register_vcpu_idle_cb(qemu_plugin_id_t id,
 QEMU_PLUGIN_API
 void qemu_plugin_register_vcpu_resume_cb(qemu_plugin_id_t id,
                                          qemu_plugin_vcpu_simple_cb_t cb);
+
+/**
+ * qemu_plugin_register_vcpu_loadvm_cb() - register a callback on loadvm
+ * @id: plugin ID
+ * @cb: callback function
+ *
+ * The @cb function is called every time a new virtual machine state is loaded
+ */
+void qemu_plugin_register_vcpu_loadvm_cb(qemu_plugin_id_t id,
+                                         qemu_plugin_vcpu_simple_cb_t cb);
+
 
 /** struct qemu_plugin_tb - Opaque handle for a translation block */
 struct qemu_plugin_tb;
@@ -484,6 +505,62 @@ size_t qemu_plugin_tb_n_insns(const struct qemu_plugin_tb *tb);
  */
 QEMU_PLUGIN_API
 uint64_t qemu_plugin_tb_vaddr(const struct qemu_plugin_tb *tb);
+
+/**
+ * qemu_plugin_import_function() - return pointer to a function in another
+ * plugin
+ * @plugin: plugin name
+ * @function: function name
+ *
+ * Returns: NULL on failure, function pointer on success
+ */
+gpointer qemu_plugin_import_function(const char *plugin, const char *function);
+
+/**
+ * qemu_plugin_create_callback() - create a new cb with given name
+ * @id: unique plugin id
+ * @name: name of cb
+ *
+ * Returns: true on success, false otherwise
+ */
+bool qemu_plugin_create_callback(qemu_plugin_id_t id, const char *name);
+
+/**
+ * qemu_plugin_run_callback() - run all functions registered to cb with given
+ * name using given args
+ * @id: unique plugin id
+ * @name: name of cb
+ * @evdata: pointer to evdata struct
+ * @udata: pointer to udata struct
+ *
+ * Returns: true if any registerd functions were run, false otherwise
+ */
+bool qemu_plugin_run_callback(qemu_plugin_id_t id, const char *name,
+                              gpointer evdata, gpointer udata);
+
+/**
+ * qemu_plugin_reg_callback() - register a function to be called on cb with
+ * given name
+ * @target_plugin: name of plugin that provides the callback
+ * @cb_name: name of the callback
+ * @function_pointer: pointer to function being registered
+ *
+ * Returns: true if function was registered successfully, false otherwise
+ */
+bool qemu_plugin_reg_callback(const char *target_plugin, const char *cb_name,
+                              cb_func_t function_pointer);
+
+/**
+ * qemu_plugin_unreg_callback() - unregister a function to be called on cb
+ * with given name
+ * @target_plugin: name of plugin that provides the callback
+ * @cb_name: name of the callback
+ * @function_pointer: pointer to function being unregistered
+ *
+ * Returns: true if function was unregistered successfully, false otherwise
+ */
+bool qemu_plugin_unreg_callback(const char *target_plugin, const char *cb_name,
+                                cb_func_t function_pointer);
 
 /**
  * qemu_plugin_tb_get_insn() - retrieve handle for instruction
@@ -929,6 +1006,14 @@ GArray *qemu_plugin_get_registers(void);
 QEMU_PLUGIN_API
 bool qemu_plugin_read_memory_vaddr(uint64_t addr,
                                           GByteArray *data, size_t len);
+
+/**
+ * Translates guest virtual address to a guest physical address.
+ * @gva: Guest virtual address
+ *
+ * Returns: Guest physical address
+ */
+uint64_t qemu_plugin_virt_to_phys(uint64_t addr);
 
 /**
  * qemu_plugin_read_register() - read register for current vCPU

@@ -146,7 +146,15 @@ ifeq ($(CONFIG_PLUGIN),y)
 PLUGIN_SRC=$(SRC_PATH)/tests/tcg/plugins
 PLUGIN_LIB=../plugins
 VPATH+=$(PLUGIN_LIB)
-PLUGINS=$(patsubst %.c, lib%.so, $(notdir $(wildcard $(PLUGIN_SRC)/*.c)))
+
+ALL_PLUGINS=$(patsubst %.c, lib%.so, $(notdir $(wildcard $(PLUGIN_SRC)/*.c)))
+
+# Exclude libqpp_srv.so and libqpp_client.so from SINGLE_PLUGINS
+SINGLE_PLUGINS=$(filter-out libqpp_srv.so libqpp_client.so, $(ALL_PLUGINS))
+
+# Set PLUGINS to ALL_PLUGINS so that all plugins are built
+PLUGINS=$(ALL_PLUGINS)
+
 
 # We need to ensure expand the run-plugin-TEST-with-PLUGIN
 # pre-requistes manually here as we can't use stems to handle it. We
@@ -155,9 +163,14 @@ PLUGINS=$(patsubst %.c, lib%.so, $(notdir $(wildcard $(PLUGIN_SRC)/*.c)))
 # add some special helpers the run-plugin- rules can use below.
 # In more, extra tests can be added using ADDITIONAL_PLUGINS_TESTS variable.
 
+# We also add a -with-qpp runner for all tests which tests inter-plugin
+# interactions. This is a special case where there isn't a one-to-one
+# mapping between tests and plugins.
+
 ifneq ($(MULTIARCH_TESTS),)
-$(foreach p,$(PLUGINS), \
-	$(foreach t,$(MULTIARCH_TESTS) $(ADDITIONAL_PLUGINS_TESTS),\
+$(foreach t,$(MULTIARCH_TESTS) $(ADDITIONAL_PLUGINS_TESTS),\
+	$(eval RUN_TESTS+=run-plugin-$(t)-with-qpp) \
+	$(foreach p,$(SINGLE_PLUGINS), \
 		$(eval run-plugin-$(t)-with-$(p): $t $p) \
 		$(eval RUN_TESTS+=run-plugin-$(t)-with-$(p))))
 endif # MULTIARCH_TESTS
@@ -167,6 +180,22 @@ strip-plugin = $(wordlist 1, 1, $(subst -with-, ,$1))
 extract-plugin = $(wordlist 2, 2, $(subst -with-, ,$1))
 
 RUN_TESTS+=$(EXTRA_RUNS)
+
+# The QPP test runs with two plugins, a client and server. It checks
+# that they can interact with the QPP protocol.
+run-plugin-%-with-qpp: CHECK_PLUGIN_OUTPUT_COMMAND = grep -q 'PASS'
+run-plugin-%-with-qpp: hello libqpp_srv.so libqpp_client.so
+	$(call run-test, $@, \
+	  $(QEMU) -monitor none -display none \
+	  -chardev file$(COMMA)path=$@.out$(COMMA)id=output \
+	  -plugin $(PLUGIN_LIB)/libqpp_srv.so \
+	  -plugin $(PLUGIN_LIB)/libqpp_client.so \
+	  -d plugin -D $*.pout \
+	  $(QEMU_OPTS) $<)
+    $(if $(CHECK_PLUGIN_OUTPUT_COMMAND), \
+        $(call quiet-command, $(CHECK_PLUGIN_OUTPUT_COMMAND) $*.pout, \
+            TEST, check plugin output with $<))
+
 
 # Some plugins need additional arguments above the default to fully
 # exercise things. We can define them on a per-test basis here.

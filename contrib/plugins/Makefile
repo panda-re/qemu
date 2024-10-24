@@ -31,6 +31,14 @@ NAMES += drcov
 NAMES += ips
 NAMES += stoptrigger
 NAMES += cflow
+NAMES += stringsearch
+NAMES += syscalls
+NAMES += syscalls_logger
+NAMES += vmi/core
+NAMES += vmi/linux
+
+# Replace '/' with '_' in plugin names
+NAMES_UNDERSCORE := $(subst /,_,$(NAMES))
 
 ifeq ($(CONFIG_WIN32),y)
 SO_SUFFIX := .dll
@@ -39,7 +47,7 @@ else
 SO_SUFFIX := .so
 endif
 
-SONAMES := $(addsuffix $(SO_SUFFIX),$(addprefix lib,$(NAMES)))
+SONAMES := $(addsuffix $(SO_SUFFIX),$(addprefix lib,$(NAMES_UNDERSCORE)))
 
 # The main QEMU uses Glib extensively so it is perfectly fine to use it
 # in plugins (which many example do).
@@ -56,11 +64,43 @@ COMMA := ,
 
 all: $(SONAMES)
 
-%.o: %.c
+PLUGIN_OBJS := $(addsuffix .o,$(NAMES_UNDERSCORE))
+
+# Helper function to generate object file names from source file paths
+define obj_from_src
+$(subst /,_,$(basename $(1))).o
+endef
+
+# Helper function to build an object file from a source file
+define build_from_src
+$(call obj_from_src,$(1)): $(1)
+	$(call quiet-command, \
+		$(CC) $(CFLAGS) $(PLUGIN_CFLAGS) -c -o $$@ $$<, \
+		BUILD, plugin $$@)
+endef
+
+# VMI core
+VPATH += vmi
+vmi_core.o: vmi/core.c
 	$(call quiet-command, \
 		$(CC) $(CFLAGS) $(PLUGIN_CFLAGS) -c -o $@ $<, \
-	        BUILD, plugin $@)
+		BUILD, plugin $@)
 
+# VMI Linux: Generate object files and build rules
+VPATH += vmi/linux
+VMI_LINUX_SRCS := \
+    vmi/linux/vmi_linux.cpp \
+    vmi/linux/default_profile.cpp \
+    vmi/linux/kernelinfo_read.c
+VMI_LINUX_OBJS := $(foreach src,$(VMI_LINUX_SRCS),$(call obj_from_src,$(src)))
+$(foreach src,$(VMI_LINUX_SRCS),$(eval $(call build_from_src,$(src))))
+
+libvmi_linux$(SO_SUFFIX): $(VMI_LINUX_OBJS)
+	$(call quiet-command, \
+		$(CC) -shared -o $@ $^ $(LDLIBS), \
+		LINK, plugin $@)
+
+# Generic rule for building plugins
 ifeq ($(CONFIG_WIN32),y)
 lib%$(SO_SUFFIX): %.o win32_linker.o ../../plugins/libqemu_plugin_api.a
 	$(call quiet-command, \
@@ -78,6 +118,17 @@ lib%$(SO_SUFFIX): %.o
 		LINK, plugin $@)
 endif
 
+# Pattern rule for compiling .c files
+%.o: %.c
+	$(call quiet-command, \
+		$(CC) $(CFLAGS) $(PLUGIN_CFLAGS) -c -o $@ $<, \
+		BUILD, plugin $@)
+
+# Pattern rule for compiling .cpp files
+%.o: %.cpp
+	$(call quiet-command, \
+		$(CXX) $(CXXFLAGS) $(PLUGIN_CFLAGS) -c -o $@ $<, \
+		BUILD, plugin $@)
 
 clean distclean:
 	rm -f *.o *$(SO_SUFFIX) *.d

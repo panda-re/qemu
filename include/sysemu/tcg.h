@@ -10,11 +10,14 @@
 #ifndef SYSEMU_TCG_H
 #define SYSEMU_TCG_H
 
+
 #ifdef CONFIG_TCG
 extern bool tcg_allowed;
 #define tcg_enabled() (tcg_allowed)
+void tcg_exec_post_load(CPUState *cpu);
 #else
 #define tcg_enabled() 0
+static void tcg_exec_post_load(CPUState *cpu) { }
 #endif
 
 #endif
