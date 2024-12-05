@@ -12,6 +12,7 @@ contrib_plugins = [
 'stoptrigger.c',
 'traps.c',
 'uftrace.c',
+'panda_plugin_interface.c',
 ]
 
 if host_os != 'windows'
