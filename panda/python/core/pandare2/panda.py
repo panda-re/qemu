@@ -108,6 +108,7 @@ class Panda():
         self.qlog = QEMU_Log_Manager(self)
         self.build_dir = None
         self.plugin_path = plugin_path
+        self.target = "softmmu"
 
         self.serial_unconsumed_data = b''
 
