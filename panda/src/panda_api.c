@@ -5,7 +5,7 @@
 #include "panda/plugin.h"
 #include "panda/panda_api.h"
 #include "panda/common.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 
 // for map_memory
 #include "exec/address-spaces.h"
@@ -15,12 +15,16 @@
 
 // for panda_{set/get}_library_mode
 #include "qemu/osdep.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/runstate.h"
+#include "system/system.h"
+#include "system/runstate.h"
+#include "panda/callbacks/cb-support.h"
+#include "panda/wrap_ops.h"
 
 // call main_aux and run everything up to and including panda_callbacks_after_machine_init
 int panda_init(int argc, char **argv, char **envp) {
     qemu_init(argc, argv);
+    wrap_cpu_ops();
+    panda_callbacks_after_machine_init(first_cpu);
     return 0;
 }
 
@@ -90,15 +94,22 @@ void panda_stop(int code) {
 //   return panda_aborted;
 // }
 
-// extern const char *qemu_file;
+extern const char *qemu_file;
 
-// void panda_set_qemu_path(char* filepath) {
-//     // *copy* filepath into a new buffer, also free & update qemu_file
-//     if (qemu_file != NULL)
-//       free((void*)qemu_file);
+void panda_set_qemu_path(char* filepath) {
+    // *copy* filepath into a new buffer, also free & update qemu_file
+    if (qemu_file != NULL)
+      free((void*)qemu_file);
 
-//     qemu_file=strdup(filepath);
-// }
+    qemu_file=strdup(filepath);
+}
+
+extern const char *extra_plugin_path;
+
+void panda_set_extra_plugin_path(char* filepath) {
+    printf("set plugin path %s\n", filepath);
+    extra_plugin_path = strdup(filepath);
+}
 
 int panda_init_plugin(char *plugin_name, char **plugin_args, uint32_t num_args) {
     for (uint32_t i=0; i<num_args; i++)
@@ -246,3 +257,7 @@ unsigned long garray_len(GArray *list) {
 // void _panda_set_library_mode(const bool b) {
 //   panda_set_library_mode(b);
 // }
+
+CPUArchState * panda_cpu_env(CPUState *cpu){
+    return cpu_env(cpu);
+}

@@ -541,6 +541,16 @@ QEMU_PLUGIN_API
 size_t qemu_plugin_tb_n_insns(const struct qemu_plugin_tb *tb);
 
 /**
+ * qemu_plugin_tb_size() - query helper for size of TB
+ * @tb: opaque handle to TB passed to callback
+ * 
+ * Returns: size of block in bytes
+ */
+
+QEMU_PLUGIN_API
+size_t qemu_plugin_tb_size(const struct qemu_plugin_tb *tb);
+
+/**
  * qemu_plugin_tb_vaddr() - query helper for vaddr of TB start
  * @tb: opaque handle to TB passed to callback
  *
@@ -563,6 +573,17 @@ uint64_t qemu_plugin_tb_vaddr(const struct qemu_plugin_tb *tb);
 QEMU_PLUGIN_API
 struct qemu_plugin_insn *
 qemu_plugin_tb_get_insn(const struct qemu_plugin_tb *tb, size_t idx);
+
+/**
+ * qemu_plugin_tb_get_insn_by_vaddr() - lookup handle for instruction by vaddr
+ * @tb: opaque handle to TB passed to callback
+ * @vaddr: virtual address of instruction
+ *
+ * Returns: opaque handle to instruction
+ */
+QEMU_PLUGIN_API
+struct qemu_plugin_insn *
+qemu_plugin_tb_get_insn_by_vaddr(const struct qemu_plugin_tb *tb, uint64_t vaddr);
 
 /**
  * qemu_plugin_insn_data() - copy instruction data
