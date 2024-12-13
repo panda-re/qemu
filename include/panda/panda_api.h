@@ -444,6 +444,7 @@ CPUState* get_cpu(void);
 
 
 unsigned long garray_len(GArray *list);
+CPUArchState *panda_cpu_env(CPUState *cpu);
 
 /**
  * panda_cleanup_record() - End recording.
