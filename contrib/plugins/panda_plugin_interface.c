@@ -100,6 +100,7 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
     struct qemu_plugin_insn *last_instr;
     size_t n_insns;
     struct qemu_plugin_insn *insn;
+    CPUState *cpu = panda_cpu_in_translate();
 
     uint64_t pc = qemu_plugin_tb_vaddr(tb);
     // printf("tb_trans %" PRIu64 "\n", pc);
@@ -107,7 +108,7 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
     n_insns = qemu_plugin_tb_n_insns(tb);
     for (size_t i=0; i<n_insns; i++){
         insn = qemu_plugin_tb_get_insn(tb, i);
-        if (unlikely(panda_callbacks_insn_translate(panda_cpu_in_translate(), pc))){
+        if (unlikely(panda_callbacks_insn_translate(cpu, pc))){
             qemu_plugin_register_vcpu_insn_exec_cb(insn, insn_exec, QEMU_PLUGIN_CB_NO_REGS, (void*)qemu_plugin_insn_vaddr(insn));
         }
 #ifdef TODO_LATER
@@ -130,7 +131,8 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
     last_instr = qemu_plugin_tb_get_insn(tb, n_insns - 1);
     qemu_plugin_register_vcpu_insn_exec_cb(last_instr, end_block_exec_cb,
                                 QEMU_PLUGIN_CB_NO_REGS, (void *)real_tb);
-    
+
+    panda_callbacks_after_block_translate(cpu, real_tb);
 }
 
 static void vcpu_init(qemu_plugin_id_t id, unsigned int vcpu_index)
