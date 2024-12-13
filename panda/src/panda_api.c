@@ -246,3 +246,7 @@ unsigned long garray_len(GArray *list) {
 // void _panda_set_library_mode(const bool b) {
 //   panda_set_library_mode(b);
 // }
+
+CPUArchState * panda_cpu_env(CPUState *cpu){
+    return cpu_env(cpu);
+}
