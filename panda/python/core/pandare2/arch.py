@@ -68,6 +68,12 @@ class PandaArch():
         assert (endianness is not None), f"Missing endianness logic for {self.panda.arch_name}"
         register_size = int(bits/8)
         return bits, endianness, register_size
+    
+    def cpu_env(self, cpu):
+        '''
+        Return the CPUState object for the given CPU
+        '''
+        return self.panda.cpu_env(cpu)
 
     def get_reg(self, cpu, reg):
         '''
@@ -339,13 +345,13 @@ class ArmArch(PandaArch):
         '''
         Return an arm register
         '''
-        return cpu.env_ptr.regs[reg]
+        return self.cpu_env(cpu).regs[reg]
 
     def _set_reg_val(self, cpu, reg, val):
         '''
         Set an arm register
         '''
-        cpu.env_ptr.regs[reg] = val
+        self.cpu_env(cpu).regs[reg] = val
 
     def get_return_value(self, cpu):
         '''
@@ -398,7 +404,7 @@ class Aarch64Arch(PandaArch):
                     cpu = args[0]
                     if "_cffi_backend" in str(type(cpu)):
                         # check if we're in arm32 mode
-                        if cpu.env_ptr.aarch64 == 0:
+                        if self.panda.cpu_env(cpu).aarch64 == 0:
                             func = getattr(self.arm32, name)
                             return func(*args, **kwargs)
                 return f(*args, **kwargs)
@@ -413,13 +419,13 @@ class Aarch64Arch(PandaArch):
         Overloaded function to get aarch64 program counter.
         Note the PC is not stored in a general purpose register.
         '''
-        return cpu.env_ptr.pc
+        return self.cpu_env(cpu).pc
 
     def set_pc(self, cpu, val):
         '''
         Overloaded function set AArch64 program counter
         '''
-        cpu.env_ptr.pc = val
+        self.cpu_env(cpu).pc = val
 
     def _get_reg_val(self, cpu, reg):
         '''
@@ -430,13 +436,13 @@ class Aarch64Arch(PandaArch):
             print("WARNING: unsupported get sp for aarch64")
             return 0
         else:
-            return cpu.env_ptr.xregs[reg]
+            return self.cpu_env(cpu).xregs[reg]
 
     def _set_reg_val(self, cpu, reg, val):
         '''
         Set an aarch64 register
         '''
-        cpu.env_ptr.xregs[reg] = val
+        self.cpu_env(cpu).xregs[reg] = val
 
     def get_return_value(self, cpu):
         '''
@@ -502,7 +508,7 @@ class MipsArch(PandaArch):
         '''
 
         if isinstance(reg, str):
-            env = cpu.env_ptr
+            env = self.cpu_env(cpu)
             reg = reg.upper()
             if reg == 'HI':
                 return env.CP0_EntryHi
@@ -526,13 +532,13 @@ class MipsArch(PandaArch):
         '''
         Overloaded function to return the MIPS current program counter
         '''
-        return cpu.env_ptr.active_tc.PC
+        return self.cpu_env(cpu).active_tc.PC
 
     def set_pc(self, cpu, val):
         '''
         Overloaded function set the MIPS program counter
         '''
-        cpu.env_ptr.active_tc.PC = val
+        self.cpu_env(cpu).active_tc.PC = val
 
     def get_retval(self, cpu, convention='default'):
         '''
@@ -554,13 +560,13 @@ class MipsArch(PandaArch):
         '''
         Return a mips register
         '''
-        return cpu.env_ptr.active_tc.gpr[reg]
+        return self.cpu_env(cpu).active_tc.gpr[reg]
 
     def _set_reg_val(self, cpu, reg, val):
         '''
         Set a mips register
         '''
-        cpu.env_ptr.active_tc.gpr[reg] = val
+        self.cpu_env(cpu).active_tc.gpr[reg] = val
 
     def get_return_value(self, cpu, convention='default'):
         '''
@@ -647,30 +653,30 @@ class PowerPCArch(PandaArch):
         '''
         Overloaded function to return the ppc current program counter
         '''
-        return cpu.env_ptr.nip
+        return self.cpu_env(cpu).nip
 
     def set_pc(self, cpu, val):
         '''
         Overloaded function to set the ppc program counter
         '''
-        cpu.env_ptr.nip = val
+        self.cpu_env(cpu).nip = val
 
     def _get_reg_val(self, cpu, reg):
         '''
         Return a ppc register
         '''
-        return cpu.env_ptr.gpr[reg]
+        return self.cpu_env(cpu).gpr[reg]
 
     def _set_reg_val(self, cpu, reg, val):
         '''
         Set an x86_64 register
         '''
-        cpu.env_ptr.gpr[reg] = val
+        self.cpu_env(cpu).gpr[reg] = val
 
     def get_reg(self, cpu, reg):
 
         reg = reg.upper()
-        env = cpu.env_ptr
+        env = self.cpu_env(cpu)
         if reg == "LR":
             return env.lr
         elif reg == "CTR": 
@@ -683,7 +689,7 @@ class PowerPCArch(PandaArch):
 
     def set_reg(self, cpu, reg, val):
         reg = reg.upper()
-        env = cpu.env_ptr
+        env = self.cpu_env(cpu)
 
         if reg == "LR": 
             env.lr = val
@@ -748,7 +754,7 @@ class X86_64Arch(PandaArch):
         '''
         Overloaded function to return the x86_64 current program counter
         '''
-        return cpu.env_ptr.eip
+        return self.cpu_env(cpu).eip
 
     def get_retval(self, cpu, convention='default'):
         '''
@@ -760,7 +766,7 @@ class X86_64Arch(PandaArch):
 
         error_flip = False
         if convention == 'syscall' and self.panda.get_os_family() == 'OS_FREEBSD' and \
-                self.panda.libpanda.cpu_cc_compute_all(cpu.env_ptr, 1) & 1 == 1:
+                self.panda.libpanda.cpu_cc_compute_all(self.cpu_env(cpu), 1) & 1 == 1:
             error_flip = True
 
         return super().get_retval(cpu, convention) * (-1 if error_flip else 1)
@@ -769,17 +775,17 @@ class X86_64Arch(PandaArch):
         '''
         Overloaded function to set the x86_64 program counter
         '''
-        cpu.env_ptr.eip = val
+        self.cpu_env(cpu).eip = val
 
     def _get_mmr_val(self, cpu, reg): 
         reg = reg.lower()
-        sc = getattr(cpu.env_ptr, reg) 
+        sc = getattr(self.cpu_env(cpu), reg) 
         return (sc.selector, sc.base, sc.limit, sc.flags)
 
     def _set_mmr_val(self, cpu, reg, val): 
         reg = reg.lower()
         selector, base, limit, flags = val 
-        sc = getattr(cpu.env_ptr, reg)
+        sc = getattr(self.cpu_env(cpu), reg)
         sc.selector = selector
         sc.base = base
         sc.limit = limit
@@ -789,13 +795,13 @@ class X86_64Arch(PandaArch):
         '''
         Return an x86_64 register
         '''
-        return cpu.env_ptr.regs[reg]
+        return self.cpu_env(cpu).regs[reg]
 
     def _set_reg_val(self, cpu, reg, val):
         '''
         Set an x86_64 register
         '''
-        cpu.env_ptr.regs[reg] = val
+        self.cpu_env(cpu).regs[reg] = val
 
     def get_return_value(self, cpu):
         '''
@@ -821,7 +827,7 @@ class X86_64Arch(PandaArch):
             return self._get_reg_val(cpu, reg)
 
         reg = reg.upper()
-        env = cpu.env_ptr
+        env = self.cpu_env(cpu)
         if reg in self.reg_names_mmr: 
             return self._get_mmr_val(cpu, reg)
         if reg in self.seg_names:
@@ -878,7 +884,7 @@ class X86_64Arch(PandaArch):
 
     def set_reg(self, cpu, reg, val):
         reg = reg.upper()
-        env = cpu.env_ptr
+        env = self.cpu_env(cpu)
 
         if reg in self.reg_names_mmr: 
             return self._set_mmr_val(cpu, reg, val)
