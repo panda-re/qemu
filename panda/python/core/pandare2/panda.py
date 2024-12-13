@@ -1435,6 +1435,9 @@ class Panda():
             int: Current instruction count
         '''
         return self.libpanda.rr_get_guest_instr_count_external()
+    
+    def cpu_env(self, cpu):
+        return self.libpanda.panda_cpu_env(cpu)
 
     ################### LIBQEMU Functions ############
     #Methods that directly pass data to/from QEMU with no extra logic beyond argument reformatting.
