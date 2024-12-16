@@ -2702,6 +2702,7 @@ static void gen_cond_move(DisasContext *ctx, uint32_t opc,
 
     if (rd == 0) {
         /* If no destination, treat it as a NOP. */
+        gen_helper_panda_guest_hypercall(tcg_env);
         return;
     }
 
@@ -13294,6 +13295,7 @@ static void decode_opc_special(CPUMIPSState *env, DisasContext *ctx)
 #endif
         break;
     case OPC_SYSCALL:
+        gen_helper_panda_syscall(tcg_env, cpu_PC);
         generate_exception_end(ctx, EXCP_SYSCALL);
         break;
     case OPC_BREAK:

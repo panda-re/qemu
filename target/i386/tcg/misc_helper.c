@@ -23,6 +23,7 @@
 #include "exec/helper-proto.h"
 #include "exec/exec-all.h"
 #include "helper-tcg.h"
+#include "panda/callbacks/cb-helper-impl.h"
 
 /*
  * NOTE: the translator must set DisasContext.cc_op to CC_OP_EFLAGS
@@ -52,6 +53,10 @@ void helper_cpuid(CPUX86State *env)
     uint32_t eax, ebx, ecx, edx;
 
     cpu_svm_check_intercept_param(env, SVM_EXIT_CPUID, 0, GETPC());
+    if (panda_callbacks_guest_hypercall(env_cpu(env))) {
+        // cpuid processed by one of the callbacks
+        return;
+    }
 
     cpu_x86_cpuid(env, (uint32_t)env->regs[R_EAX], (uint32_t)env->regs[R_ECX],
                   &eax, &ebx, &ecx, &edx);
