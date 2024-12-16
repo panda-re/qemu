@@ -13295,7 +13295,6 @@ static void decode_opc_special(CPUMIPSState *env, DisasContext *ctx)
 #endif
         break;
     case OPC_SYSCALL:
-        gen_helper_panda_syscall(tcg_env, cpu_PC);
         generate_exception_end(ctx, EXCP_SYSCALL);
         break;
     case OPC_BREAK:
