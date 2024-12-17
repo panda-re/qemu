@@ -25,6 +25,7 @@
 #include "exec/exec-all.h"
 #include "exec/memop.h"
 #include "fpu_helper.h"
+#include "panda/callbacks/cb-helper-impl.h"
 
 static inline target_ulong bitswap(target_ulong v)
 {

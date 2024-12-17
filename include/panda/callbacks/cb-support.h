@@ -53,7 +53,7 @@ exit 0
  ***************************************************************************/
 #include <stdbool.h>
 #include "panda/types.h"
-#ifndef EXEC_ALL_H
+#ifndef EXEC_TRANSLATION_BLOCK_H
 // If this file is included from a file that doesn't define TranslationBlock (e.g., memory.c), we still need to be valid
 typedef struct {} TranslationBlock;
 #endif

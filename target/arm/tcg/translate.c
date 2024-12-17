@@ -27,6 +27,7 @@
 #include "semihosting/semihost.h"
 #include "cpregs.h"
 #include "exec/helper-proto.h"
+#include "panda/callbacks/cb-support.h"
 
 #define HELPER_H "helper.h"
 #include "exec/helper-info.c.inc"
@@ -2968,6 +2969,9 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
         }
         break;
     default:
+        if (cpnum == 7 && !isread){
+            gen_helper_panda_guest_hypercall(tcg_env);
+        }
         /*
          * ARMv8 defines that only coprocessors 14 and 15 exist,
          * so this can only happen if this is an ARMv7 or earlier CPU,
