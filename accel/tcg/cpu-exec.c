@@ -45,7 +45,8 @@
 #include "tb-context.h"
 #include "tb-internal.h"
 #include "internal-common.h"
-
+#include "panda/callbacks/cb-support.h"
+#include "panda/common.h"
 /* -icount align implementation. */
 
 typedef struct SyncClocks {
@@ -433,6 +434,8 @@ cpu_tb_exec(CPUState *cpu, TranslationBlock *itb, int *tb_exit)
     if (qemu_loglevel_mask(CPU_LOG_TB_CPU | CPU_LOG_EXEC)) {
         log_cpu_exec(log_pc(cpu, itb), cpu, itb);
     }
+    
+    panda_callbacks_before_block_exec(cpu, itb);
 
     qemu_thread_jit_execute();
     ret = tcg_qemu_tb_exec(cpu_env(cpu), tb_ptr);
@@ -449,6 +452,7 @@ cpu_tb_exec(CPUState *cpu, TranslationBlock *itb, int *tb_exit)
     last_tb = tcg_splitwx_to_rw((void *)(ret & ~TB_EXIT_MASK));
     *tb_exit = ret & TB_EXIT_MASK;
 
+    panda_callbacks_after_block_exec(cpu, itb, *tb_exit);
     trace_exec_tb_exit(last_tb, *tb_exit);
 
     if (*tb_exit > TB_EXIT_IDX1) {
@@ -573,7 +577,9 @@ void cpu_exec_step_atomic(CPUState *cpu)
         tb = tb_lookup(cpu, s);
         if (tb == NULL) {
             mmap_lock();
+            panda_callbacks_before_block_translate(cpu, s.pc);
             tb = tb_gen_code(cpu, s);
+            panda_callbacks_after_block_translate(cpu, tb);
             mmap_unlock();
         }
 
@@ -705,6 +711,13 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
         }
         cpu->exception_index = -1;
         return true;
+    }
+    int32_t exception = cpu->exception_index;
+
+    cpu->exception_index = panda_callbacks_before_handle_exception(cpu, cpu->exception_index);
+
+    if (exception != cpu->exception_index){
+        return cpu_handle_exception(cpu, ret);
     }
 
 #if defined(CONFIG_USER_ONLY)
@@ -950,7 +963,9 @@ cpu_exec_loop(CPUState *cpu, SyncClocks *sc)
                 uint32_t h;
 
                 mmap_lock();
+                panda_callbacks_before_block_translate(cpu, s.pc);
                 tb = tb_gen_code(cpu, s);
+                panda_callbacks_after_block_translate(cpu, tb);
                 mmap_unlock();
 
                 /*
@@ -1023,7 +1038,6 @@ int cpu_exec(CPUState *cpu)
     init_delay_params(&sc, cpu);
 
     ret = cpu_exec_setjmp(cpu, &sc);
-
     cpu_exec_exit(cpu);
     return ret;
 }
