@@ -132,7 +132,7 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
     qemu_plugin_register_vcpu_insn_exec_cb(last_instr, end_block_exec_cb,
                                 QEMU_PLUGIN_CB_NO_REGS, (void *)real_tb);
 
-    panda_callbacks_after_block_translate(cpu, real_tb);
+    panda_callbacks_block_translate(cpu, real_tb);
 }
 
 static void vcpu_init(qemu_plugin_id_t id, unsigned int vcpu_index)

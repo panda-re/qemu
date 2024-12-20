@@ -28,6 +28,7 @@ extern "C" {
 typedef enum panda_cb_type {
     PANDA_CB_BEFORE_BLOCK_TRANSLATE,    // Before translating each basic block
     PANDA_CB_AFTER_BLOCK_TRANSLATE,     // After translating each basic block
+    PANDA_CB_BLOCK_TRANSLATE,           // While translating each basic block
     PANDA_CB_BEFORE_BLOCK_EXEC_INVALIDATE_OPT, // Before executing each basic
                                                // block (with option to
                                                // invalidate, may trigger
@@ -212,6 +213,25 @@ typedef union panda_cb {
         has already been generated. Modify the IR and then regenerate?
     */
     void (*after_block_translate)(CPUState *env, TranslationBlock *tb);
+        
+   /* Callback ID: PANDA_CB_BLOCK_TRANSLATE
+
+       block_translate:
+        Called while the translation block is being translated
+
+       Arguments:
+        CPUState *env:        the current CPU state
+        TranslationBlock *tb: the TB we just translated
+
+       Helper call location: panda_plugin_interface.c
+
+       Return value:
+        none
+
+       Notes:
+        This is a good place to add instrumentation
+    */
+    void (*block_translate)(CPUState *env, TranslationBlock *tb);
 
     /* Callback ID: PANDA_CB_AFTER_CPU_EXEC_ENTER
 
@@ -1181,6 +1201,25 @@ typedef union panda_cb_with_context {
         has already been generated. Modify the IR and then regenerate?
     */
     void (*after_block_translate)(void* context, CPUState *env, TranslationBlock *tb);
+    
+    /* Callback ID: PANDA_CB_BLOCK_TRANSLATE
+
+       block_translate:
+        Called while the translation block is being translated
+
+       Arguments:
+        CPUState *env:        the current CPU state
+        TranslationBlock *tb: the TB we just translated
+
+       Helper call location: panda_plugin_interface.c
+
+       Return value:
+        none
+
+       Notes:
+        This is a good place to add instrumentation
+    */
+    void (*block_translate)(void* context, CPUState *env, TranslationBlock *tb);
 
     /* Callback ID: PANDA_CB_AFTER_CPU_EXEC_ENTER
 
