@@ -57,6 +57,9 @@ MAKE_CALLBACK(void, AFTER_BLOCK_EXEC, after_block_exec,
 MAKE_CALLBACK(void, BEFORE_BLOCK_TRANSLATE, before_block_translate,
                     CPUState*, cpu, uint64_t, pc);
 
+MAKE_CALLBACK(void, BLOCK_TRANSLATE, block_translate,
+                    CPUState*, cpu, TranslationBlock*, tb);
+
 MAKE_CALLBACK(void, AFTER_BLOCK_TRANSLATE, after_block_translate,
                     CPUState*, cpu, TranslationBlock*, tb);
 
