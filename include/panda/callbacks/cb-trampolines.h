@@ -29,6 +29,7 @@ void panda_cb_trampoline_after_loadvm(void* context, CPUState *env);
 void panda_cb_trampoline_before_block_exec(void* context, CPUState *env, TranslationBlock *tb);
 void panda_cb_trampoline_after_block_exec(void* context, CPUState *env, TranslationBlock *tb, uint8_t exitCode);
 void panda_cb_trampoline_before_block_translate(void* context, CPUState *env, uint64_t pc);
+void panda_cb_trampoline_block_translate(void* context, CPUState *env, TranslationBlock *tb);
 void panda_cb_trampoline_after_block_translate(void* context, CPUState *env, TranslationBlock *tb);
 void panda_cb_trampoline_after_cpu_exec_enter(void* context, CPUState *env);
 void panda_cb_trampoline_before_cpu_exec_exit(void* context, CPUState *env, bool ranBlock);
