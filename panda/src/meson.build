@@ -4,6 +4,7 @@ specific_ss.add(
         'callbacks.c',
         'cb-support.c',
         'panda_api.c',
-        'panda_qemu_plugin_helpers.c'
+        'panda_qemu_plugin_helpers.c',
+        'wrap_ops.c',
     )
 )
