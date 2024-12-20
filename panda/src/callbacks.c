@@ -510,6 +510,7 @@ panda_cb_with_context panda_get_cb_trampoline(panda_cb_type type) {
     switch (type) {
         CASE_CB_TRAMPOLINE(BEFORE_BLOCK_TRANSLATE,before_block_translate)
         CASE_CB_TRAMPOLINE(AFTER_BLOCK_TRANSLATE,after_block_translate)
+        CASE_CB_TRAMPOLINE(BLOCK_TRANSLATE,block_translate)
         CASE_CB_TRAMPOLINE(BEFORE_BLOCK_EXEC_INVALIDATE_OPT,before_block_exec_invalidate_opt)
         CASE_CB_TRAMPOLINE(BEFORE_TCG_CODEGEN,before_tcg_codegen)
         CASE_CB_TRAMPOLINE(BEFORE_BLOCK_EXEC,before_block_exec)
