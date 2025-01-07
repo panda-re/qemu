@@ -69,10 +69,7 @@
 #define typeof_field(type, field) typeof(((type *)0)->field)
 #define type_check(t1,t2) ((t1*)0 - (t2*)0)
 
-#define QEMU_BUILD_BUG_ON_STRUCT(x) \
-    struct { \
-        int:(x) ? -1 : 1; \
-    }
+#define QEMU_BUILD_BUG_ON_STRUCT(x) char[(x) ? -1 : 1]
 
 #define QEMU_BUILD_BUG_MSG(x, msg) _Static_assert(!(x), msg)
 

@@ -1770,7 +1770,7 @@ typedef struct CPUArchState {
     uint64_t efer;
 
     /* Beginning of state preserved by INIT (dummy marker).  */
-    struct {} start_init_save;
+    uint8_t start_init_save[0];
 
     /* FPU state */
     unsigned int fpstt; /* top of stack index */
@@ -1860,7 +1860,7 @@ typedef struct CPUArchState {
     uint64_t virt_ssbd;
 
     /* End of state preserved by INIT (dummy marker).  */
-    struct {} end_init_save;
+    uint8_t end_init_save[0];
 
     uint64_t system_time_msr;
     uint64_t wall_clock_msr;
@@ -1949,7 +1949,7 @@ typedef struct CPUArchState {
     uint64_t msr_pkg_energy_status;
 
     /* Fields up to this point are cleared by a CPU reset */
-    struct {} end_reset_fields;
+    uint8_t end_reset_fields[0];
 
     /* Fields after this point are preserved across CPU reset. */
 
@@ -2054,6 +2054,10 @@ typedef struct CPUArchState {
     /* Bitmap of available CPU topology levels for this CPU. */
     DECLARE_BITMAP(avail_cpu_topo, CPU_TOPOLOGY_LEVEL__MAX);
 } CPUX86State;
+
+_Static_assert(offsetof(CPUX86State, start_init_save)  == offsetof(CPUX86State, fpstt),             "start_init_save has non-zero size");
+_Static_assert(offsetof(CPUX86State, end_init_save)    == offsetof(CPUX86State, system_time_msr),   "end_init_save has non-zero size");
+_Static_assert(offsetof(CPUX86State, end_reset_fields) == offsetof(CPUX86State, cpuid_level_func7), "end_reset_fields has non-zero size");
 
 struct kvm_msrs;
 
