@@ -1,6 +1,8 @@
 plugin_list = run_command('cat', 'config.panda').stdout().strip().split('\n')
 add_languages('cpp', required: true)
 
+# build = meson.project_build_root()
+# root = meson.project_source_root()
 build = '../../build'
 root = '../../'
 
@@ -15,7 +17,12 @@ foreach plugin: plugin_list
         '-DCOMPILING_PER_TARGET',
     ]
         # join_paths(root, 'gdbstub'),
-    includes = [
+    includes = [ ]
+    if fs.is_dir(join_paths(root, 'host/include/', host_arch))
+        includes += [ include_directories(join_paths(root, 'host/include/', host_arch)) ]
+    endif
+    includes += [ include_directories(join_paths(root, 'host/include/', 'generic')) ]
+    includes += [
         include_directories(root),
         include_directories('.'),
         include_directories(join_paths(root, 'include')),
