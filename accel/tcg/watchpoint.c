@@ -45,10 +45,10 @@ static inline bool watchpoint_address_matches(CPUWatchpoint *wp,
      * exactly at the top of the address space and so addr + len
      * wraps round to zero.
      */
-    vaddr wpend = wp->vaddr + wp->len - 1;
+    vaddr wpend = wp->vaddr_ + wp->len - 1;
     vaddr addrend = addr + len - 1;
 
-    return !(addr > wpend || wp->vaddr > addrend);
+    return !(addr > wpend || wp->vaddr_ > addrend);
 }
 
 /* Return flags for watchpoints that match addr + prot.  */
@@ -115,7 +115,7 @@ void cpu_check_watchpoint(CPUState *cpu, vaddr addr, vaddr len,
             }
 
             wp->flags |= hit_flags << BP_HIT_SHIFT;
-            wp->hitaddr = MAX(addr, wp->vaddr);
+            wp->hitaddr = MAX(addr, wp->vaddr_);
             wp->hitattrs = attrs;
 
             if (wp->flags & BP_CPU

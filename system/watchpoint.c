@@ -37,7 +37,7 @@ int cpu_watchpoint_insert(CPUState *cpu, vaddr addr, vaddr len,
     }
     wp = g_malloc(sizeof(*wp));
 
-    wp->vaddr = addr;
+    wp->vaddr_ = addr;
     wp->len = len;
     wp->flags = flags;
 
@@ -68,7 +68,7 @@ int cpu_watchpoint_remove(CPUState *cpu, vaddr addr, vaddr len,
     CPUWatchpoint *wp;
 
     QTAILQ_FOREACH(wp, &cpu->watchpoints, entry) {
-        if (addr == wp->vaddr && len == wp->len
+        if (addr == wp->vaddr_ && len == wp->len
                 && flags == (wp->flags & ~BP_WATCHPOINT_HIT)) {
             cpu_watchpoint_remove_by_ref(cpu, wp);
             return 0;
@@ -82,7 +82,7 @@ void cpu_watchpoint_remove_by_ref(CPUState *cpu, CPUWatchpoint *watchpoint)
 {
     QTAILQ_REMOVE(&cpu->watchpoints, watchpoint, entry);
 
-    tlb_flush_page(cpu, watchpoint->vaddr);
+    tlb_flush_page(cpu, watchpoint->vaddr_);
 
     g_free(watchpoint);
 }
