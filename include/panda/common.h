@@ -174,7 +174,7 @@ static inline hwaddr panda_virt_to_phys(CPUState *env, target_ulong addr) {
     MemTxAttrs attrs;
     page = addr & TARGET_PAGE_MASK;
     phys_addr = cpu_get_phys_page_attrs_debug(env, page, &attrs);
-    if (phys_addr == -1) {
+    if (phys_addr == (hwaddr)-1) {
         // no physical page mapped
         return -1;
     }
