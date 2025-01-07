@@ -3109,13 +3109,13 @@ static inline MemOp devend_memop(enum device_endian end)
 
 #if HOST_BIG_ENDIAN != TARGET_BIG_ENDIAN
     /* Swap if non-host endianness or native (target) endianness */
-    return (end == DEVICE_HOST_ENDIAN) ? 0 : MO_BSWAP;
+    return (end == DEVICE_HOST_ENDIAN) ? (MemOp)0 : MO_BSWAP;
 #else
     const int non_host_endianness =
         DEVICE_LITTLE_ENDIAN ^ DEVICE_BIG_ENDIAN ^ DEVICE_HOST_ENDIAN;
 
     /* In this case, native (target) endianness needs no swap.  */
-    return (end == non_host_endianness) ? MO_BSWAP : 0;
+    return (end == non_host_endianness) ? MO_BSWAP : (MemOp)0;
 #endif
 }
 #endif /* COMPILING_PER_TARGET */

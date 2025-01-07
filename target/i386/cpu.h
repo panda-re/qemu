@@ -1402,7 +1402,7 @@ QEMU_BUILD_BUG_ON(CC_OP_DYNAMIC > INT8_MAX);
 
 static inline MemOp cc_op_size(CCOp op)
 {
-    MemOp size = op & 3;
+    MemOp size = (MemOp)(op & 3);
 
     QEMU_BUILD_BUG_ON(CC_OP_FIRST_BWLQ & 3);
     assert(op >= CC_OP_FIRST_BWLQ && op <= CC_OP_LAST_BWLQ);

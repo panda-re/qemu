@@ -40,7 +40,7 @@ make_plugin_meminfo(MemOpIdx oi, enum qemu_plugin_mem_rw rw)
 static inline enum qemu_plugin_mem_rw
 get_plugin_meminfo_rw(qemu_plugin_meminfo_t i)
 {
-    return i >> 16;
+    return (enum qemu_plugin_mem_rw)(i >> 16);
 }
 
 #ifdef CONFIG_PLUGIN
