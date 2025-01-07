@@ -658,7 +658,7 @@ for opt do
   case "$opt" in
   --help|-h) show_help=yes
   ;;
-  --version|-V) exec cat "$source_path/VERSION"
+  --version|-V) exec cat "$source_path/QEMU_VERSION"
   ;;
   --cross-prefix=*)
   ;;
