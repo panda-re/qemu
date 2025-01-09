@@ -3,6 +3,19 @@
 
 // ugh these are here so that g++ can actually handle gnarly qemu code
 
+/*
+	pthread is insane and, if built by a C++ compiler, will define a class.
+	given we're going to "fix" C code which legally uses the class reserved
+	word as an identifier, anything we include which tries to use the keyword
+	"correctly" (be C and C++ compatible) will break. Given the use case for
+	this header, anyone including this is also transitively including pthread.h
+	anyways, so we'll just include it first so it isn't mangled.
+
+	Any other similarly behaving library will require the same treatment.
+	We can only pray we don't also end up with order-dependent includes...
+*/
+#include <pthread.h>
+
 #ifdef __cplusplus
 #include <type_traits>
 #pragma push_macro("new")
