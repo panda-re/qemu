@@ -5,7 +5,7 @@
 #include "panda/plugin.h"
 #include "panda/panda_api.h"
 #include "panda/common.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 
 // for map_memory
 #include "exec/address-spaces.h"
@@ -15,8 +15,8 @@
 
 // for panda_{set/get}_library_mode
 #include "qemu/osdep.h"
-#include "sysemu/sysemu.h"
-#include "sysemu/runstate.h"
+#include "system/system.h"
+#include "system/runstate.h"
 
 // call main_aux and run everything up to and including panda_callbacks_after_machine_init
 int panda_init(int argc, char **argv, char **envp) {
