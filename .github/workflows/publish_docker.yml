@@ -7,7 +7,7 @@ on:
 
 jobs:
   build_release_assets:
-    if: github.repository  == 'panda-re/qemu' && github.ref == 'refs/heads/dev'
+    if: github.repository  == 'panda-re/qemu' && github.ref == 'refs/heads/main'
     runs-on: panda-arc
     steps:
       - name: Install git
