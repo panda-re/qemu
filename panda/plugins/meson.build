@@ -16,6 +16,13 @@ foreach plugin: plugin_list
     c_args = [
         '-DCOMPILING_PER_TARGET',
     ]
+
+    cpp_args = [
+        '-fpermissive',
+        '-Wno-sign-compare',
+        '-Wno-error',
+        '-Wno-invalid-offsetof',
+    ]
         # join_paths(root, 'gdbstub'),
     includes = [ ]
     if fs.is_dir(join_paths(root, 'host/include/', host_arch))
@@ -59,11 +66,11 @@ foreach plugin: plugin_list
             shared_library('panda-@0@_@1@'.format(plugin, target), 
                 sources,
                 c_args: c_args + target_c_args,
-                cpp_args: c_args + target_c_args,
+                cpp_args: c_args + cpp_args + target_c_args,
                 link_args: link_args + target_link_args,
                 include_directories: target_includes,
                 dependencies: [glib],
-                override_options: ['b_lundef=false'])
+                override_options: ['b_lundef=false', 'werror=false'])
         endforeach
     elif fs.exists(join_paths(plugin, 'Makefile'))
         foreach target: target_dirs
