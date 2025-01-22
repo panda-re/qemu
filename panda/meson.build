@@ -1,1 +1,10 @@
-subdir('src')
+specific_ss.add(
+    files(
+        'common.c',
+        'callbacks.c',
+        'cb-support.c',
+        'panda_api.c',
+        'panda_qemu_plugin_helpers.c',
+        'wrap_ops.c',
+    )
+)
