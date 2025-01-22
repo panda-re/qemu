@@ -144,6 +144,11 @@ bool panda_was_aborted(void);
  */  
 void panda_set_qemu_path(char* filepath);
 
+/**
+ * panda_set_extra_plugin_path() - Sets path to extra plugins.
+ */
+
+void panda_set_extra_plugin_path(char *filepath);
 
 /**
  * panda_init_plugin() - Initialize a plugin by name.
@@ -460,6 +465,6 @@ void panda_cleanup_record(void);
 
 // don't expose to API  because we don't want to add siginfo_t understanding
 // set to true if panda_setup_signal_handling is called
-void (*panda_external_signal_handler)(int, siginfo_t*,void*) = NULL;
+void (*panda_external_signal_handler)(int, siginfo_t*,void*);
 
 #endif
