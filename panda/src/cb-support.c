@@ -58,7 +58,7 @@ MAKE_CALLBACK(void, BEFORE_BLOCK_TRANSLATE, before_block_translate,
                     CPUState*, cpu, uint64_t, pc);
 
 MAKE_CALLBACK(void, BLOCK_TRANSLATE, block_translate,
-                    CPUState*, cpu, TranslationBlock*, tb);
+                    CPUState*, cpu, struct qemu_plugin_tb*, tb);
 
 MAKE_CALLBACK(void, AFTER_BLOCK_TRANSLATE, after_block_translate,
                     CPUState*, cpu, TranslationBlock*, tb);
