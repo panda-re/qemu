@@ -104,6 +104,13 @@ void panda_set_qemu_path(char* filepath) {
     qemu_file=strdup(filepath);
 }
 
+extern const char *extra_plugin_path;
+
+void panda_set_extra_plugin_path(char* filepath) {
+    printf("set plugin path %s\n", filepath);
+    extra_plugin_path = strdup(filepath);
+}
+
 int panda_init_plugin(char *plugin_name, char **plugin_args, uint32_t num_args) {
     for (uint32_t i=0; i<num_args; i++)
         panda_add_arg(plugin_name, plugin_args[i]);
