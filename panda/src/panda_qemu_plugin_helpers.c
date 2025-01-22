@@ -18,7 +18,7 @@ CPUState* panda_cpu_in_translate(void){
     return tcg_ctx->cpu;
 }
 
-TranslationBlock * panda_get_tb(void){
+TranslationBlock * panda_get_tb(struct qemu_plugin_tb *tb){
     const DisasContextBase *db = tcg_ctx->plugin_db;
     return db->tb;
 }
