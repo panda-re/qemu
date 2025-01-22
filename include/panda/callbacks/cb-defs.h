@@ -221,7 +221,7 @@ typedef union panda_cb {
 
        Arguments:
         CPUState *env:        the current CPU state
-        TranslationBlock *tb: the TB we just translated
+        struct qemu_plugin_tb *tb: the TB we just translated
 
        Helper call location: panda_plugin_interface.c
 
@@ -231,7 +231,7 @@ typedef union panda_cb {
        Notes:
         This is a good place to add instrumentation
     */
-    void (*block_translate)(CPUState *env, TranslationBlock *tb);
+    void (*block_translate)(CPUState *env, struct qemu_plugin_tb *tb);
 
     /* Callback ID: PANDA_CB_AFTER_CPU_EXEC_ENTER
 
@@ -1219,7 +1219,7 @@ typedef union panda_cb_with_context {
        Notes:
         This is a good place to add instrumentation
     */
-    void (*block_translate)(void* context, CPUState *env, TranslationBlock *tb);
+    void (*block_translate)(void* context, CPUState *env, struct qemu_plugin_tb *tb);
 
     /* Callback ID: PANDA_CB_AFTER_CPU_EXEC_ENTER
 
