@@ -261,7 +261,7 @@ qemu_plugin_tb_get_insn_by_vaddr(const struct qemu_plugin_tb *tb, uint64_t vaddr
     struct qemu_plugin_insn *insn;
     for (size_t i = 0; i < tb->n; i++){
         insn = qemu_plugin_tb_get_insn(tb, i);
-        if (insn->vaddr == vaddr){
+        if (insn != NULL && insn->vaddr == vaddr){
             return insn;
         }
     }
