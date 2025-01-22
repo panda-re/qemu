@@ -160,6 +160,7 @@ def compile_target(arch, target):
 	#include "panda/panda_api.h"
 	#include "plugins/plugin.h"
 	#include "system/runstate.h"
+	#include "panda/panda_qemu_plugin_helpers.h"
 	"""
 	
 	target_name = target.replace("-", "_")
