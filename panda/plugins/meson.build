@@ -6,6 +6,7 @@ add_languages('cpp', required: true)
 build = '../../build'
 root = '../../'
 
+
 foreach plugin: plugin_list
     if plugin.strip() == '' or plugin.startswith('#')
         continue

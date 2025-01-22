@@ -1,2 +1,2 @@
 subdir('src')
-subdir('plugins')
+# subdir('plugins')
