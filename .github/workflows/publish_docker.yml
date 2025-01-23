@@ -19,10 +19,11 @@ jobs:
           fetch-depth: 0
       
       - name: Get next version
-        uses: reecetech/version-increment@2023.10.2
+        uses: reecetech/version-increment@2024.10.1
         id: version
         with:
-          release_branch: dev
+          tag_prefix: panda
+          release_branch: main
           use_api: true
       
       - name: 'Login to Docker Registry'
@@ -36,13 +37,22 @@ jobs:
         with:
           push: true
           context: ${{ github.workspace }}
+          cache-from: type=registry,ref=pandare/panda-ng:latest
+          cache-to: type=inline
           tags: |
             pandare/panda-ng:${{ github.sha }}
-            pandare/panda-ng:${{ steps.version.outputs.v-version }}
+            pandare/panda-ng:${{ steps.version.outputs.prefixed-v-version }}
             pandare/panda-ng:latest
+      
+      - name: Build package
+        working-directory: panda/debian
+        run: ./setup.sh Ubuntu 22.04
+
       - name: Upload wheel and debian packages to release
         uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.version.outputs.v-version }}
+          tag_name: ${{ steps.version.outputs.prefixed-v-version }}
+          files: |
+            panda/debian/pandare*.deb
