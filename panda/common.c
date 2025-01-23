@@ -99,6 +99,16 @@ bool arm_get_vaddr_table(CPUState *cpu, uint32_t *table, uint32_t address)
   returns current asid or address-space id.
   architecture-independent
 */
+/**
+ * panda_current_asid() - Obtain guest ASID.
+ * @env: Pointer to cpu state.
+ * 
+ * This function figures out and returns the ASID (address space
+ * identifier) for a number of archiectures (e.g., cr3 for x86). In
+ * many cases, this can be used to distinguish between processes.
+ * 
+ * Return: A guest pointer is returned, the ASID.
+*/
 target_ulong panda_current_asid(CPUState *cpu) {
 #ifdef CONFIG_SOFTMMU
 #if defined(TARGET_I386)
@@ -135,6 +145,16 @@ target_ulong panda_current_asid(CPUState *cpu) {
 #endif
 }
 
+/**
+ * panda_current_pc() - Get current program counter.
+ * @cpu: Cpu state.
+ *
+ * Note that Qemu typically only updates the pc after executing each
+ * basic block of code. If you want this value to be more accurate,
+ * you will have to call panda_enable_precise_pc.
+ * 
+ * Return: Program counter is returned.
+ */
 target_ulong panda_current_pc(CPUState *cpu) {
     if (cpu == NULL) {
         return 0;
@@ -246,6 +266,14 @@ MemoryRegion* panda_find_ram(void) {
     return ram;
 }
 
+/**
+ * panda_find_max_ram_address() - Get max guest ram address.
+ *
+ * Computes the maximum address of guest system memory that maps to
+ * RAM.
+ * 
+ * Return: The max ram address is returned.
+ */
 /* Return the max address of system memory that maps to RAM. */
 Int128 panda_find_max_ram_address(void) {
   Int128 curr_max = 0;
