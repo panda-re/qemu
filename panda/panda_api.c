@@ -201,6 +201,9 @@ target_ulong panda_get_retval_external(const CPUState *cpu){
 // MemTxResult PandaPhysicalAddressToRamOffset_external(ram_addr_t* out, hwaddr addr, bool is_write){
 //     return PandaPhysicalAddressToRamOffset(out, addr, is_write);
 // }
+// don't expose to API  because we don't want to add siginfo_t understanding
+// set to true if panda_setup_signal_handling is called
+void (*panda_external_signal_handler)(int, siginfo_t*,void*);
 
 void panda_setup_signal_handling(void (*f) (int, void*, void *))
 {

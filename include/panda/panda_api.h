@@ -463,8 +463,6 @@ void panda_cleanup_record(void);
 
 // END_PYPANDA_NEEDS_THIS -- do not delete this comment!
 
-// don't expose to API  because we don't want to add siginfo_t understanding
-// set to true if panda_setup_signal_handling is called
-void (*panda_external_signal_handler)(int, siginfo_t*,void*);
+
 
 #endif
