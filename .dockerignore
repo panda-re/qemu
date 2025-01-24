@@ -1,0 +1,9 @@
+build
+venv
+local
+Dockerfile
+panda/debian
+.*sw*
+.dockerignore
+.github
+.git/FETCH_HEAD
