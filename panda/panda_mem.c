@@ -21,8 +21,26 @@
  */
 int panda_physical_memory_rw(hwaddr addr, uint8_t *buf, int len,
                                            bool is_write) {
-    return address_space_rw(&address_space_memory, addr, MEMTXATTRS_UNSPECIFIED,
-                     buf, len, is_write);
+    // return address_space_rw(&address_space_memory, addr, MEMTXATTRS_UNSPECIFIED,
+    //                 buf, len, is_write);
+    hwaddr l = len;
+    hwaddr addr1;
+    MemoryRegion *mr = address_space_translate(&address_space_memory, addr,
+                                               &addr1, &l, is_write, 
+                                               MEMTXATTRS_UNSPECIFIED);
+
+    if (!memory_access_is_direct(mr, is_write)) {
+        // fail for MMIO regions of physical address space
+        return MEMTX_ERROR;
+    }
+    void *ram_ptr = qemu_map_ram_ptr(mr->ram_block, addr1);
+
+    if (is_write) {
+        memcpy(ram_ptr, buf, len);
+    } else {
+        memcpy(buf, ram_ptr, len);
+    }
+    return MEMTX_OK;
 }
 
 
@@ -68,10 +86,12 @@ int panda_physical_memory_write(hwaddr addr,
  *
  * Return: A guest physical address.
  */
+
 hwaddr panda_virt_to_phys(CPUState *env, target_ulong addr) {
     target_ulong page;
     hwaddr phys_addr;
-    MemTxAttrs attrs;
+    MemTxAttrs attrs = {};
+    attrs.user = false;
     page = addr & TARGET_PAGE_MASK;
     phys_addr = cpu_get_phys_page_attrs_debug(env, page, &attrs);
     if (phys_addr == -1) {
@@ -106,15 +126,53 @@ hwaddr panda_virt_to_phys(CPUState *env, target_ulong addr) {
  * * 0      - Read/write succeeded
  * * -1     - An error 
  */
-int panda_virtual_memory_rw(CPUState *cpu, target_ulong addr,
+int panda_virtual_memory_rw(CPUState *env, target_ulong addr,
                                           uint8_t *buf, int len, bool is_write) {
-    CPUClass *cc;
+    int l;
+    int ret;
+    hwaddr phys_addr;
+    target_ulong page;
+    bool changed_priv = false;
 
-    cc = CPU_GET_CLASS(cpu);
-    if (cc->memory_rw_debug) {
-        return cc->memory_rw_debug(cpu, addr, buf, len, is_write);
+    while (len > 0) {
+        page = addr & TARGET_PAGE_MASK;
+        phys_addr = cpu_get_phys_page_debug(env, page);
+        // If we failed and we aren't in priv mode and we CAN go into it, toggle modes and try again
+        if (phys_addr == -1  && !changed_priv && (changed_priv=enter_priv(env))) {
+            phys_addr = cpu_get_phys_page_debug(env, page);
+            //if (phys_addr != -1) printf("[panda dbg] virt->phys failed until privileged mode\n");
+        }
+
+        // No physical page mapped, even after potential privileged switch, abort
+        if (phys_addr == -1)  {
+            if (changed_priv) exit_priv(env); // Cleanup mode if necessary
+            return -1;
+        }
+
+        l = (page + TARGET_PAGE_SIZE) - addr;
+        if (l > len) {
+            l = len;
+        }
+        phys_addr += (addr & ~TARGET_PAGE_MASK);
+        ret = panda_physical_memory_rw(phys_addr, buf, l, is_write);
+
+        // Failed and privileged mode wasn't already enabled - enable priv and retry if we can
+        if (ret != MEMTX_OK && !changed_priv && (changed_priv = enter_priv(env))) {
+            ret = panda_physical_memory_rw(phys_addr, buf, l, is_write);
+            //if (ret == MEMTX_OK) printf("[panda dbg] accessing phys failed until privileged mode\n");
+        }
+        // Still failed, even after potential privileged switch, abort
+        if (ret != MEMTX_OK) {
+            if (changed_priv) exit_priv(env); // Cleanup mode if necessary
+            return ret;
+        }
+
+        len -= l;
+        buf += l;
+        addr += l;
     }
-    return cpu_memory_rw_debug(cpu, addr, buf, len, is_write);
+    if (changed_priv) exit_priv(env); // Clear privileged mode if necessary
+    return 0;
 }
 
 
