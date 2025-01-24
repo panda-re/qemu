@@ -302,7 +302,7 @@ Int128 panda_find_max_ram_address(void) {
 }
 #endif
 
-#if defined(TARGET_ARM) && defined(TARGET_LATER)
+#if defined(TARGET_ARM)
 #define CPSR_M (0x1fU)
 #define ARM_CPU_MODE_SVC 0x13
 static int saved_cpsr = -1;
