@@ -19,7 +19,7 @@ jobs:
           fetch-depth: 0
       
       - name: Get next version
-        uses: reecetech/version-increment@2023.10.2
+        uses: reecetech/version-increment@2024.10.1
         id: version
         with:
           tag_prefix: panda
