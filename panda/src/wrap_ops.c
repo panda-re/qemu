@@ -22,56 +22,59 @@
 #include "panda/wrap_ops.h"
 #include "hw/core/tcg-cpu-ops.h"
 
-bool (*wrapped_cpu_exec_interrupt)(CPUState *cpu, int interrupt_request) = NULL;
 
-static bool wrap_cpu_exec_interrupt(CPUState * cpu, int interrupt_request){
-    interrupt_request = panda_callbacks_before_handle_interrupt(cpu, interrupt_request);
-    if (wrapped_cpu_exec_interrupt){
-        return wrapped_cpu_exec_interrupt(cpu, interrupt_request);
-    }
-    return false;
-}
+// TODO: needs a lookup per cpu
 
-void (*wrapped_cpu_exec_enter)(CPUState *cpu) = NULL;
+// bool (*wrapped_cpu_exec_interrupt)(CPUState *cpu, int interrupt_request) = NULL;
 
-static void wrap_cpu_exec_enter(CPUState *cpu){
-    if (wrapped_cpu_exec_enter){
-        wrapped_cpu_exec_enter(cpu);
-    }
-    panda_callbacks_after_cpu_exec_enter(cpu);
-}
+// static bool wrap_cpu_exec_interrupt(CPUState * cpu, int interrupt_request){
+//     interrupt_request = panda_callbacks_before_handle_interrupt(cpu, interrupt_request);
+//     if (wrapped_cpu_exec_interrupt){
+//         return wrapped_cpu_exec_interrupt(cpu, interrupt_request);
+//     }
+//     return false;
+// }
 
-void (*wrapped_cpu_exec_exit)(CPUState *cpu) = NULL;
+// void (*wrapped_cpu_exec_enter)(CPUState *cpu) = NULL;
 
-static void wrap_cpu_exec_exit(CPUState *cpu){
-    // We haven't implemented the ranBlocks feature yet
-    panda_callbacks_before_cpu_exec_exit(cpu, true);
-    if (wrapped_cpu_exec_exit){
-        wrapped_cpu_exec_exit(cpu);
-    }
-}
+// static void wrap_cpu_exec_enter(CPUState *cpu){
+//     if (wrapped_cpu_exec_enter){
+//         wrapped_cpu_exec_enter(cpu);
+//     }
+//     panda_callbacks_after_cpu_exec_enter(cpu);
+// }
+
+// void (*wrapped_cpu_exec_exit)(CPUState *cpu) = NULL;
+
+// static void wrap_cpu_exec_exit(CPUState *cpu){
+//     // We haven't implemented the ranBlocks feature yet
+//     panda_callbacks_before_cpu_exec_exit(cpu, true);
+//     if (wrapped_cpu_exec_exit){
+//         wrapped_cpu_exec_exit(cpu);
+//     }
+// }
 
 void wrap_cpu_ops(void){
-    CPUState *cpu;
+    // CPUState *cpu;
 
-    CPU_FOREACH(cpu) {
-        TCGCPUOps *tcg_ops = (TCGCPUOps*)cpu->cc->tcg_ops;
-        TCGCPUOps *copy = malloc(sizeof(TCGCPUOps));
-        memcpy(copy, tcg_ops, sizeof(TCGCPUOps));
+    // CPU_FOREACH(cpu) {
+    //     TCGCPUOps *tcg_ops = (TCGCPUOps*)cpu->cc->tcg_ops;
+    //     TCGCPUOps *copy = malloc(sizeof(TCGCPUOps));
+    //     memcpy(copy, tcg_ops, sizeof(TCGCPUOps));
 
-        if (tcg_ops == NULL){
-            printf("tcg_ops is NULL\n");
-            return;
-        }
+    //     if (tcg_ops == NULL){
+    //         printf("tcg_ops is NULL\n");
+    //         return;
+    //     }
 
-        wrapped_cpu_exec_interrupt = copy->cpu_exec_interrupt;
-        copy->cpu_exec_interrupt = wrap_cpu_exec_interrupt;
+    //     wrapped_cpu_exec_interrupt = copy->cpu_exec_interrupt;
+    //     copy->cpu_exec_interrupt = wrap_cpu_exec_interrupt;
 
-        wrapped_cpu_exec_enter = copy->cpu_exec_enter;
-        copy->cpu_exec_enter = wrap_cpu_exec_enter;
+    //     wrapped_cpu_exec_enter = copy->cpu_exec_enter;
+    //     copy->cpu_exec_enter = wrap_cpu_exec_enter;
 
-        wrapped_cpu_exec_exit = copy->cpu_exec_exit;
-        copy->cpu_exec_exit = wrap_cpu_exec_exit;
-        cpu->cc->tcg_ops = copy;
-    }
+    //     wrapped_cpu_exec_exit = copy->cpu_exec_exit;
+    //     copy->cpu_exec_exit = wrap_cpu_exec_exit;
+    //     cpu->cc->tcg_ops = copy;
+    // }
 }
