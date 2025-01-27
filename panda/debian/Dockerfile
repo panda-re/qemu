@@ -13,9 +13,10 @@ COPY --from=panda /tmp/base_dep.txt /tmp
 COPY --from=panda /tmp/build_dep.txt /tmp
 
 # Set up /package-root with files from panda we'll package
-COPY --from=panda /usr/local/lib/x86_64-linux-gnu /package-root/usr/local/lib/x86_64-linux-gnu
-RUN mkdir -p /package-root/usr/local/lib/x86_64-linux-gnu/contrib/plugins
-COPY --from=panda  /panda/build/contrib/plugins/libpanda_plugin_interface.so /package-root/usr/local/lib/x86_64-linux-gnu/contrib/plugins
+COPY --from=panda /usr/local/lib/x86_64-linux-gnu /package-root/usr/local/lib/panda
+COPY --from=panda /usr/local/share/qemu /package-root/usr/local/share/qemu
+RUN mkdir -p /package-root/usr/local/lib/panda/contrib/plugins
+COPY --from=panda  /panda/build/contrib/plugins/libpanda_plugin_interface.so /package-root/usr/local/lib/panda/contrib/plugins
 COPY --from=panda /usr/local/share/qemu /package-root/usr/local/share/qemu
 COPY --from=panda /panda/build/config-host.mak /package-root/usr/local/share/qemu
 
