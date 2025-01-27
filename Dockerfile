@@ -49,7 +49,8 @@ RUN  ninja -C /panda/build install
 # this layer is used to strip shared objects and change python data to be
 # symlinks to the installed panda data directory
 FROM installer AS cleanup
-RUN find /panda/build -name "*.so" -exec strip {} \;
+RUN find /usr/local/lib/x86_64-linux-gnu -name "*.so" -exec strip {} \;
+RUN strip /panda/build/contrib/plugins/libpanda_plugin_interface.so
 
 FROM base AS panda
 COPY --from=cleanup /panda/build/libpanda* /usr/local/bin
