@@ -14,11 +14,10 @@ COPY --from=panda /tmp/build_dep.txt /tmp
 
 # Set up /package-root with files from panda we'll package
 COPY --from=panda /usr/local/lib/x86_64-linux-gnu /package-root/usr/local/lib/panda
-COPY --from=panda /usr/local/share/qemu /package-root/usr/local/share/qemu
+COPY --from=panda /usr/local/share/qemu /package-root/usr/local/share/panda
 RUN mkdir -p /package-root/usr/local/lib/panda/contrib/plugins
 COPY --from=panda  /panda/build/contrib/plugins/libpanda_plugin_interface.so /package-root/usr/local/lib/panda/contrib/plugins
-COPY --from=panda /usr/local/share/qemu /package-root/usr/local/share/qemu
-COPY --from=panda /panda/build/config-host.mak /package-root/usr/local/share/qemu
+COPY --from=panda /panda/build/config-host.mak /package-root/usr/local/share/panda
 
 # Create DEBIAN directory and control file
 COPY control /package-root/DEBIAN/control
