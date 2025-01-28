@@ -9,3 +9,5 @@
 #endif
 
 #include "tcg/helper-mve.h"
+
+#include "panda/callbacks/cb-helper-defs.h"
