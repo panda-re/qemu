@@ -1157,3 +1157,5 @@ DEF_HELPER_FLAGS_3(gvec_ursqrte_s, TCG_CALL_NO_RWG, void, ptr, ptr, i32)
 #endif
 
 #include "tcg/helper-mve.h"
+
+#include "panda/callbacks/cb-helper-defs.h"
