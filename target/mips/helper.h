@@ -603,3 +603,5 @@ DEF_HELPER_FLAGS_2(rddsp, 0, tl, tl, env)
 
 /* Vendor extensions */
 #include "tcg/vr54xx_helper.h.inc"
+
+#include "panda/callbacks/cb-helper-defs.h"
