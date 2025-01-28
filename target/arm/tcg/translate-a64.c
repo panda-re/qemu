@@ -2776,6 +2776,10 @@ static void handle_sys(DisasContext *s, bool isread,
     TCGv_i64 tcg_rt;
     uint32_t syndrome = syn_aa64_sysregtrap(op0, op1, op2, crn, crm, rt, isread);
 
+    if (op0 == 0 && crn == 5){
+        gen_helper_panda_guest_hypercall();
+    }
+
     if (crn == 11 || crn == 15) {
         /*
          * Check for TIDCP trap, which must take precedence over
