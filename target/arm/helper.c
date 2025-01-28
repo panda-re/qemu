@@ -4280,32 +4280,40 @@ static void vmsa_tcr_el12_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static void vmsa_ttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                             uint64_t value)
 {
+    uint64_t current_value = raw_read(env,ri);
     /* If the ASID changes (with a 64-bit write), we must flush the TLB.  */
     if (cpreg_field_is_64bit(ri) &&
         extract64(raw_read(env, ri) ^ value, 48, 16) != 0) {
         ARMCPU *cpu = env_archcpu(env);
         tlb_flush(CPU(cpu));
     }
-    raw_write(env, ri, value);
+    	// ret val !=0 means *dont* allow allow to change
+	if (0 == (panda_callbacks_asid_changed(ENV_GET_CPU(env), current_value, value))){
+		raw_write(env, ri, value);
+	}
 }
 
 static void vmsa_tcr_ttbr_el2_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                     uint64_t value)
 {
-    /*
-     * If we are running with E2&0 regime, then an ASID is active.
-     * Flush if that might be changing.  Note we're not checking
-     * TCR_EL2.A1 to know if this is really the TTBRx_EL2 that
-     * holds the active ASID, only checking the field that might.
-     */
-    if (extract64(raw_read(env, ri) ^ value, 48, 16) &&
-        (arm_hcr_el2_eff(env) & HCR_E2H)) {
-        uint16_t mask = ARMMMUIdxBit_E20_2 |
-                        ARMMMUIdxBit_E20_2_PAN |
-                        ARMMMUIdxBit_E20_0;
-        tlb_flush_by_mmuidx(env_cpu(env), mask);
+    uint64_t current_value = raw_read(env,ri);
+    	// ret val !=0 means *dont* allow allow to change
+	if (0 == (panda_callbacks_asid_changed(ENV_GET_CPU(env), current_value, value))){
+        /*
+        * If we are running with E2&0 regime, then an ASID is active.
+        * Flush if that might be changing.  Note we're not checking
+        * TCR_EL2.A1 to know if this is really the TTBRx_EL2 that
+        * holds the active ASID, only checking the field that might.
+        */
+        if (extract64(raw_read(env, ri) ^ value, 48, 16) &&
+            (arm_hcr_el2_eff(env) & HCR_E2H)) {
+            uint16_t mask = ARMMMUIdxBit_E20_2 |
+                            ARMMMUIdxBit_E20_2_PAN |
+                            ARMMMUIdxBit_E20_0;
+            tlb_flush_by_mmuidx(env_cpu(env), mask);
+        }
+        raw_write(env, ri, value);
     }
-    raw_write(env, ri, value);
 }
 
 static void vttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
