@@ -2815,7 +2815,7 @@ static void vmsa_tcr_ttbr_el2_write(CPUARMState *env, const ARMCPRegInfo *ri,
         * TCR_EL2.A1 to know if this is really the TTBRx_EL2 that
         * holds the active ASID, only checking the field that might.
         */
-        if (extract64(raw_read(env, ri) ^ value, 48, 16) &&
+        if (extract64(current_value ^ value, 48, 16) &&
             (arm_hcr_el2_eff(env) & HCR_E2H)) {
             uint16_t mask = ARMMMUIdxBit_E20_2 |
                             ARMMMUIdxBit_E20_2_PAN |
