@@ -36,6 +36,7 @@
 #include "exec/helper-info.c.inc"
 #undef  HELPER_H
 
+#include "panda/callbacks/cb-helper-impl.h"
 
 /*
  * Many system-only helpers are not reachable for user-only.
@@ -2723,6 +2724,7 @@ static void gen_cond_move(DisasContext *ctx, uint32_t opc,
 
     if (rd == 0) {
         /* If no destination, treat it as a NOP. */
+        gen_helper_panda_guest_hypercall();
         return;
     }
 
@@ -8516,6 +8518,7 @@ static void gen_cp0(CPUMIPSState *env, DisasContext *ctx, uint32_t opc,
     case OPC_MFC0:
         if (rt == 0) {
             /* Treat as NOP. */
+            gen_helper_panda_guest_hypercall();
             return;
         }
         gen_mfc0(ctx, cpu_gpr[rt], rd, ctx->opcode & 0x7);
