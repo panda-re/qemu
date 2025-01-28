@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <threads.h>
 
 #include "panda/debug.h"
 #include "panda/plugin.h"
@@ -111,35 +112,48 @@ bool arm_get_vaddr_table(CPUState *cpu, uint32_t *table, uint32_t address)
 */
 target_ulong panda_current_asid(CPUState *cpu) {
 #ifdef CONFIG_SOFTMMU
-#if defined(TARGET_I386)
-  CPUArchState *env = cpu_env(cpu);
-  return env->cr[3];
-#elif defined(TARGET_ARM)
-#if defined(TARGET_AARCH64)
-  return 0; // XXX: TODO
-#else
+  #if defined(TARGET_I386)
+    CPUArchState *env = cpu_env(cpu);
+    return env->cr[3];
+  #elif defined(TARGET_ARM)
+    CPUARMState *env = cpu_env(cpu);
+    #if defined(TARGET_AARCH64)
+      // In AArch64, ASID is in bits [63:48] of TTBR0_EL1
+      // ASID size can be 8 or 16 bits based on TCR_EL1.AS
+      if (extract64(env->cp15.tcr_el[1], 36, 1)) {
+        // 16-bit ASID
+        return extract64(env->cp15.ttbr0_el[1], 48, 16);
+    } else {
+        // 8-bit ASID
+        return extract64(env->cp15.ttbr0_el[1], 56, 8);
+    }
+    #else
+      // For ARM32, get ASID from CONTEXTIDR register
+      // ASID is in bits [7:0] of CONTEXTIDR
+      return env->cp15.contextidr_el[1] & 0xFF;
+    #endif
+  #elif defined(TARGET_PPC)
+    return ((CPUPPCState*)cpu_env(cpu))->sr[0];
+  #elif defined(TARGET_MIPS)
+    CPUMIPSState *env = cpu_env(cpu);
+    return (env->CP0_EntryHi & env->CP0_EntryHi_ASID_mask);
+  #elif defined(TARGET_RISCV)
+    CPURISCVState *env = cpu_env(cpu);
 
-#if defined(CONFIG_SOFTMMU) && defined(TARGET_LATER) // todo
-  target_ulong table;
-  bool rc = arm_get_vaddr_table(cpu,
-          &table,
-          panda_current_pc(cpu));
-  assert(rc);
-  return table;
-#else
-  return 0; // TODO
-#endif
-  /*return arm_get_vaddr_table(env, panda_current_pc(env));*/
-#endif
-#elif defined(TARGET_PPC)
-  return ((CPUPPCState*)cpu_env(cpu))->sr[0];
-#elif defined(TARGET_MIPS)
-  CPUMIPSState *env = cpu_env(cpu);
-  return (env->CP0_EntryHi & env->CP0_EntryHi_ASID_mask);
-#else
-#error "panda_current_asid() not implemented for target architecture."
-  return 0;
-#endif
+    #if defined(TARGET_RISCV64)
+        // RV64: ASID is in bits 59:44 of SATP
+        return (env->satp >> 44) & 0xffff;
+    #elif defined(TARGET_RISCV32)
+        // RV32: ASID is in bits 30:22 of SATP
+        return (env->satp >> 22) & 0x1ff;
+    #endif
+  #elif defined(TARGET_LOONGARCH)
+    CPUArchState *env = cpu_env(cpu);
+    return (env->CSR_ASID & 0xff);
+  #else
+  #error "panda_current_asid() not implemented for target architecture."
+    return 0;
+  #endif
 #else
   return 0;
 #endif
@@ -305,10 +319,10 @@ Int128 panda_find_max_ram_address(void) {
 #if defined(TARGET_ARM)
 #define CPSR_M (0x1fU)
 #define ARM_CPU_MODE_SVC 0x13
-static int saved_cpsr = -1;
-static int saved_r13 = -1;
-static bool in_fake_priv = false;
-static int saved_pstate = -1;
+thread_local int saved_cpsr = -1;
+thread_local int saved_r13 = -1;
+thread_local bool in_fake_priv = false;
+thread_local int saved_pstate = -1;
 
 // Force the guest into supervisor mode by directly modifying its cpsr and r13
 // See https://developer.arm.com/docs/ddi0595/b/aarch32-system-registers/cpsr
@@ -366,8 +380,8 @@ void exit_priv(CPUState* cpu) {
 
 #elif defined(TARGET_MIPS)
 // MIPS
-static int saved_hflags = -1;
-static bool in_fake_priv = false;
+thread_local int saved_hflags = -1;
+thread_local bool in_fake_priv = false;
 
 // Force the guest into supervisor mode by modifying env->hflags
 // save old hflags and restore after the read
@@ -396,6 +410,27 @@ void exit_priv(CPUState* cpu) {
     in_fake_priv = false;
 }
 
+#elif defined(TARGET_I386)
+
+thread_local uint32_t saved_hflags = 0;
+thread_local bool in_fake_priv = false;
+bool enter_priv(CPUState *cpu){
+    if (panda_in_kernel_mode(cpu)){
+        return false;
+    }
+    CPUX86State *env = (CPUX86State *)cpu_env(cpu);
+    saved_hflags = env->hflags;
+    in_fake_priv = true;
+    env->hflags = env->hflags | HF_CPL_MASK;
+    return true;
+}
+
+void exit_priv(CPUState *cpu){
+    assert(in_fake_priv && "exit called when not faked");
+    CPUX86State *env = (CPUX86State *)cpu_env(cpu);
+    env->hflags = saved_hflags;
+    in_fake_priv = false;
+}
 
 #else
 // Non-ARM architectures don't require special permissions for PANDA's memory access fns

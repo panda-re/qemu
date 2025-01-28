@@ -22,27 +22,27 @@ QEMU_PLUGIN_EXPORT int (*external_plugin_install)(qemu_plugin_id_t id, const qem
 static void start_block_exec_cb(unsigned int cpu_index, void *udata)
 {
     // printf("start_block_exec  %d %p\n", cpu_index, udata);
-    CPUState *cpu = panda_current_cpu(cpu_index);
+    CPUState *cpu = panda_cpu_by_index(cpu_index);
     panda_callbacks_start_block_exec(cpu, (TranslationBlock*) udata);
 }
 
 static void end_block_exec_cb(unsigned int cpu_index, void *udata)
 {
     // printf("end_block_exec  %d %p\n", cpu_index, udata);
-    CPUState *cpu = panda_current_cpu(cpu_index);
+    CPUState *cpu = panda_cpu_by_index(cpu_index);
     panda_callbacks_end_block_exec(cpu, (TranslationBlock*) udata);
 }
 
 static void insn_exec(unsigned int cpu_index, void *udata)
 {
-    // CPUState *cpu = panda_current_cpu(cpu_index);
+    // CPUState *cpu = panda_cpu_by_index(cpu_index);
     // panda_callbacks_insn_exec(cpu, (uint64_t) udata);
 }
 
 #ifdef TODO_LATER
 static void vcpu_mem(unsigned int cpu_index, qemu_plugin_meminfo_t info,
                      uint64_t vaddr, void *udata){
-    CPUState *cpu = panda_current_cpu(cpu_index);
+    CPUState *cpu = panda_cpu_by_index(cpu_index);
     struct qemu_plugin_hwaddr* hwaddr_info = qemu_plugin_get_hwaddr(info, vaddr);
     uint64_t hwaddr;
     if (hwaddr_info){

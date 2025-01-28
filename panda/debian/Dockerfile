@@ -17,6 +17,7 @@ COPY --from=panda /usr/local/lib/x86_64-linux-gnu /package-root/usr/local/lib/pa
 COPY --from=panda /usr/local/share/qemu /package-root/usr/local/share/panda
 RUN mkdir -p /package-root/usr/local/lib/panda/contrib/plugins
 COPY --from=panda  /panda/build/contrib/plugins/libpanda_plugin_interface.so /package-root/usr/local/lib/panda/contrib/plugins
+COPY --from=panda  /usr/include/panda-ng /package-root/usr/include/panda-ng
 COPY --from=panda /panda/build/config-host.mak /package-root/usr/local/share/panda
 
 # Create DEBIAN directory and control file
@@ -33,6 +34,7 @@ RUN dependencies=$(grep '^[a-zA-Z]' /tmp/base_dep.txt | tr '\n' ',' | sed 's/,,\
 
 # Build the package
 RUN fakeroot dpkg-deb --build /package-root /pandare.deb
+RUN tar -czvf /libpanda-ng.tar.gz -C /package-root/usr/include/panda-ng .
 
 # The user can now extract the .deb file from the container with something like
 #docker run --rm -v $(pwd):/out packager bash -c "cp /pandare.deb /out"
