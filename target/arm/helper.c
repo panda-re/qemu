@@ -35,14 +35,7 @@
 #include "cpregs.h"
 #include "target/arm/gtimer.h"
 #include "qemu/plugin.h"
-
-/**
- * PANDA IMPORTS
- */
-bool panda_callbacks_asid_changed(CPUState *env, uint64_t oldval, uint64_t newval);
-/**
- * END PANDA IMPORTS
- */
+#include "panda/callbacks/cb-support.h"
 
 #define HELPER_H "tcg/helper.h"
 #include "exec/helper-proto.h.inc"
