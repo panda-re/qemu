@@ -33,6 +33,8 @@
 #include "exec/helper-info.c.inc"
 #undef  HELPER_H
 
+#include "panda/callbacks/cb-helper-impl.h"
+
 #define ENABLE_ARCH_4T    arm_dc_feature(s, ARM_FEATURE_V4T)
 #define ENABLE_ARCH_5     arm_dc_feature(s, ARM_FEATURE_V5)
 /* currently all emulated v5 cores are also v5TE, so don't bother */
