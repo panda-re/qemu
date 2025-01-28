@@ -35,6 +35,7 @@
 #include "cpregs.h"
 #include "target/arm/gtimer.h"
 #include "qemu/plugin.h"
+#include "panda/callbacks/cb-support.h"
 
 #define HELPER_H "tcg/helper.h"
 #include "exec/helper-proto.h.inc"
@@ -2789,8 +2790,8 @@ static void vmsa_ttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
         ARMCPU *cpu = env_archcpu(env);
         tlb_flush(CPU(cpu));
     }
-    // ret val !=0 means *dont* allow allow to change
-	if (0 == (panda_callbacks_asid_changed(ENV_GET_CPU(env), current_value, value))){
+    	// ret val !=0 means *dont* allow allow to change
+	if (0 == (panda_callbacks_asid_changed(env_cpu(env), current_value, value))){
 		raw_write(env, ri, value);
 	}
 }
@@ -2799,8 +2800,8 @@ static void vmsa_tcr_ttbr_el2_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                     uint64_t value)
 {
     uint64_t current_value = raw_read(env,ri);
-    // ret val !=0 means *dont* allow allow to change
-	if (0 == (panda_callbacks_asid_changed(ENV_GET_CPU(env), current_value, value))){
+    	// ret val !=0 means *dont* allow allow to change
+	if (0 == (panda_callbacks_asid_changed(env_cpu(env), current_value, value))){
         /*
         * If we are running with E2&0 regime, then an ASID is active.
         * Flush if that might be changing.  Note we're not checking
