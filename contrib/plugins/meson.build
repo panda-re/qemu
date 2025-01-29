@@ -1,5 +1,5 @@
 contrib_plugins = ['bbv', 'cache', 'cflow', 'drcov', 'execlog', 'hotblocks',
-                   'hotpages', 'howvec', 'hwprofile', 'ips', 'stoptrigger',
+                   'hotpages', 'howvec', 'hwprofile', 'ips', 'stoptrigger', 'syscalls',
                    'panda_plugin_interface']
 if host_os != 'windows'
   # lockstep uses socket.h
