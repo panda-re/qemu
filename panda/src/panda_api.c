@@ -245,9 +245,21 @@ void panda_setup_signal_handling(void (*f) (int, void*, void *))
 //     memory_region_add_subregion(sysmem, address, ram);
 // }
 
-// CPUState* get_cpu(void) {
-//   return first_cpu;
-// }
+CPUState* get_cpu(void) {
+  return current_cpu;
+}
+
+int panda_cpu_get_index(CPUState *q){
+    CPUState *cpu;
+    int i = 0;
+    CPU_FOREACH(cpu) {
+        if (cpu == q){
+            return i;
+        }
+        i++;
+    }
+    return 0;
+}
 
 // Get the length of a GArray list
 unsigned long garray_len(GArray *list) {
