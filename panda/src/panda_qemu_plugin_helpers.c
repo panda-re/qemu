@@ -9,7 +9,7 @@
 #include "panda/panda_qemu_plugin_helpers.h"
 
 
-CPUState* panda_current_cpu(int index){
+CPUState* panda_cpu_by_index(int index){
     CPUState *cpu = qemu_get_cpu(index);
     return cpu;
 }
