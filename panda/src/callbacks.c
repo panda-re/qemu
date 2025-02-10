@@ -18,7 +18,7 @@ PANDAENDCOMMENT */
 
 #include "config-host.h"
 #include "panda/plugin.h"
-#include "qapi/qmp/qdict.h"
+#include "qobject/qdict.h"
 #include "qapi/error.h"
 #include "monitor/monitor.h"
 
