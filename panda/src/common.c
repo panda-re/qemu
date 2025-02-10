@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <threads.h>
 
 #include "panda/debug.h"
 #include "panda/plugin.h"
@@ -305,10 +306,10 @@ Int128 panda_find_max_ram_address(void) {
 #if defined(TARGET_ARM)
 #define CPSR_M (0x1fU)
 #define ARM_CPU_MODE_SVC 0x13
-static int saved_cpsr = -1;
-static int saved_r13 = -1;
-static bool in_fake_priv = false;
-static int saved_pstate = -1;
+thread_local int saved_cpsr = -1;
+thread_local int saved_r13 = -1;
+thread_local bool in_fake_priv = false;
+thread_local int saved_pstate = -1;
 
 // Force the guest into supervisor mode by directly modifying its cpsr and r13
 // See https://developer.arm.com/docs/ddi0595/b/aarch32-system-registers/cpsr
@@ -366,8 +367,8 @@ void exit_priv(CPUState* cpu) {
 
 #elif defined(TARGET_MIPS)
 // MIPS
-static int saved_hflags = -1;
-static bool in_fake_priv = false;
+thread_local int saved_hflags = -1;
+thread_local bool in_fake_priv = false;
 
 // Force the guest into supervisor mode by modifying env->hflags
 // save old hflags and restore after the read
