@@ -46,11 +46,22 @@ RUN ninja -C /panda/build -j "$(nproc)"
 FROM builder AS installer
 RUN  ninja -C /panda/build install
 
+FROM builder AS libgen
+RUN apt-get install -y gdb && \
+    python3 -m pip install cffi tree-sitter==0.24.0 tree-sitter-c==0.23.0
+
+RUN git clone https://github.com/panda-re/libpanda-ng /libpanda-ng && \
+    mkdir /libpanda-ng/build && cd /libpanda-ng/build && \
+    bash /libpanda-ng/run_all.sh /panda
+
 # this layer is used to strip shared objects and change python data to be
 # symlinks to the installed panda data directory
 FROM installer AS cleanup
 RUN find /usr/local/lib/x86_64-linux-gnu -name "*.so" -exec strip {} \;
 RUN strip /panda/build/contrib/plugins/libpanda_plugin_interface.so
+RUN mkdir -p /usr/include/libpanda-ng
+COPY --from=libgen /libpanda-ng/build/* /usr/include/libpanda-ng
 
 FROM base AS panda
 COPY --from=cleanup /panda/build/libpanda* /usr/local/bin
+COPY --from=cleanup /usr/include/libpanda-ng /usr/include/libpanda-ng
