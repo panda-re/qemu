@@ -59,9 +59,9 @@ RUN git clone https://github.com/panda-re/libpanda-ng /libpanda-ng && \
 FROM installer AS cleanup
 RUN find /usr/local/lib/x86_64-linux-gnu -name "*.so" -exec strip {} \;
 RUN strip /panda/build/contrib/plugins/libpanda_plugin_interface.so
-RUN mkdir -p /usr/include/libpanda-ng
-COPY --from=libgen /libpanda-ng/build/* /usr/include/libpanda-ng
+RUN mkdir -p /usr/include/panda-ng
+COPY --from=libgen /libpanda-ng/build/* /usr/include/panda-ng
 
 FROM base AS panda
 COPY --from=cleanup /panda/build/libpanda* /usr/local/bin
-COPY --from=cleanup /usr/include/libpanda-ng /usr/include/libpanda-ng
+COPY --from=cleanup /usr/include/panda-ng /usr/include/panda-ng
