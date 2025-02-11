@@ -17,7 +17,7 @@ COPY --from=panda /usr/local/lib/x86_64-linux-gnu /package-root/usr/local/lib/pa
 COPY --from=panda /usr/local/share/qemu /package-root/usr/local/share/panda
 RUN mkdir -p /package-root/usr/local/lib/panda/contrib/plugins
 COPY --from=panda  /panda/build/contrib/plugins/libpanda_plugin_interface.so /package-root/usr/local/lib/panda/contrib/plugins
-COPY --from=panda  /usr/local/lib/libpanda-ng /package-root/usr/local/lib/libpanda-ng
+COPY --from=panda  /usr/include/libpanda-ng /package-root/usr/include/libpanda-ng
 COPY --from=panda /panda/build/config-host.mak /package-root/usr/local/share/panda
 
 # Create DEBIAN directory and control file
