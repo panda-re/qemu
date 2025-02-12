@@ -2969,6 +2969,12 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
                                         rt, isread, false);
         }
         break;
+    case 7:
+        if (!isread){
+            gen_helper_panda_guest_hypercall();
+            return;
+        }
+        __attribute__ ((fallthrough));
     default:
         /*
          * ARMv8 defines that only coprocessors 14 and 15 exist,
