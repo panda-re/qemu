@@ -137,6 +137,9 @@ target_ulong panda_current_asid(CPUState *cpu) {
   #elif defined(TARGET_MIPS)
     CPUMIPSState *env = cpu_env(cpu);
     return (env->CP0_EntryHi & env->CP0_EntryHi_ASID_mask);
+  #elif defined(TARGET_LOONGARCH)
+    CPUArchState *env = cpu_env(cpu);
+    return (env->CSR_ASID & 0xff);
   #else
   #error "panda_current_asid() not implemented for target architecture."
     return 0;
