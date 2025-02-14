@@ -112,35 +112,35 @@ bool arm_get_vaddr_table(CPUState *cpu, uint32_t *table, uint32_t address)
 */
 target_ulong panda_current_asid(CPUState *cpu) {
 #ifdef CONFIG_SOFTMMU
-#if defined(TARGET_I386)
-  CPUArchState *env = cpu_env(cpu);
-  return env->cr[3];
-#elif defined(TARGET_ARM)
-#if defined(TARGET_AARCH64)
-  return 0; // XXX: TODO
-#else
-
-#if defined(CONFIG_SOFTMMU) && defined(TARGET_LATER) // todo
-  target_ulong table;
-  bool rc = arm_get_vaddr_table(cpu,
-          &table,
-          panda_current_pc(cpu));
-  assert(rc);
-  return table;
-#else
-  return 0; // TODO
-#endif
-  /*return arm_get_vaddr_table(env, panda_current_pc(env));*/
-#endif
-#elif defined(TARGET_PPC)
-  return ((CPUPPCState*)cpu_env(cpu))->sr[0];
-#elif defined(TARGET_MIPS)
-  CPUMIPSState *env = cpu_env(cpu);
-  return (env->CP0_EntryHi & env->CP0_EntryHi_ASID_mask);
-#else
-#error "panda_current_asid() not implemented for target architecture."
-  return 0;
-#endif
+  #if defined(TARGET_I386)
+    CPUArchState *env = cpu_env(cpu);
+    return env->cr[3];
+  #elif defined(TARGET_ARM)
+    CPUARMState *env = cpu_env(cpu);
+    #if defined(TARGET_AARCH64)
+      // In AArch64, ASID is in bits [63:48] of TTBR0_EL1
+      // ASID size can be 8 or 16 bits based on TCR_EL1.AS
+      if (extract64(env->cp15.tcr_el[1], 36, 1)) {
+        // 16-bit ASID
+        return extract64(env->cp15.ttbr0_el[1], 48, 16);
+    } else {
+        // 8-bit ASID
+        return extract64(env->cp15.ttbr0_el[1], 56, 8);
+    }
+    #else
+      // For ARM32, get ASID from CONTEXTIDR register
+      // ASID is in bits [7:0] of CONTEXTIDR
+      return env->cp15.contextidr_el[1] & 0xFF;
+    #endif
+  #elif defined(TARGET_PPC)
+    return ((CPUPPCState*)cpu_env(cpu))->sr[0];
+  #elif defined(TARGET_MIPS)
+    CPUMIPSState *env = cpu_env(cpu);
+    return (env->CP0_EntryHi & env->CP0_EntryHi_ASID_mask);
+  #else
+  #error "panda_current_asid() not implemented for target architecture."
+    return 0;
+  #endif
 #else
   return 0;
 #endif
