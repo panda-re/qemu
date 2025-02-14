@@ -14,6 +14,4 @@ PANDAENDCOMMENT */
 // DEF_HELPER_1(panda_insn_exec, void, tl)
 // DEF_HELPER_1(panda_after_insn_exec, void, tl)
 
-#if defined(TARGET_ARM) || defined(TARGET_MIPS)
 DEF_HELPER_0(panda_guest_hypercall, void)
-#endif
