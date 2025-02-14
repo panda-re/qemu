@@ -56,3 +56,4 @@ jobs:
           tag_name: ${{ steps.version.outputs.prefixed-v-version }}
           files: |
             panda/debian/pandare*.deb
+            panda/debian/libpanda-ng.tar.gz
