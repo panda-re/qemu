@@ -720,3 +720,5 @@ DEF_HELPER_FLAGS_4(vextrins_b, TCG_CALL_NO_RWG, void, ptr, ptr, i64, i32)
 DEF_HELPER_FLAGS_4(vextrins_h, TCG_CALL_NO_RWG, void, ptr, ptr, i64, i32)
 DEF_HELPER_FLAGS_4(vextrins_w, TCG_CALL_NO_RWG, void, ptr, ptr, i64, i32)
 DEF_HELPER_FLAGS_4(vextrins_d, TCG_CALL_NO_RWG, void, ptr, ptr, i64, i32)
+
+#include "panda/callbacks/cb-helper-defs.h"
