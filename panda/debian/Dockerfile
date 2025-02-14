@@ -34,6 +34,7 @@ RUN dependencies=$(grep '^[a-zA-Z]' /tmp/base_dep.txt | tr '\n' ',' | sed 's/,,\
 
 # Build the package
 RUN fakeroot dpkg-deb --build /package-root /pandare.deb
+RUN tar -czvf /libpanda-ng.tar.gz -C /package-root/usr/include/panda-ng .
 
 # The user can now extract the .deb file from the container with something like
 #docker run --rm -v $(pwd):/out packager bash -c "cp /pandare.deb /out"
