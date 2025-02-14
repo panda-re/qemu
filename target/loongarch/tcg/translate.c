@@ -29,6 +29,8 @@ static TCGv cpu_lladdr, cpu_llval;
 #include "exec/helper-info.c.inc"
 #undef  HELPER_H
 
+#include "panda/callbacks/cb-helper-impl.h"
+
 #define DISAS_STOP        DISAS_TARGET_0
 #define DISAS_EXIT        DISAS_TARGET_1
 #define DISAS_EXIT_UPDATE DISAS_TARGET_2
