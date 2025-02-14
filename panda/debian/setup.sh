@@ -57,4 +57,5 @@ docker build -t packager .
 
 # Copy deb file out of container to host
 docker run --rm -v $(pwd):/out packager bash -c "cp /pandare.deb /out"
+docker run --rm -v $(pwd):/out packager bash -c "cp /libpanda-ng.tar.gz /out"
 mv pandare.deb pandare_${version}.deb
