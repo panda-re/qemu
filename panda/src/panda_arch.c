@@ -24,6 +24,8 @@ bool panda_in_kernel_mode(const CPUState *cpu) {
     return ((env->msr >> MSR_PR) & 1);
 #elif defined(TARGET_MIPS)
     return (env->hflags & MIPS_HFLAG_KSU) == MIPS_HFLAG_KM;
+#elif defined(TARGET_LOONGARCH)
+    return (env->CSR_CRMD & 3) == 0;
 #else
 #error "panda_in_kernel_mode() not implemented for target architecture."
     return false;
@@ -133,6 +135,8 @@ target_ulong panda_current_ksp(CPUState *cpu) {
     return env->gpr[1];
 #elif defined(TARGET_MIPS)
     return env->active_tc.gpr[MIPS_SP];
+#elif defined(TARGET_LOONGARCH)
+    return env->gpr[3];
 #else
 #error "panda_current_ksp() not implemented for target architecture."
     return 0;
@@ -164,6 +168,8 @@ target_ulong panda_current_sp(const CPUState *cpu) {
     return env->gpr[1];
 #elif defined(TARGET_MIPS)
     return env->active_tc.gpr[MIPS_SP];
+#elif defined(TARGET_LOONGARCH)
+    return env->gpr[3];
 #else
 #error "panda_current_sp() not implemented for target architecture."
     return 0;
@@ -196,6 +202,9 @@ target_ulong panda_get_retval(const CPUState *cpu) {
 #elif defined(TARGET_MIPS)
     // MIPS has 2 return registers v0 and v1. Here we choose v0.
     return env->active_tc.gpr[MIPS_V0];
+#elif defined(TARGET_LOONGARCH)
+    // LoongArch uses a0 for return value.
+    return env->gpr[4];
 #else
 #error "panda_get_retval() not implemented for target architecture."
     return 0;
