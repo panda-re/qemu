@@ -397,6 +397,27 @@ void exit_priv(CPUState* cpu) {
     in_fake_priv = false;
 }
 
+#elif defined(TARGET_I386)
+
+thread_local uint32_t saved_hflags = 0;
+thread_local bool in_fake_priv = false;
+bool enter_priv(CPUState *cpu){
+    if (panda_in_kernel_mode(cpu)){
+        return false;
+    }
+    CPUX86State *env = (CPUX86State *)cpu_env(cpu);
+    saved_hflags = env->hflags;
+    in_fake_priv = true;
+    env->hflags = env->hflags | HF_CPL_MASK;
+    return true;
+}
+
+void exit_priv(CPUState *cpu){
+    assert(in_fake_priv && "exit called when not faked");
+    CPUX86State *env = (CPUX86State *)cpu_env(cpu);
+    env->hflags = saved_hflags;
+    in_fake_priv = false;
+}
 
 #else
 // Non-ARM architectures don't require special permissions for PANDA's memory access fns
