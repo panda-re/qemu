@@ -37,8 +37,8 @@ jobs:
         with:
           push: true
           context: ${{ github.workspace }}
-          cache-from: type=registry,ref=pandare/panda-ng:latest
-          cache-to: type=inline
+          cache-from: type=registry,ref=pandare/panda-ng:build-latest
+          cache-to: type=registry,ref=pandare/panda-ng:build-latest
           tags: |
             pandare/panda-ng:${{ github.sha }}
             pandare/panda-ng:${{ steps.version.outputs.prefixed-v-version }}
