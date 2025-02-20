@@ -29,7 +29,7 @@ int panda_physical_memory_rw(hwaddr addr, uint8_t *buf, int len,
                                                &addr1, &l, is_write, 
                                                MEMTXATTRS_UNSPECIFIED);
 
-    if (!memory_access_is_direct(mr, is_write)) {
+    if (!memory_access_is_direct(mr, is_write, MEMTXATTRS_UNSPECIFIED)) {
         // fail for MMIO regions of physical address space
         return MEMTX_ERROR;
     }
@@ -231,7 +231,7 @@ void *panda_map_virt_to_host(CPUState *env, target_ulong addr,
         address_space_translate(&address_space_memory, phys, &addr1, &l, true,
                                 MEMTXATTRS_UNSPECIFIED);
 
-    if (!memory_access_is_direct(mr, true)) {
+    if (!memory_access_is_direct(mr, true, MEMTXATTRS_UNSPECIFIED)) {
         return NULL;
     }
 
