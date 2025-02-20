@@ -375,6 +375,24 @@ static inline bool check_for_breakpoints(CPUState *cpu, vaddr pc,
         check_for_breakpoints_slow(cpu, pc, cflags);
 }
 
+TranslationBlock *panda_lookup_tb(CPUState *cpu, uint64_t pc);
+TranslationBlock *panda_lookup_tb(CPUState *cpu, uint64_t pc)
+{
+    TranslationBlock *tb;
+    uint64_t cs_base;
+    uint32_t flags, cflags;
+
+    cflags = curr_cflags(cpu);
+    cpu_get_tb_cpu_state(cpu_env(cpu), &pc, &cs_base, &flags);
+
+    tb = tb_lookup(cpu, pc, cs_base, flags, cflags);
+    if (tb == NULL) {
+        return NULL;
+    }
+
+    return tb;
+}
+
 /**
  * helper_lookup_tb_ptr: quick check for next tb
  * @env: current cpu state
