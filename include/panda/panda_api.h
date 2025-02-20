@@ -449,7 +449,7 @@ CPUState* get_cpu(void);
 
 int panda_cpu_get_index(CPUState *q);
 
-
+TranslationBlock *panda_lookup_tb(CPUState *cpu, uint64_t pc);
 unsigned long garray_len(GArray *list);
 CPUArchState *panda_cpu_env(CPUState *cpu);
 
