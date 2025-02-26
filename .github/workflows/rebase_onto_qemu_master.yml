@@ -10,6 +10,11 @@ jobs:
     steps:
       - name: Install git
         run: sudo apt-get -qq update -y && sudo apt-get -qq install git -y
+
+      - name: Configure committer name and email
+        run: |
+          git config user.name "Test rebase"
+          git config user.email "connorc0405@gmail.com"
       
       - name: Check out local main branch
         uses: actions/checkout@v4
