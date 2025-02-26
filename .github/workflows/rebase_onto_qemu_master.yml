@@ -1,0 +1,27 @@
+name: Automatically rebase main branch onto qemu/qemu master branch # Only for main panda-re repo, not forks
+
+on:
+  workflow_dispatch:
+
+jobs:
+  rebase_onto_qemu_master:
+    if: github.repository  == 'panda-re/qemu'
+    runs-on: panda-arc
+    steps:
+      - name: Install git
+        run: sudo apt-get -qq update -y && sudo apt-get -qq install git -y
+      
+      - name: Check out local main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Check out upstream qemu master branch
+        run: |
+          git remote add upstream https://github.com/qemu/qemu
+          git fetch upstream master
+
+      - name: Rebase local main onto upstream qemu master
+        run: git rebase upstream master
+
+      # - name: Create a PR with rebased branch TODO
