@@ -22,6 +22,6 @@ jobs:
           git fetch upstream master
 
       - name: Rebase local main onto upstream qemu master
-        run: git rebase upstream master
+        run: git rebase upstream/master
 
       # - name: Create a PR with rebased branch TODO
