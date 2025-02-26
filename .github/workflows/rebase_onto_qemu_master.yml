@@ -22,11 +22,6 @@ jobs:
           git remote add upstream https://github.com/qemu/qemu
           git fetch upstream master
 
-      - name: Sanity check
-        run: |
-          git log -5
-          git log upstream/master -5
-
       - name: Rebase local main onto upstream qemu master
         run: git rebase upstream/master
 
