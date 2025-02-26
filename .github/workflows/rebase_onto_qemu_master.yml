@@ -2,6 +2,7 @@ name: Automatically rebase main branch onto qemu/qemu master branch # Only for m
 
 on:
   workflow_dispatch:
+  push:
 
 jobs:
   rebase_onto_qemu_master:
