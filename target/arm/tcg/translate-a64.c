@@ -2473,6 +2473,7 @@ static void handle_sys(DisasContext *s, bool isread,
 
     if (op0 == 0 && crn == 5){
         gen_helper_panda_guest_hypercall();
+        return;
     }
 
     if (crn == 11 || crn == 15) {
