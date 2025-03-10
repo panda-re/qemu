@@ -137,6 +137,16 @@ target_ulong panda_current_asid(CPUState *cpu) {
   #elif defined(TARGET_MIPS)
     CPUMIPSState *env = cpu_env(cpu);
     return (env->CP0_EntryHi & env->CP0_EntryHi_ASID_mask);
+  #elif defined(TARGET_RISCV)
+    CPURISCVState *env = cpu_env(cpu);
+
+    #if defined(TARGET_RISCV64)
+        // RV64: ASID is in bits 59:44 of SATP
+        return (env->satp >> 44) & 0xffff;
+    #elif defined(TARGET_RISCV32)
+        // RV32: ASID is in bits 30:22 of SATP
+        return (env->satp >> 22) & 0x1ff;
+    #endif
   #elif defined(TARGET_LOONGARCH)
     CPUArchState *env = cpu_env(cpu);
     return (env->CSR_ASID & 0xff);
