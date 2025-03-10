@@ -26,6 +26,11 @@ bool panda_in_kernel_mode(const CPUState *cpu) {
     return (env->hflags & MIPS_HFLAG_KSU) == MIPS_HFLAG_KM;
 #elif defined(TARGET_LOONGARCH)
     return (env->CSR_CRMD & 3) == 0;
+#elif defined(TARGET_RISCV)
+    // RISC-V privilege modes: 0=U-mode, 1=S-mode, 3=M-mode
+    // Both supervisor (S) and machine (M) modes are considered kernel mode
+    // Check the privilege bits in mstatus CSR
+    return (env->priv >= PRV_S);
 #else
 #error "panda_in_kernel_mode() not implemented for target architecture."
     return false;
@@ -137,6 +142,12 @@ target_ulong panda_current_ksp(CPUState *cpu) {
     return env->active_tc.gpr[MIPS_SP];
 #elif defined(TARGET_LOONGARCH)
     return env->gpr[3];
+#elif defined(TARGET_RISCV)
+    // For RISC-V, stack pointer is x2/sp
+    // In kernel mode, we return the current sp register
+    // For how stack works in RISC-V, see:
+    // https://github.com/riscv/riscv-elf-psabi-doc/blob/master/riscv-elf.md
+    return env->gpr[2];
 #else
 #error "panda_current_ksp() not implemented for target architecture."
     return 0;
@@ -170,6 +181,9 @@ target_ulong panda_current_sp(const CPUState *cpu) {
     return env->active_tc.gpr[MIPS_SP];
 #elif defined(TARGET_LOONGARCH)
     return env->gpr[3];
+#elif defined(TARGET_RISCV)
+    // For RISC-V, stack pointer is x2/sp
+    return env->gpr[2];
 #else
 #error "panda_current_sp() not implemented for target architecture."
     return 0;
@@ -205,6 +219,9 @@ target_ulong panda_get_retval(const CPUState *cpu) {
 #elif defined(TARGET_LOONGARCH)
     // LoongArch uses a0 for return value.
     return env->gpr[4];
+#elif defined(TARGET_RISCV)
+    // RISC-V uses a0 (x10) for return value
+    return env->gpr[10];
 #else
 #error "panda_get_retval() not implemented for target architecture."
     return 0;
