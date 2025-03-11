@@ -835,3 +835,5 @@ DEF_HELPER_FLAGS_2(mfbhrbe, TCG_CALL_NO_WG, i64, env, i32)
 DEF_HELPER_1(attn, noreturn, env)
 #endif
 #endif
+
+#include "panda/callbacks/cb-helper-defs.h"
