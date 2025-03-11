@@ -880,6 +880,10 @@ static bool do_ori(DisasContext *ctx, arg_D_ui *a, bool shift)
 static bool do_xori(DisasContext *ctx, arg_D_ui *a, bool shift)
 {
     if (a->rt == a->ra && a->ui == 0) {
+        // xori $r10, $r10, 0
+        if (a->rt == 10 && a->ra == 10 && a->ui == 0 && shift == false){
+            gen_helper_panda_guest_hypercall();
+        }
         /* NOP */
         return true;
     }
