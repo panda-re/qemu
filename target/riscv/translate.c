@@ -35,6 +35,8 @@
 #include "exec/helper-info.c.inc"
 #undef  HELPER_H
 
+#include "panda/callbacks/cb-helper-impl.h"
+
 #include "tcg/tcg-cpu.h"
 
 /* global register indices */
@@ -853,6 +855,12 @@ static bool gen_logic_imm_fn(DisasContext *ctx, arg_i *a,
 {
     TCGv dest = dest_gpr(ctx, a->rd);
     TCGv src1 = get_gpr(ctx, a->rs1, EXT_NONE);
+
+    // xori $0, $0, 0
+    if ((a->rs1 == 0 && a->rd == 0 && a->imm == 0)
+        && func == tcg_gen_xori_tl){
+        
+    }
 
     func(dest, src1, a->imm);
 
