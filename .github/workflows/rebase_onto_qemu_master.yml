@@ -42,6 +42,7 @@ jobs:
           git checkout main
           git remote -v # testing
           gh pr create --dry-run --base upstream_master
+          apt update
 
       # - name: Make main_previous point to main's HEAD
 
