@@ -227,3 +227,52 @@ target_ulong panda_get_retval(const CPUState *cpu) {
     return 0;
 #endif
 }
+
+
+target_ulong panda_get_syscall_arg(CPUState *cpu, int arg){
+     CPUArchState *env = cpu_env((CPUState *)cpu);
+#if defined(TARGET_AARCH64)
+    #define GPR(x) env->xregs[x]
+                          // ["XR", "X0", "X1", "X2", "X3", "X4", "X5", "X6", "X7"]
+    target_ulong regs[] = {GPR(8), GPR(0), GPR(1), GPR(2), GPR(3), GPR(4), GPR(5), GPR(6), GPR(7)};
+#elif defined(TARGET_ARM) && !defined(TARGET_AARCH64)
+    #define GPR(x) env->regs[(x)]
+                          // ["R7", "R0", "R1", "R2", "R3", "R4", "R5"]
+    target_ulong regs[] = {GPR(7), GPR(0), GPR(1), GPR(2), GPR(3), GPR(4), GPR(5)};
+#elif defined(TARGET_MIPS)
+    #define GPR(x) env->active_tc.gpr[(x)]
+                          // ["V0", "A0", "A1", "A2", "A3", "A4", "A5"]
+    target_ulong regs[] = {GPR(2), GPR(5), GPR(6), GPR(7), GPR(8),
+#if defined(TARGET_MIPS64)
+        GPR(9), GPR(10),
+#endif
+    };
+#elif defined(TARGET_PPC)
+    #define GPR(x) env->gpr[x]
+                        // ['r0',  'r3',  'r4',    'r5',   'r6',   'r7',   'r8',    'r9']
+    target_ulong regs[] = {GPR(0), GPR(3), GPR(4), GPR(5), GPR(6), GPR(7), GPR(8), GPR(9)};
+#elif defined(TARGET_I386)
+    #define GPR(x) env->regs[x]
+#if defined(TARGET_X86_64)
+                       // ['RAX',  'RDI',  'RSI',  'RDX',  'R10',  'R8',    'R9']
+    target_ulong regs[] = {GPR(0), GPR(7), GPR(6), GPR(2), GPR(10), GPR(8), GPR(9)};
+#else
+                       // ["EAX",  "EBX",  "ECX",  "EDX",  "ESI",  "EDI",  "EBP"]
+    target_ulong regs[] = {GPR(0), GPR(3), GPR(1), GPR(2), GPR(6), GPR(7), GPR(5)};
+#endif
+#elif defined(TARGET_LOONGARCH)
+    #define GPR(x) env->gpr[x]
+                        // a7, a0    a1    a2    a3    a4    a5    a6
+    target_ulong regs[] = {GPR(11), GPR(4), GPR(5), GPR(6), GPR(7), GPR(8), GPR(9), GPR(10)};
+#elif defined(TARGET_RISCV)
+    #define GPR(x) env->gpr[x]
+                        // a7, a0    a1    a2    a3    a4    a5    a6
+    target_ulong regs[] = {GPR(17), GPR(10), GPR(11), GPR(12), GPR(13), GPR(14), GPR(15), GPR(16)};
+
+#endif
+    if (arg < 0 || arg < sizeof(regs) / sizeof(regs[0])) {
+        printf("Error!!! Requested register %d. Target only has %d registers available\n", arg, sizeof(regs) / sizeof(regs[0]));
+        return 0;
+    }
+    return regs[arg];
+}
