@@ -270,8 +270,8 @@ target_ulong panda_get_syscall_arg(CPUState *cpu, int arg){
     target_ulong regs[] = {GPR(17), GPR(10), GPR(11), GPR(12), GPR(13), GPR(14), GPR(15), GPR(16)};
 
 #endif
-    if (arg < 0 || arg < sizeof(regs) / sizeof(regs[0])) {
-        printf("Error!!! Requested register %d. Target only has %d registers available\n", arg, sizeof(regs) / sizeof(regs[0]));
+    if (arg < 0 || arg >= sizeof(regs) / sizeof(regs[0])) {
+        printf("Error!!! Requested register %d. Target only has %ld registers available\n", arg, sizeof(regs) / sizeof(regs[0]));
         return 0;
     }
     return regs[arg];
