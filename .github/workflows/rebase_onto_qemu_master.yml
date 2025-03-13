@@ -61,14 +61,14 @@ jobs:
       #     apt update
       #     gh pr create --dry-run --base master
 
-      # - name: Create a PR to rebase main onto master
-      #   run: |
-      #     gh api \
-      #     --method POST \
-      #     -H "Accept: application/vnd.github+json" \
-      #     -H "X-GitHub-Api-Version: 2022-11-28" \
-      #     /repos/panda-re/qemu/pulls \
-      #     -f "title=Rebase main onto QEMU master" -f "head=main" -f "base=master"
+      - name: Create a PR to rebase main onto master
+        run: |
+          gh api \
+          --method POST \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          /repos/panda-re/qemu/pulls \
+          -f "title=Rebase main onto QEMU master" -f "head=main" -f "base=master"
 
       # - name: Make main_previous point to main's HEAD
 
