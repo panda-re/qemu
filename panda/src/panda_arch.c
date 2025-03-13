@@ -228,7 +228,7 @@ target_ulong panda_get_retval(const CPUState *cpu) {
 #endif
 }
 
-void panda_set_retval(const CPUState *cpu, target_ulong value){
+void panda_set_retval(CPUState *cpu, target_ulong value){
     CPUArchState *env = cpu_env((CPUState *)cpu);
 #if defined(TARGET_I386)
     // EAX for x86.
