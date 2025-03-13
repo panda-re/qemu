@@ -26,6 +26,10 @@
 #include "semihosting/semihost.h"
 #include "cpregs.h"
 
+
+// forward declare helper function
+void helper_panda_guest_hypercall(void);
+
 static TCGv_i64 cpu_X[32];
 static TCGv_i64 cpu_pc;
 
@@ -2781,6 +2785,11 @@ static void handle_sys(DisasContext *s, bool isread,
 static bool trans_SYS(DisasContext *s, arg_SYS *a)
 {
     handle_sys(s, a->l, a->op0, a->op1, a->op2, a->crn, a->crm, a->rt);
+    return true;
+}
+
+static bool trans_PANDA(DisasContext *s, arg_PANDA *a){
+    gen_helper_panda_guest_hypercall();
     return true;
 }
 
