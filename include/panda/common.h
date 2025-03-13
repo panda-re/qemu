@@ -87,7 +87,9 @@ bool panda_in_kernel_code_linux(CPUState * cpu);
 target_ulong panda_current_ksp(CPUState * cpu);
 target_ulong panda_current_sp(const CPUState *cpu);
 target_ulong panda_get_retval(const CPUState *cpu);
+target_ulong panda_set_retval(CPUState *cpu, int arg);
 target_ulong panda_get_syscall_arg(CPUState *cpu, int arg);
+void panda_set_syscall_arg(CPUState *cpu, int arg, target_ulong value);
 #ifdef __cplusplus
 }
 #endif
