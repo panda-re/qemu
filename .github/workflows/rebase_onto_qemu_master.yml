@@ -62,6 +62,8 @@ jobs:
       #     gh pr create --dry-run --base master
 
       - name: Create a PR to rebase main onto master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh api \
           --method POST \
