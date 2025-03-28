@@ -857,7 +857,7 @@ static bool gen_logic_imm_fn(DisasContext *ctx, arg_i *a,
     // xori $0, $0, 0
     if ((a->rs1 == 0 && a->rd == 0 && a->imm == 0)
         && func == tcg_gen_xori_tl){
-        
+        gen_helper_panda_guest_hypercall();
     }
 
     func(dest, src1, a->imm);
