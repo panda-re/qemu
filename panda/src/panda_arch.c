@@ -277,10 +277,10 @@ void panda_set_retval(CPUState *cpu, target_ulong value){
     #define GPR(x) env->regs[x]
 #if defined(TARGET_X86_64)
                        // ['RAX',  'RDI',  'RSI',  'RDX',  'R10',  'R8',    'R9']
-    target_ulong regs[] = {0, 7, 6, 2, 10, 8, 9};
+    target_ulong regs[] = {R_EAX, R_EDI, R_ESI, R_EDX, R_R10, R_R8, R_R9};
 #else
                        // ["EAX",  "EBX",  "ECX",  "EDX",  "ESI",  "EDI",  "EBP"]
-    target_ulong regs[] = {0, 3, 1, 2, 6, 7, 5};
+    target_ulong regs[] = {R_EAX, R_EBX, R_ECX, R_EDX, R_ESI, R_EDI, R_EBP};
 #endif
 #elif defined(TARGET_LOONGARCH)
     #define GPR(x) env->gpr[x]
