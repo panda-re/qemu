@@ -32,6 +32,7 @@
 #endif
 #include "cpregs.h"
 #include "target/arm/gtimer.h"
+#include "panda/callbacks/cb-support.h"
 
 #define ARM_CPU_FREQ 1000000000 /* FIXME: 1 GHz, should be configurable */
 
@@ -4275,32 +4276,40 @@ static void vmsa_tcr_el12_write(CPUARMState *env, const ARMCPRegInfo *ri,
 static void vmsa_ttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
                             uint64_t value)
 {
+    uint64_t current_value = raw_read(env,ri);
     /* If the ASID changes (with a 64-bit write), we must flush the TLB.  */
     if (cpreg_field_is_64bit(ri) &&
         extract64(raw_read(env, ri) ^ value, 48, 16) != 0) {
         ARMCPU *cpu = env_archcpu(env);
         tlb_flush(CPU(cpu));
     }
-    raw_write(env, ri, value);
+    	// ret val !=0 means *dont* allow allow to change
+	if (0 == (panda_callbacks_asid_changed(env_cpu(env), current_value, value))){
+		raw_write(env, ri, value);
+	}
 }
 
 static void vmsa_tcr_ttbr_el2_write(CPUARMState *env, const ARMCPRegInfo *ri,
                                     uint64_t value)
 {
-    /*
-     * If we are running with E2&0 regime, then an ASID is active.
-     * Flush if that might be changing.  Note we're not checking
-     * TCR_EL2.A1 to know if this is really the TTBRx_EL2 that
-     * holds the active ASID, only checking the field that might.
-     */
-    if (extract64(raw_read(env, ri) ^ value, 48, 16) &&
-        (arm_hcr_el2_eff(env) & HCR_E2H)) {
-        uint16_t mask = ARMMMUIdxBit_E20_2 |
-                        ARMMMUIdxBit_E20_2_PAN |
-                        ARMMMUIdxBit_E20_0;
-        tlb_flush_by_mmuidx(env_cpu(env), mask);
+    uint64_t current_value = raw_read(env,ri);
+    	// ret val !=0 means *dont* allow allow to change
+	if (0 == (panda_callbacks_asid_changed(env_cpu(env), current_value, value))){
+        /*
+        * If we are running with E2&0 regime, then an ASID is active.
+        * Flush if that might be changing.  Note we're not checking
+        * TCR_EL2.A1 to know if this is really the TTBRx_EL2 that
+        * holds the active ASID, only checking the field that might.
+        */
+        if (extract64(raw_read(env, ri) ^ value, 48, 16) &&
+            (arm_hcr_el2_eff(env) & HCR_E2H)) {
+            uint16_t mask = ARMMMUIdxBit_E20_2 |
+                            ARMMMUIdxBit_E20_2_PAN |
+                            ARMMMUIdxBit_E20_0;
+            tlb_flush_by_mmuidx(env_cpu(env), mask);
+        }
+        raw_write(env, ri, value);
     }
-    raw_write(env, ri, value);
 }
 
 static void vttbr_write(CPUARMState *env, const ARMCPRegInfo *ri,
@@ -5326,6 +5335,11 @@ static void do_hcr_write(CPUARMState *env, uint64_t value, uint64_t valid_mask)
     /* Clear RES0 bits.  */
     value &= valid_mask;
 
+    /* RW is RAO/WI if EL1 is AArch64 only */
+    if (!cpu_isar_feature(aa64_aa32_el1, cpu)) {
+        value |= HCR_RW;
+    }
+
     /*
      * These bits change the MMU setup:
      * HCR_VM enables stage 2 translation
@@ -5381,6 +5395,12 @@ static void hcr_writelow(CPUARMState *env, const ARMCPRegInfo *ri,
     /* Handle HCR write, i.e. write to low half of HCR_EL2 */
     value = deposit64(env->cp15.hcr_el2, 0, 32, value);
     do_hcr_write(env, value, MAKE_64BIT_MASK(32, 32));
+}
+
+static void hcr_reset(CPUARMState *env, const ARMCPRegInfo *ri)
+{
+    /* hcr_write will set the RES1 bits on an AArch64-only CPU */
+    hcr_write(env, ri, 0);
 }
 
 /*
@@ -5618,6 +5638,7 @@ static const ARMCPRegInfo el2_cp_reginfo[] = {
       .opc0 = 3, .opc1 = 4, .crn = 1, .crm = 1, .opc2 = 0,
       .access = PL2_RW, .fieldoffset = offsetof(CPUARMState, cp15.hcr_el2),
       .nv2_redirect_offset = 0x78,
+      .resetfn = hcr_reset,
       .writefn = hcr_write, .raw_writefn = raw_write },
     { .name = "HCR", .state = ARM_CP_STATE_AA32,
       .type = ARM_CP_ALIAS | ARM_CP_IO,
@@ -9818,7 +9839,7 @@ uint32_t arm_phys_excp_target_el(CPUState *cs, uint32_t excp_idx,
     uint64_t hcr_el2;
 
     if (arm_feature(env, ARM_FEATURE_EL3)) {
-        rw = ((env->cp15.scr_el3 & SCR_RW) == SCR_RW);
+        rw = arm_scr_rw_eff(env);
     } else {
         /*
          * Either EL2 is the highest EL (and so the EL2 register width
@@ -10627,7 +10648,7 @@ static void arm_cpu_do_interrupt_aarch64(CPUState *cs)
 
         switch (new_el) {
         case 3:
-            is_aa64 = (env->cp15.scr_el3 & SCR_RW) != 0;
+            is_aa64 = arm_scr_rw_eff(env);
             break;
         case 2:
             hcr = arm_hcr_el2_eff(env);
