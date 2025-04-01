@@ -22,38 +22,51 @@ jobs:
           && sudo apt update \
           && sudo apt install gh -y
       
-      # We can't delete PRs on github, so try the rebase locally first
-      # OR open the rebase PR regardless and then have someone fix it.
-      - name: Check out local main branch
-        uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
+      # # We can't delete PRs on github, so try the rebase locally first
+      # # OR open the rebase PR regardless and then have someone fix it.
+      # - name: Check out local main branch
+      #   uses: actions/checkout@v4
+      #   with:
+      #     ref: main
+      #     fetch-depth: 0
 
       # - name: Configure committer name and email
       #   run: |
       #     git config user.name "Test rebase"
       #     git config user.email "connorc0405@gmail.com"
 
-      - name: Check out upstream qemu master branch and push to our repo
-        run: |
-          # git remote add upstream https://github.com/qemu/qemu
-          # git fetch upstream master
-          git fetch https://github.com/qemu/qemu master:upstream_master
-          git checkout upstream_master
-          git remote -v # test
-          git push --set-upstream origin upstream_master
+      # - name: Check out upstream qemu master branch and push to our repo
+      #   run: |
+      #     # git remote add upstream https://github.com/qemu/qemu
+      #     # git fetch upstream master
+      #     git fetch https://github.com/qemu/qemu master:upstream_master
+      #     git checkout upstream_master
+      #     git remote -v # test
+      #     git push --set-upstream origin upstream_master
+
+      # Requires pre-existing branch "master"
+      - name: Sync QEMU master branch
+        run: gh repo sync panda-re/qemu --source qemu/qemu --branch master
 
       # - name: Rebase local main onto upstream qemu master
       #   # run: git rebase upstream/master
       #   run: git rebase upstream_master
 
-      - name: Create a PR to rebase main onto upstream_master
+      # - name: Create a PR to rebase main onto master
+      #   run: |
+      #     git checkout main
+      #     git remote -v # testing
+      #     apt update
+      #     gh pr create --dry-run --base master
+
+      - name: Create a PR to rebase main onto master
         run: |
-          git checkout main
-          git remote -v # testing
-          apt update
-          gh pr create --dry-run --base upstream_master
+          gh api \
+          --method POST \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          /repos/panda-re/qemu/pulls \
+          -f "title=Rebase main onto QEMU master" -f "head=main" -f "base=master"
 
       # - name: Make main_previous point to main's HEAD
 
