@@ -26,7 +26,7 @@ jobs:
             gh api \
               -H "Accept: application/vnd.github+json" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
-              /repos/panda-re/qemu/git/ref/heads/master \
+              /repos/panda-re/qemu/git/ref/heads/main \
             | jq .object.sha \
             | tr -d \"
           )
