@@ -29,7 +29,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ $(gh pr list --base master --state open --json id --jq 'length') == "0" ]; then  # Only create PR if one does not already exist
+          if [ "$(gh pr list --base master --state open --json id --jq 'length')" == "0" ]; then  # Only create PR if one does not already exist
             gh api \
             --method POST \
             -H "Accept: application/vnd.github+json" \
