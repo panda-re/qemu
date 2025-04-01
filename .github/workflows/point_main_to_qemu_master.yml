@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  rebase_onto_qemu_master:
+  fixup_branches_post_rebase_to_upstream:
     if: github.repository  == 'panda-re/qemu'
     runs-on: panda-arc
     steps:
