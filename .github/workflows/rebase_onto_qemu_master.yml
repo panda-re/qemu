@@ -11,23 +11,38 @@ jobs:
       - name: Install git
         run: sudo apt-get -qq update -y && sudo apt-get -qq install git -y
       
+      # We can't delete PRs on github, so try the rebase locally first
+      # OR open the rebase PR regardless and then have someone fix it.
       - name: Check out local main branch
         uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 0
 
-      - name: Configure committer name and email
+      # - name: Configure committer name and email
+      #   run: |
+      #     git config user.name "Test rebase"
+      #     git config user.email "connorc0405@gmail.com"
+
+      - name: Check out upstream qemu master branch and push to our repo
         run: |
-          git config user.name "Test rebase"
-          git config user.email "connorc0405@gmail.com"
+          # git remote add upstream https://github.com/qemu/qemu
+          # git fetch upstream master
+          git fetch https://github.com/qemu/qemu master:upstream_master
+          git checkout upstream_master
+          git remote -v # test
+          # git push --set-upstream origin upstream_master
 
-      - name: Check out upstream qemu master branch
-        run: |
-          git remote add upstream https://github.com/qemu/qemu
-          git fetch upstream master
+      # - name: Rebase local main onto upstream qemu master
+      #   # run: git rebase upstream/master
+      #   run: git rebase upstream_master
 
-      - name: Rebase local main onto upstream qemu master
-        run: git rebase upstream/master
+      # - name: Create a PR to rebase main onto upstream_master
+      #   run: |
+      #     git checkout main
+      #     git remote -v # testing
+      #     # gh pr create --dry-run --base upstream_master
 
-      # - name: Create a PR with rebased branch TODO
+      # - name: Make main_previous point to main's HEAD
+
+      # - name: Make main point to upstream_master's HEAD
