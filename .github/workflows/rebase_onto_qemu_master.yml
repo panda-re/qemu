@@ -31,17 +31,17 @@ jobs:
           git fetch https://github.com/qemu/qemu master:upstream_master
           git checkout upstream_master
           git remote -v # test
-          # git push --set-upstream origin upstream_master
+          git push --set-upstream origin upstream_master
 
       # - name: Rebase local main onto upstream qemu master
       #   # run: git rebase upstream/master
       #   run: git rebase upstream_master
 
-      # - name: Create a PR to rebase main onto upstream_master
-      #   run: |
-      #     git checkout main
-      #     git remote -v # testing
-      #     # gh pr create --dry-run --base upstream_master
+      - name: Create a PR to rebase main onto upstream_master
+        run: |
+          git checkout main
+          git remote -v # testing
+          # gh pr create --dry-run --base upstream_master
 
       # - name: Make main_previous point to main's HEAD
 
