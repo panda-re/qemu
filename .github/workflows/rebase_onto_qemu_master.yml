@@ -46,6 +46,8 @@ jobs:
 
       # Requires pre-existing branch "master"
       - name: Sync QEMU master branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh repo sync panda-re/qemu --source qemu/qemu --branch master
 
       # - name: Rebase local main onto upstream qemu master
