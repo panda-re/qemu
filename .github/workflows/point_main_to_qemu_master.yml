@@ -19,7 +19,7 @@ jobs:
           && sudo apt update \
           && sudo apt install gh -y
 
-      - name: Make main_previous point to main's HEAD and make main point to master's HEAD
+      - name: Make main_previous point to main's HEAD and make main_test point to master's HEAD
         run: |
           # Get main's SHA
           MAIN_SHA=$(
@@ -49,10 +49,10 @@ jobs:
             | tr -d \"
           )
 
-          # Set main to point to MASTER_SHA
+          # Set main_test to point to MASTER_SHA
           gh api \
             --method PATCH \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            /repos/panda-re/qemu/git/refs/heads/main \
+            /repos/panda-re/qemu/git/refs/heads/main_test \
             -f "sha=${MASTER_SHA}" -F "force=true"
