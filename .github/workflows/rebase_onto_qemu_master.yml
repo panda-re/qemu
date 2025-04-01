@@ -37,7 +37,3 @@ jobs:
               /repos/panda-re/qemu/pulls \
               -f "title=Rebase main onto QEMU master" -f "head=main" -f "base=master"
           fi
-
-      # - name: Make main_previous point to main's HEAD
-
-      # - name: Make main point to upstream_master's HEAD
