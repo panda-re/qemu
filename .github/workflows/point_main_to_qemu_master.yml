@@ -20,6 +20,8 @@ jobs:
           && sudo apt install gh -y
 
       - name: Make main_previous point to main's HEAD and make main_test point to master's HEAD
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Get main's SHA
           MAIN_SHA=$(
