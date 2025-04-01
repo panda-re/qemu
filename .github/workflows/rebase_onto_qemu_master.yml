@@ -8,9 +8,6 @@ jobs:
     if: github.repository  == 'panda-re/qemu'
     runs-on: panda-arc
     steps:
-      - name: Install git
-        run: sudo apt-get -qq update -y && sudo apt-get -qq install git -y
-
       - name: Install GitHub CLI
         run: |
           (type -p wget >/dev/null || (sudo apt update && sudo apt-get install wget -y)) \
