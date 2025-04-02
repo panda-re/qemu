@@ -51,6 +51,7 @@
 #include "trace.h"
 #include "hw/hw.h"
 #include "disas/disas.h"
+#include "migration/cpr.h"
 #include "migration/vmstate.h"
 #include "monitor/monitor.h"
 #include "system/reset.h"
@@ -225,7 +226,7 @@ static void bswap_ahdr(struct exec *e)
 
 
 ssize_t load_aout(const char *filename, hwaddr addr, int max_sz,
-                  int bswap_needed, hwaddr target_page_size)
+                  bool big_endian, hwaddr target_page_size)
 {
     int fd;
     ssize_t size, ret;
@@ -240,7 +241,7 @@ ssize_t load_aout(const char *filename, hwaddr addr, int max_sz,
     if (size < 0)
         goto fail;
 
-    if (bswap_needed) {
+    if (big_endian != HOST_BIG_ENDIAN) {
         bswap_ahdr(&e);
     }
 
@@ -1029,7 +1030,9 @@ static void *rom_set_mr(Rom *rom, Object *owner, const char *name, bool ro)
     vmstate_register_ram_global(rom->mr);
 
     data = memory_region_get_ram_ptr(rom->mr);
-    memcpy(data, rom->data, rom->datasize);
+    if (!cpr_is_incoming()) {
+        memcpy(data, rom->data, rom->datasize);
+    }
 
     return data;
 }
