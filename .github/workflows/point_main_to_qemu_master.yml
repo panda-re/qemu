@@ -1,0 +1,52 @@
+name: Point main branch to that which tracks upstream after rebasing our commits onto it # Only for main panda-re repo, not forks
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fixup_branches_post_rebase_to_upstream:
+    if: github.repository  == 'panda-re/qemu'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # Requires pre-existing branch "main_previous"
+      - name: Make main_previous point to main's HEAD and make main_test point to master's HEAD
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get main's SHA
+          MAIN_SHA=$(
+            gh api \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              /repos/panda-re/qemu/git/ref/heads/main \
+            | jq .object.sha \
+            | tr -d \"
+          )
+
+          # Set main_previous to point to MAIN_SHA
+          gh api \
+            --method PATCH \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/panda-re/qemu/git/refs/heads/main_previous \
+            -f "sha=${MAIN_SHA}" -F "force=true"
+
+          # Get master's SHA
+          MASTER_SHA=$(
+            gh api \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              /repos/panda-re/qemu/git/ref/heads/master \
+            | jq .object.sha \
+            | tr -d \"
+          )
+
+          # Set main_test to point to MASTER_SHA
+          gh api \
+            --method PATCH \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /repos/panda-re/qemu/git/refs/heads/main_test \
+            -f "sha=${MASTER_SHA}" -F "force=true"
