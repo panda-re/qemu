@@ -7,6 +7,8 @@ jobs:
   fixup_branches_post_rebase_to_upstream:
     if: github.repository  == 'panda-re/qemu'
     runs-on: panda-arc
+    permissions:
+      contents: write
     steps:
       - name: Install GitHub CLI
         run: |

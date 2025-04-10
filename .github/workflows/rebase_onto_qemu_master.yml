@@ -7,6 +7,9 @@ jobs:
   rebase_onto_qemu_master:
     if: github.repository  == 'panda-re/qemu'
     runs-on: panda-arc
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - name: Install GitHub CLI
         run: |
