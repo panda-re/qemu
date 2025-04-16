@@ -35,6 +35,8 @@
 #include "exec/helper-info.c.inc"
 #undef  HELPER_H
 
+#include "panda/callbacks/cb-helper-impl.h"
+
 #include "tcg/tcg-cpu.h"
 
 /* global register indices */
@@ -606,7 +608,9 @@ static void gen_jal(DisasContext *ctx, int rd, target_ulong imm)
     TCGv succ_pc = dest_gpr(ctx, rd);
 
     /* check misaligned: */
-    if (!has_ext(ctx, RVC) && !ctx->cfg_ptr->ext_zca) {
+    if (!riscv_cpu_allow_16bit_insn(ctx->cfg_ptr,
+                                    ctx->priv_ver,
+                                    ctx->misa_ext)) {
         if ((imm & 0x3) != 0) {
             TCGv target_pc = tcg_temp_new();
             gen_pc_plus_diff(target_pc, ctx, imm);
@@ -851,6 +855,12 @@ static bool gen_logic_imm_fn(DisasContext *ctx, arg_i *a,
 {
     TCGv dest = dest_gpr(ctx, a->rd);
     TCGv src1 = get_gpr(ctx, a->rs1, EXT_NONE);
+
+    // xori $0, $0, 0
+    if ((a->rs1 == 0 && a->rd == 0 && a->imm == 0)
+        && func == tcg_gen_xori_tl){
+        gen_helper_panda_guest_hypercall();
+    }
 
     func(dest, src1, a->imm);
 

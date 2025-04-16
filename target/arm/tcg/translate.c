@@ -32,6 +32,8 @@
 #include "exec/helper-info.c.inc"
 #undef  HELPER_H
 
+#include "panda/callbacks/cb-helper-impl.h"
+
 #define ENABLE_ARCH_4T    arm_dc_feature(s, ARM_FEATURE_V4T)
 #define ENABLE_ARCH_5     arm_dc_feature(s, ARM_FEATURE_V5)
 /* currently all emulated v5 cores are also v5TE, so don't bother */
@@ -2967,6 +2969,12 @@ static void do_coproc_insn(DisasContext *s, int cpnum, int is64,
                                         rt, isread, false);
         }
         break;
+    case 7:
+        if (!isread){
+            gen_helper_panda_guest_hypercall();
+            return;
+        }
+        __attribute__ ((fallthrough));
     default:
         /*
          * ARMv8 defines that only coprocessors 14 and 15 exist,

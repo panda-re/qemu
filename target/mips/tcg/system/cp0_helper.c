@@ -28,6 +28,7 @@
 #include "qemu/host-utils.h"
 #include "exec/helper-proto.h"
 #include "exec/cputlb.h"
+bool panda_callbacks_asid_changed(CPUState *env, uint64_t oldval, uint64_t newval);
 
 
 /* SMP helpers.  */
@@ -864,36 +865,24 @@ void helper_mtc0_memorymapid(CPUMIPSState *env, target_ulong arg1)
     }
 }
 
-void update_pagemask(CPUMIPSState *env, target_ulong arg1, int32_t *pagemask)
+uint32_t compute_pagemask(uint32_t val)
 {
-    uint32_t mask;
-    int maskbits;
-
     /* Don't care MASKX as we don't support 1KB page */
-    mask = extract32((uint32_t)arg1, CP0PM_MASK, 16);
-    maskbits = cto32(mask);
+    uint32_t mask = extract32(val, CP0PM_MASK, 16);
+    int maskbits = cto32(mask);
 
-    /* Ensure no more set bit after first zero */
-    if ((mask >> maskbits) != 0) {
-        goto invalid;
+    /* Ensure no more set bit after first zero, and maskbits even. */
+    if ((mask >> maskbits) == 0 && maskbits % 2 == 0) {
+        return mask << CP0PM_MASK;
+    } else {
+        /* When invalid, set to default target page size. */
+        return 0;
     }
-    /* We don't support VTLB entry smaller than target page */
-    if ((maskbits + TARGET_PAGE_BITS_MIN) < TARGET_PAGE_BITS) {
-        goto invalid;
-    }
-    env->CP0_PageMask = mask << CP0PM_MASK;
-
-    return;
-
-invalid:
-    /* When invalid, set to default target page size. */
-    mask = (~TARGET_PAGE_MASK >> TARGET_PAGE_BITS_MIN);
-    env->CP0_PageMask = mask << CP0PM_MASK;
 }
 
 void helper_mtc0_pagemask(CPUMIPSState *env, target_ulong arg1)
 {
-    update_pagemask(env, arg1, &env->CP0_PageMask);
+    env->CP0_PageMask = compute_pagemask(arg1);
 }
 
 void helper_mtc0_pagegrain(CPUMIPSState *env, target_ulong arg1)
@@ -1100,7 +1089,15 @@ void helper_mtc0_entryhi(CPUMIPSState *env, target_ulong arg1)
 #endif
     old = env->CP0_EntryHi;
     val = (arg1 & mask) | (old & ~mask);
-    env->CP0_EntryHi = val;
+    if ((env->CP0_EntryHi & env->CP0_EntryHi_ASID_mask) != (val & env->CP0_EntryHi_ASID_mask)) {
+      // Actually an asid change, trigger CB
+      if (!panda_callbacks_asid_changed(env_cpu(env), env->CP0_EntryHi, val)){
+          env->CP0_EntryHi = val;
+      }
+    }else{
+      // not an asid change, no cb
+      env->CP0_EntryHi = val;
+    }
     if (ase_mt_available(env)) {
         sync_c0_entryhi(env, env->current_tc);
     }
@@ -1116,7 +1113,9 @@ void helper_mttc0_entryhi(CPUMIPSState *env, target_ulong arg1)
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
     CPUMIPSState *other = mips_cpu_map_tc(env, &other_tc);
 
-    other->CP0_EntryHi = arg1;
+    if (!panda_callbacks_asid_changed(env_cpu(env), env->CP0_EntryHi, arg1)){
+          other->CP0_EntryHi = arg1;
+    }
     sync_c0_entryhi(other, other_tc);
 }
 
