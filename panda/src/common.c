@@ -410,6 +410,111 @@ void exit_priv(CPUState* cpu) {
     in_fake_priv = false;
 }
 
+#elif defined(TARGET_PPC)
+
+thread_local uint32_t saved_msr = 0;
+thread_local bool in_fake_priv = false;
+
+// Force the guest into privileged mode by modifying the MSR
+// The MSR's PR bit (bit 14) controls privilege level. PR=0 is privileged, PR=1 is problem state
+bool enter_priv(CPUState *cpu) {
+    CPUPPCState *env = (CPUPPCState *)cpu_env(cpu);
+    
+    // Already in privileged mode? (PR bit is 0)
+    if (!(env->msr & MSR_PR)) {
+        // No point in changing permissions
+        return false;
+    }
+    
+    // Save current MSR
+    saved_msr = env->msr;
+    in_fake_priv = true;
+    
+    // Clear the PR bit to enter privileged mode
+    env->msr &= ~MSR_PR;
+    
+    return true;
+}
+
+void exit_priv(CPUState *cpu) {
+    assert(in_fake_priv && "exit called when not faked");
+    CPUPPCState *env = (CPUPPCState *)cpu_env(cpu);
+    
+    // Restore saved MSR
+    env->msr = saved_msr;
+    in_fake_priv = false;
+}
+
+#elif defined(TARGET_RISCV)
+
+thread_local uint64_t saved_status = 0;
+thread_local bool in_fake_priv = false;
+
+// Force the guest into privileged mode by modifying the privilege bits in mstatus
+// For RISC-V, bits 1:0 of mstatus are the privilege level (0=U, 1=S, 2=H, 3=M)
+bool enter_priv(CPUState *cpu) {
+    CPURISCVState *env = (CPURISCVState *)cpu_env(cpu);
+    
+    // Already in privileged mode? (privilege mode > 0)
+    if (get_field(env->mstatus, MSTATUS_MPP) > PRV_U) {
+        // No point in changing permissions
+        return false;
+    }
+    
+    // Save current status
+    saved_status = env->mstatus;
+    in_fake_priv = true;
+    
+    // Set the privilege mode to supervisor (1)
+    env->mstatus = set_field(env->mstatus, MSTATUS_MPP, PRV_S);
+    
+    return true;
+}
+
+void exit_priv(CPUState *cpu) {
+    assert(in_fake_priv && "exit called when not faked");
+    CPURISCVState *env = (CPURISCVState *)cpu_env(cpu);
+    
+    // Restore saved status
+    env->mstatus = saved_status;
+    in_fake_priv = false;
+}
+
+#elif defined(TARGET_LOONGARCH)
+
+thread_local uint32_t saved_csr_prmd = 0;
+thread_local bool in_fake_priv = false;
+
+// Force the guest into privileged mode by modifying the PRMD CSR
+// For LoongArch, bit 0 of PRMD (PLV) controls privilege level (0=privileged, 1=unprivileged)
+bool enter_priv(CPUState *cpu) {
+    CPULoongArchState *env = (CPULoongArchState *)cpu_env(cpu);
+    
+    // Already in privileged mode? (PLV bit is 0)
+    if (!(env->CSR_PRMD & 0x1)) {
+        // No point in changing permissions
+        return false;
+    }
+    
+    // Save current PRMD
+    saved_csr_prmd = env->CSR_PRMD;
+    in_fake_priv = true;
+    
+    // Clear the PLV bit to enter privileged mode
+    env->CSR_PRMD &= ~0x1;
+    
+    return true;
+}
+
+void exit_priv(CPUState *cpu) {
+    assert(in_fake_priv && "exit called when not faked");
+    CPULoongArchState *env = (CPULoongArchState *)cpu_env(cpu);
+    
+    // Restore saved PRMD
+    env->CSR_PRMD = saved_csr_prmd;
+    in_fake_priv = false;
+}
+
 #elif defined(TARGET_I386)
 
 thread_local uint32_t saved_hflags = 0;
