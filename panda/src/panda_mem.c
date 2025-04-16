@@ -140,7 +140,7 @@ int panda_virtual_memory_rw(CPUState *env, target_ulong addr,
         // If we failed and we aren't in priv mode and we CAN go into it, toggle modes and try again
         if (phys_addr == -1  && !changed_priv && (changed_priv=enter_priv(env))) {
             phys_addr = cpu_get_phys_page_debug(env, page);
-            //if (phys_addr != -1) printf("[panda dbg] virt->phys failed until privileged mode\n");
+            if (phys_addr != -1) printf("[panda dbg] virt->phys failed until privileged mode\n");
         }
 
         // No physical page mapped, even after potential privileged switch, abort
@@ -159,7 +159,7 @@ int panda_virtual_memory_rw(CPUState *env, target_ulong addr,
         // Failed and privileged mode wasn't already enabled - enable priv and retry if we can
         if (ret != MEMTX_OK && !changed_priv && (changed_priv = enter_priv(env))) {
             ret = panda_physical_memory_rw(phys_addr, buf, l, is_write);
-            //if (ret == MEMTX_OK) printf("[panda dbg] accessing phys failed until privileged mode\n");
+            if (ret == MEMTX_OK) printf("[panda dbg] accessing phys failed until privileged mode\n");
         }
         // Still failed, even after potential privileged switch, abort
         if (ret != MEMTX_OK) {
