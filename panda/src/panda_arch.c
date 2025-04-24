@@ -264,9 +264,9 @@ void panda_set_retval(CPUState *cpu, target_ulong value){
 #elif defined(TARGET_MIPS)
     #define GPR(x) env->active_tc.gpr[(x)]
                           // ["V0", "A0", "A1", "A2", "A3", "A4", "A5"]
-    target_ulong regs[] = {2, 5, 6, 7, 8,
+    target_ulong regs[] = {2, 4, 5, 6, 7,
 #if defined(TARGET_MIPS64)
-        9, 10,
+        8, 9,
 #endif
     };
 #elif defined(TARGET_PPC)
