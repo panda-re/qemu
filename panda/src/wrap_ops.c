@@ -20,7 +20,7 @@
 #include "panda/callbacks/cb-support.h"
 #include "panda/common.h"
 #include "panda/wrap_ops.h"
-#include "hw/core/tcg-cpu-ops.h"
+// #include "accel/tcg/cpu-ops.h"
 
 
 // TODO: needs a lookup per cpu
