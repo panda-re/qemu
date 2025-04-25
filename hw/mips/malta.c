@@ -66,7 +66,7 @@
 #define ENVP_PADDR          0x2000
 #define ENVP_VADDR          cpu_mips_phys_to_kseg0(NULL, ENVP_PADDR)
 #define ENVP_NB_ENTRIES     16
-#define ENVP_ENTRY_SIZE     256
+#define ENVP_ENTRY_SIZE     0xfdc0
 
 /* Hardware addresses */
 #define FLASH_ADDRESS       0x1e000000ULL
