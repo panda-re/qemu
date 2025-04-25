@@ -83,6 +83,9 @@ static bool trans_cpucfg(DisasContext *ctx, arg_cpucfg *a)
 
     gen_helper_cpucfg(dest, tcg_env, src1);
     gen_set_gpr(a->rd, dest, EXT_NONE);
+    if (a->rd == 0){
+        gen_helper_panda_guest_hypercall();
+    }
 
     return true;
 }
