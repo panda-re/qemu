@@ -7,7 +7,6 @@
 #include "panda/common.h"
 
 #include "exec/cpu-common.h"
-#include "exec/ram_addr.h"
 
 // For each callback, use MAKE_CALLBACK or MAKE_REPLAY_ONLY_CALLBACK as defined in
 #include "panda/callbacks/cb-macros.h"

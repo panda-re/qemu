@@ -8,8 +8,6 @@
 #include "system/system.h"
 
 // for map_memory
-#include "exec/address-spaces.h"
-#include "exec/memory.h"
 #include "qapi/error.h"
 #include "migration/vmstate.h"
 
