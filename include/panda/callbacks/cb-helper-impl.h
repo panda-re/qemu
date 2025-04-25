@@ -36,8 +36,6 @@ PANDAENDCOMMENT */
 //     }
 // }
 
-#if defined(TARGET_ARM) || defined(TARGET_MIPS)
 void helper_panda_guest_hypercall(void) {
     panda_callbacks_guest_hypercall(current_cpu);
 }
-#endif
