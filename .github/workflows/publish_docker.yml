@@ -47,7 +47,9 @@ jobs:
       
       - name: Build package
         working-directory: panda/debian
-        run: ./setup.sh Ubuntu 22.04
+        run: |
+          ./setup.sh Ubuntu 24.04
+          ./setup.sh Ubuntu 22.04
 
       - name: Upload wheel and debian packages to release
         uses: softprops/action-gh-release@v2
