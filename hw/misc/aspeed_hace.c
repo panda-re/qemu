@@ -128,6 +128,11 @@ static bool has_padding(AspeedHACEState *s, struct iovec *iov,
     if (*total_msg_len <= s->total_req_len) {
         uint32_t padding_size = s->total_req_len - *total_msg_len;
         uint8_t *padding = iov->iov_base;
+
+        if (padding_size > req_len) {
+            return false;
+        }
+
         *pad_offset = req_len - padding_size;
         if (padding[*pad_offset] == 0x80) {
             return true;
@@ -474,7 +479,7 @@ static const VMStateDescription vmstate_aspeed_hace = {
     }
 };
 
-static void aspeed_hace_class_init(ObjectClass *klass, void *data)
+static void aspeed_hace_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -492,7 +497,7 @@ static const TypeInfo aspeed_hace_info = {
     .class_size = sizeof(AspeedHACEClass)
 };
 
-static void aspeed_ast2400_hace_class_init(ObjectClass *klass, void *data)
+static void aspeed_ast2400_hace_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedHACEClass *ahc = ASPEED_HACE_CLASS(klass);
@@ -511,7 +516,7 @@ static const TypeInfo aspeed_ast2400_hace_info = {
     .class_init = aspeed_ast2400_hace_class_init,
 };
 
-static void aspeed_ast2500_hace_class_init(ObjectClass *klass, void *data)
+static void aspeed_ast2500_hace_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedHACEClass *ahc = ASPEED_HACE_CLASS(klass);
@@ -530,7 +535,7 @@ static const TypeInfo aspeed_ast2500_hace_info = {
     .class_init = aspeed_ast2500_hace_class_init,
 };
 
-static void aspeed_ast2600_hace_class_init(ObjectClass *klass, void *data)
+static void aspeed_ast2600_hace_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedHACEClass *ahc = ASPEED_HACE_CLASS(klass);
@@ -549,7 +554,7 @@ static const TypeInfo aspeed_ast2600_hace_info = {
     .class_init = aspeed_ast2600_hace_class_init,
 };
 
-static void aspeed_ast1030_hace_class_init(ObjectClass *klass, void *data)
+static void aspeed_ast1030_hace_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedHACEClass *ahc = ASPEED_HACE_CLASS(klass);
@@ -568,7 +573,7 @@ static const TypeInfo aspeed_ast1030_hace_info = {
     .class_init = aspeed_ast1030_hace_class_init,
 };
 
-static void aspeed_ast2700_hace_class_init(ObjectClass *klass, void *data)
+static void aspeed_ast2700_hace_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedHACEClass *ahc = ASPEED_HACE_CLASS(klass);

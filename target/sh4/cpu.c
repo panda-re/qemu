@@ -177,7 +177,7 @@ static void sh7750r_cpu_initfn(Object *obj)
     env->features = SH_FEATURE_BCR3_AND_BCR4;
 }
 
-static void sh7750r_class_init(ObjectClass *oc, void *data)
+static void sh7750r_class_init(ObjectClass *oc, const void *data)
 {
     SuperHCPUClass *scc = SUPERH_CPU_CLASS(oc);
 
@@ -194,7 +194,7 @@ static void sh7751r_cpu_initfn(Object *obj)
     env->features = SH_FEATURE_BCR3_AND_BCR4;
 }
 
-static void sh7751r_class_init(ObjectClass *oc, void *data)
+static void sh7751r_class_init(ObjectClass *oc, const void *data)
 {
     SuperHCPUClass *scc = SUPERH_CPU_CLASS(oc);
 
@@ -211,7 +211,7 @@ static void sh7785_cpu_initfn(Object *obj)
     env->features = SH_FEATURE_SH4A;
 }
 
-static void sh7785_class_init(ObjectClass *oc, void *data)
+static void sh7785_class_init(ObjectClass *oc, const void *data)
 {
     SuperHCPUClass *scc = SUPERH_CPU_CLASS(oc);
 
@@ -262,10 +262,15 @@ static const struct SysemuCPUOps sh4_sysemu_ops = {
 #include "accel/tcg/cpu-ops.h"
 
 static const TCGCPUOps superh_tcg_ops = {
+    /* MTTCG not yet supported: require strict ordering */
+    .guest_default_memory_order = TCG_MO_ALL,
+    .mttcg_supported = false,
+
     .initialize = sh4_translate_init,
     .translate_code = sh4_translate_code,
     .synchronize_from_tb = superh_cpu_synchronize_from_tb,
     .restore_state_to_opc = superh_restore_state_to_opc,
+    .mmu_index = sh4_cpu_mmu_index,
 
 #ifndef CONFIG_USER_ONLY
     .tlb_fill = superh_cpu_tlb_fill,
@@ -277,7 +282,7 @@ static const TCGCPUOps superh_tcg_ops = {
 #endif /* !CONFIG_USER_ONLY */
 };
 
-static void superh_cpu_class_init(ObjectClass *oc, void *data)
+static void superh_cpu_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     CPUClass *cc = CPU_CLASS(oc);
@@ -291,7 +296,6 @@ static void superh_cpu_class_init(ObjectClass *oc, void *data)
                                        &scc->parent_phases);
 
     cc->class_by_name = superh_cpu_class_by_name;
-    cc->mmu_index = sh4_cpu_mmu_index;
     cc->dump_state = superh_cpu_dump_state;
     cc->set_pc = superh_cpu_set_pc;
     cc->get_pc = superh_cpu_get_pc;

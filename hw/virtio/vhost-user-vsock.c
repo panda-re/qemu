@@ -128,7 +128,6 @@ err_vhost_dev:
 err_virtio:
     vhost_vsock_common_unrealize(vdev);
     vhost_user_cleanup(&vsock->vhost_user);
-    return;
 }
 
 static void vuv_device_unrealize(DeviceState *dev)
@@ -152,7 +151,7 @@ static const Property vuv_properties[] = {
     DEFINE_PROP_CHR("chardev", VHostUserVSock, conf.chardev),
 };
 
-static void vuv_class_init(ObjectClass *klass, void *data)
+static void vuv_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);

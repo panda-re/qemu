@@ -3,7 +3,7 @@
 #ifndef HW_BOARDS_H
 #define HW_BOARDS_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "system/hostmem.h"
 #include "system/blockdev.h"
 #include "qapi/qapi-types-machine.h"
@@ -745,7 +745,7 @@ struct MachineState {
     } while (0)
 
 #define DEFINE_MACHINE(namestr, machine_initfn) \
-    static void machine_initfn##_class_init(ObjectClass *oc, void *data) \
+    static void machine_initfn##_class_init(ObjectClass *oc, const void *data) \
     { \
         MachineClass *mc = MACHINE_CLASS(oc); \
         machine_initfn(mc); \
@@ -760,6 +760,9 @@ struct MachineState {
         type_register_static(&machine_initfn##_typeinfo); \
     } \
     type_init(machine_initfn##_register_types)
+
+extern GlobalProperty hw_compat_10_0[];
+extern const size_t hw_compat_10_0_len;
 
 extern GlobalProperty hw_compat_9_2[];
 extern const size_t hw_compat_9_2_len;

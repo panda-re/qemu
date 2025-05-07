@@ -589,9 +589,14 @@ static const struct SysemuCPUOps m68k_sysemu_ops = {
 #include "accel/tcg/cpu-ops.h"
 
 static const TCGCPUOps m68k_tcg_ops = {
+    /* MTTCG not yet supported: require strict ordering */
+    .guest_default_memory_order = TCG_MO_ALL,
+    .mttcg_supported = false,
+
     .initialize = m68k_tcg_init,
     .translate_code = m68k_translate_code,
     .restore_state_to_opc = m68k_restore_state_to_opc,
+    .mmu_index = m68k_cpu_mmu_index,
 
 #ifndef CONFIG_USER_ONLY
     .tlb_fill = m68k_cpu_tlb_fill,
@@ -602,7 +607,7 @@ static const TCGCPUOps m68k_tcg_ops = {
 #endif /* !CONFIG_USER_ONLY */
 };
 
-static void m68k_cpu_class_init(ObjectClass *c, void *data)
+static void m68k_cpu_class_init(ObjectClass *c, const void *data)
 {
     M68kCPUClass *mcc = M68K_CPU_CLASS(c);
     CPUClass *cc = CPU_CLASS(c);
@@ -615,7 +620,6 @@ static void m68k_cpu_class_init(ObjectClass *c, void *data)
                                        &mcc->parent_phases);
 
     cc->class_by_name = m68k_cpu_class_by_name;
-    cc->mmu_index = m68k_cpu_mmu_index;
     cc->dump_state = m68k_cpu_dump_state;
     cc->set_pc = m68k_cpu_set_pc;
     cc->get_pc = m68k_cpu_get_pc;
@@ -630,7 +634,7 @@ static void m68k_cpu_class_init(ObjectClass *c, void *data)
     cc->tcg_ops = &m68k_tcg_ops;
 }
 
-static void m68k_cpu_class_init_cf_core(ObjectClass *c, void *data)
+static void m68k_cpu_class_init_cf_core(ObjectClass *c, const void *data)
 {
     CPUClass *cc = CPU_CLASS(c);
 
@@ -645,7 +649,7 @@ static void m68k_cpu_class_init_cf_core(ObjectClass *c, void *data)
         .class_init = m68k_cpu_class_init_cf_core    \
     }
 
-static void m68k_cpu_class_init_m68k_core(ObjectClass *c, void *data)
+static void m68k_cpu_class_init_m68k_core(ObjectClass *c, const void *data)
 {
     CPUClass *cc = CPU_CLASS(c);
 

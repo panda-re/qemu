@@ -26,6 +26,7 @@
 #include "qemu/uuid.h"
 #include "qemu/error-report.h"
 #include "crypto/hash.h"
+#include "exec/target_page.h"
 #include "system/kvm.h"
 #include "kvm/kvm_i386.h"
 #include "sev.h"
@@ -39,7 +40,7 @@
 #include "qapi/qapi-commands-misc-target.h"
 #include "confidential-guest.h"
 #include "hw/i386/pc.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "qemu/queue.h"
 
 OBJECT_DECLARE_TYPE(SevCommonState, SevCommonStateClass, SEV_COMMON)
@@ -2045,7 +2046,7 @@ static void sev_common_set_kernel_hashes(Object *obj, bool value, Error **errp)
 }
 
 static void
-sev_common_class_init(ObjectClass *oc, void *data)
+sev_common_class_init(ObjectClass *oc, const void *data)
 {
     ConfidentialGuestSupportClass *klass = CONFIDENTIAL_GUEST_SUPPORT_CLASS(oc);
 
@@ -2088,7 +2089,7 @@ static const TypeInfo sev_common_info = {
     .class_size = sizeof(SevCommonStateClass),
     .class_init = sev_common_class_init,
     .abstract = true,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_USER_CREATABLE },
         { }
     }
@@ -2140,7 +2141,7 @@ static void sev_guest_set_legacy_vm_type(Object *obj, Visitor *v,
 }
 
 static void
-sev_guest_class_init(ObjectClass *oc, void *data)
+sev_guest_class_init(ObjectClass *oc, const void *data)
 {
     SevCommonStateClass *klass = SEV_COMMON_CLASS(oc);
     X86ConfidentialGuestClass *x86_klass = X86_CONFIDENTIAL_GUEST_CLASS(oc);
@@ -2394,7 +2395,7 @@ sev_snp_guest_set_host_data(Object *obj, const char *value, Error **errp)
 }
 
 static void
-sev_snp_guest_class_init(ObjectClass *oc, void *data)
+sev_snp_guest_class_init(ObjectClass *oc, const void *data)
 {
     SevCommonStateClass *klass = SEV_COMMON_CLASS(oc);
     X86ConfidentialGuestClass *x86_klass = X86_CONFIDENTIAL_GUEST_CLASS(oc);

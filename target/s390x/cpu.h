@@ -27,15 +27,15 @@
 
 #include "cpu-qom.h"
 #include "cpu_models.h"
+#include "exec/cpu-common.h"
 #include "exec/cpu-defs.h"
+#include "exec/cpu-interrupt.h"
 #include "qemu/cpu-float.h"
 #include "qapi/qapi-types-machine-common.h"
 
 #define ELF_MACHINE_UNAME "S390X"
 
 #define TARGET_HAS_PRECISE_SMC
-
-#define TARGET_INSN_START_EXTRA_WORDS 2
 
 #define MMU_USER_IDX 0
 
@@ -900,13 +900,6 @@ static inline uint8_t s390_cpu_get_state(S390CPU *cpu)
 }
 
 
-/* cpu_models.c */
-void s390_cpu_list(void);
-#define cpu_list s390_cpu_list
-void s390_set_qemu_cpu_model(uint16_t type, uint8_t gen, uint8_t ec_ga,
-                             const S390FeatInit feat_init);
-
-
 /* helper.c */
 #define CPU_RESOLVING_TYPE TYPE_S390_CPU
 
@@ -945,7 +938,5 @@ uint64_t s390_cpu_get_psw_mask(CPUS390XState *env);
 
 /* outside of target/s390x/ */
 S390CPU *s390_cpu_addr2state(uint16_t cpu_addr);
-
-#include "exec/cpu-all.h"
 
 #endif

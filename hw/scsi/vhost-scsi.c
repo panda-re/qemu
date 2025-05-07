@@ -314,7 +314,6 @@ static void vhost_scsi_realize(DeviceState *dev, Error **errp)
     if (vhostfd >= 0) {
         close(vhostfd);
     }
-    return;
 }
 
 static void vhost_scsi_unrealize(DeviceState *dev)
@@ -364,7 +363,7 @@ static const Property vhost_scsi_properties[] = {
                      conf.worker_per_virtqueue, false),
 };
 
-static void vhost_scsi_class_init(ObjectClass *klass, void *data)
+static void vhost_scsi_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
@@ -398,7 +397,7 @@ static const TypeInfo vhost_scsi_info = {
     .instance_size = sizeof(VHostSCSI),
     .class_init = vhost_scsi_class_init,
     .instance_init = vhost_scsi_instance_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_FW_PATH_PROVIDER },
         { }
     },

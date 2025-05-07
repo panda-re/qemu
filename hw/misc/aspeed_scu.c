@@ -427,6 +427,10 @@ static const MemoryRegionOps aspeed_ast2400_scu_ops = {
     .read = aspeed_scu_read,
     .write = aspeed_ast2400_scu_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl = {
+        .min_access_size = 4,
+        .max_access_size = 4,
+    },
     .valid = {
         .min_access_size = 1,
         .max_access_size = 4,
@@ -437,7 +441,9 @@ static const MemoryRegionOps aspeed_ast2500_scu_ops = {
     .read = aspeed_scu_read,
     .write = aspeed_ast2500_scu_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid.min_access_size = 4,
+    .impl.min_access_size = 4,
+    .impl.max_access_size = 4,
+    .valid.min_access_size = 1,
     .valid.max_access_size = 4,
     .valid.unaligned = false,
 };
@@ -612,7 +618,7 @@ static const Property aspeed_scu_properties[] = {
     DEFINE_PROP_UINT32("hw-prot-key", AspeedSCUState, hw_prot_key, 0),
 };
 
-static void aspeed_scu_class_init(ObjectClass *klass, void *data)
+static void aspeed_scu_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     dc->realize = aspeed_scu_realize;
@@ -631,7 +637,7 @@ static const TypeInfo aspeed_scu_info = {
     .abstract      = true,
 };
 
-static void aspeed_2400_scu_class_init(ObjectClass *klass, void *data)
+static void aspeed_2400_scu_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedSCUClass *asc = ASPEED_SCU_CLASS(klass);
@@ -653,7 +659,7 @@ static const TypeInfo aspeed_2400_scu_info = {
     .class_init = aspeed_2400_scu_class_init,
 };
 
-static void aspeed_2500_scu_class_init(ObjectClass *klass, void *data)
+static void aspeed_2500_scu_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedSCUClass *asc = ASPEED_SCU_CLASS(klass);
@@ -779,7 +785,9 @@ static const MemoryRegionOps aspeed_ast2600_scu_ops = {
     .read = aspeed_ast2600_scu_read,
     .write = aspeed_ast2600_scu_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
-    .valid.min_access_size = 4,
+    .impl.min_access_size = 4,
+    .impl.max_access_size = 4,
+    .valid.min_access_size = 1,
     .valid.max_access_size = 4,
     .valid.unaligned = false,
 };
@@ -827,7 +835,7 @@ static void aspeed_ast2600_scu_reset(DeviceState *dev)
     s->regs[PROT_KEY] = s->hw_prot_key;
 }
 
-static void aspeed_2600_scu_class_init(ObjectClass *klass, void *data)
+static void aspeed_2600_scu_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedSCUClass *asc = ASPEED_SCU_CLASS(klass);
@@ -906,6 +914,8 @@ static const MemoryRegionOps aspeed_ast2700_scu_ops = {
     .read = aspeed_ast2700_scu_read,
     .write = aspeed_ast2700_scu_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl.min_access_size = 4,
+    .impl.max_access_size = 4,
     .valid.min_access_size = 1,
     .valid.max_access_size = 8,
     .valid.unaligned = false,
@@ -944,7 +954,7 @@ static void aspeed_ast2700_scu_reset(DeviceState *dev)
     s->regs[AST2700_HW_STRAP1] = s->hw_strap1;
 }
 
-static void aspeed_2700_scu_class_init(ObjectClass *klass, void *data)
+static void aspeed_2700_scu_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedSCUClass *asc = ASPEED_SCU_CLASS(klass);
@@ -1028,6 +1038,8 @@ static const MemoryRegionOps aspeed_ast2700_scuio_ops = {
     .read = aspeed_ast2700_scuio_read,
     .write = aspeed_ast2700_scuio_write,
     .endianness = DEVICE_LITTLE_ENDIAN,
+    .impl.min_access_size = 4,
+    .impl.max_access_size = 4,
     .valid.min_access_size = 1,
     .valid.max_access_size = 8,
     .valid.unaligned = false,
@@ -1056,7 +1068,7 @@ static const uint32_t ast2700_a0_resets_io[ASPEED_AST2700_SCU_NR_REGS] = {
     [AST2700_SCUIO_CLK_DUTY_MEAS_RST]   = 0x0c9100d2,
 };
 
-static void aspeed_2700_scuio_class_init(ObjectClass *klass, void *data)
+static void aspeed_2700_scuio_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedSCUClass *asc = ASPEED_SCU_CLASS(klass);
@@ -1114,7 +1126,7 @@ static void aspeed_ast1030_scu_reset(DeviceState *dev)
     s->regs[PROT_KEY] = s->hw_prot_key;
 }
 
-static void aspeed_1030_scu_class_init(ObjectClass *klass, void *data)
+static void aspeed_1030_scu_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AspeedSCUClass *asc = ASPEED_SCU_CLASS(klass);

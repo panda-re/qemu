@@ -258,8 +258,6 @@ static void vu_scmi_device_realize(DeviceState *dev, Error **errp)
 
     qemu_chr_fe_set_handlers(&scmi->chardev, NULL, NULL, vu_scmi_event, NULL,
                              dev, NULL, true);
-
-    return;
 }
 
 static void vu_scmi_device_unrealize(DeviceState *dev)
@@ -281,7 +279,7 @@ static const Property vu_scmi_properties[] = {
     DEFINE_PROP_CHR("chardev", VHostUserSCMI, chardev),
 };
 
-static void vu_scmi_class_init(ObjectClass *klass, void *data)
+static void vu_scmi_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);

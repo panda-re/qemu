@@ -215,6 +215,9 @@ void pc_system_parse_ovmf_flash(uint8_t *flash_ptr, size_t flash_size);
 /* sgx.c */
 void pc_machine_init_sgx_epc(PCMachineState *pcms);
 
+extern GlobalProperty pc_compat_10_0[];
+extern const size_t pc_compat_10_0_len;
+
 extern GlobalProperty pc_compat_9_2[];
 extern const size_t pc_compat_9_2_len;
 
@@ -303,7 +306,8 @@ extern GlobalProperty pc_compat_2_4[];
 extern const size_t pc_compat_2_4_len;
 
 #define DEFINE_PC_MACHINE(suffix, namestr, initfn, optsfn) \
-    static void pc_machine_##suffix##_class_init(ObjectClass *oc, void *data) \
+    static void pc_machine_##suffix##_class_init(ObjectClass *oc, \
+                                                 const void *data) \
     { \
         MachineClass *mc = MACHINE_CLASS(oc); \
         optsfn(mc); \
@@ -328,7 +332,7 @@ extern const size_t pc_compat_2_4_len;
     } \
     static void MACHINE_VER_SYM(class_init, namesym, __VA_ARGS__)( \
         ObjectClass *oc, \
-        void *data) \
+        const void *data) \
     { \
         MachineClass *mc = MACHINE_CLASS(oc); \
         MACHINE_VER_SYM(options, namesym, __VA_ARGS__)(mc); \

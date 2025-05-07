@@ -24,7 +24,7 @@
 #include "hw/boards.h"
 #include "system/balloon.h"
 #include "hw/virtio/virtio-balloon.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "qapi/error.h"
 #include "qapi/qapi-events-machine.h"
 #include "qapi/visitor.h"
@@ -1058,7 +1058,7 @@ static const Property virtio_balloon_properties[] = {
                      IOThread *),
 };
 
-static void virtio_balloon_class_init(ObjectClass *klass, void *data)
+static void virtio_balloon_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);
