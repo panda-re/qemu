@@ -37,6 +37,14 @@
 #include "qemu/plugin.h"
 #include "panda/callbacks/cb-support.h"
 
+/**
+ * PANDA IMPORTS
+ */
+bool panda_callbacks_asid_changed(CPUState *env, uint64_t oldval, uint64_t newval);
+/**
+ * END PANDA IMPORTS
+ */
+
 #define HELPER_H "tcg/helper.h"
 #include "exec/helper-proto.h.inc"
 
