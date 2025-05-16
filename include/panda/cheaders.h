@@ -25,7 +25,6 @@ extern "C" {
 
 
 #include "panda/common.h"
-#include "exec/exec-all.h"
 #include "tcg/tcg.h"
 #include "disas/disas.h"
 
