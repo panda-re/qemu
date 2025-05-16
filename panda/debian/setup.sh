@@ -36,14 +36,9 @@ else
 	version=$(lsb_release -r | awk '{print $2}')
 fi
 
-# Check if the given version is supported
-if [[ ! -f "../dependencies/ubuntu_${version}_base.txt" ]]; then
-	echo "ERROR: Ubuntu ${version} is not supported, no dependencies file found"
-	exit 1
-fi
 
 # Build the installer to generate the wheel file
-DOCKER_BUILDKIT=1 docker build --target cleanup -t panda --build-arg BASE_IMAGE="ubuntu:${version}" ../..
+DOCKER_BUILDKIT=1 docker build --target packager -t p --build-arg BASE_IMAGE="ubuntu:${version}" ../..
 
 # Copy wheel file out of container to host
 # this also preserves wheel name, which is important as pip install WILL fail if you arbitarily change the generated wheel file name
@@ -52,10 +47,6 @@ DOCKER_BUILDKIT=1 docker build --target cleanup -t panda --build-arg BASE_IMAGE=
 # Finish building main panda container for the target ubuntu version
 # DOCKER_BUILDKIT=1 docker build --target panda -t panda --build-arg BASE_IMAGE="ubuntu:${version}" ../..
 
-# Now build the packager container from that
-docker build -t packager .
-
 # Copy deb file out of container to host
-docker run --rm -v $(pwd):/out packager bash -c "cp /pandare.deb /out"
-docker run --rm -v $(pwd):/out packager bash -c "cp /libpanda-ng.tar.gz /out"
+docker run --rm -v $(pwd):/out p bash -c "cp /pandare.deb /libpanda-ng.tar.gz /out"
 mv pandare.deb pandare_${version}.deb

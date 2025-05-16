@@ -1,13 +1,16 @@
-name: Build and Publish Docker Container and Pypanda Docs # Only for main panda-re repo, not forks
+name: Build and Publish Docker Container and Pypanda Docs
 
 on:
   push:
     branches:
       - main
+    tags:
+      - 'dev_*'
 
 jobs:
   build_release_assets:
-    if: github.repository  == 'panda-re/qemu' && github.ref == 'refs/heads/main'
+    # Run on main branch OR if the tag starts with dev_
+    if: github.repository  == 'panda-re/qemu' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/dev_'))
     runs-on: panda-arc
     steps:
       - name: Install git
@@ -19,42 +22,110 @@ jobs:
           fetch-depth: 0
       
       - name: Get next version
+        # Only calculate auto-increment version on main branch
+        if: github.ref == 'refs/heads/main'
         uses: reecetech/version-increment@2024.10.1
         id: version
         with:
           tag_prefix: panda
           release_branch: main
           use_api: true
+
+      - name: Set Release Version
+        id: version_logic
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "tag=${{ steps.version.outputs.prefixed-v-version }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Trust Harbor's self-signed certificate
+        run: |
+          echo "Fetching certificate from registry"
+          openssl s_client -showcerts -connect ${{ secrets.PANDA_ARC_REGISTRY }}:443 < /dev/null 2>/dev/null | openssl x509 -outform PEM | sudo tee /usr/local/share/ca-certificates/harbor.crt > /dev/null
+          sudo update-ca-certificates
+      
+      - name: Install dependencies and label git workspace safe
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install git curl jq gzip tmux
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:master
+            network=host
+          buildkitd-config-inline: |
+            [registry."${{ secrets.PANDA_ARC_REGISTRY }}"]
+              insecure = true
+              http = true
       
       - name: 'Login to Docker Registry'
+        # Only login to DockerHub on main (production releases)
+        if: github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
         with:
           username: pandare
           password: ${{secrets.pandare_dockerhub}}
-      
-      - name: Pull latest
-        run: docker pull pandare/panda-ng:latest || true
-      
-      - name: Build panda:latest
-        uses: docker/build-push-action@v6.13.0
+          
+      - name: Log in to Rehosting Arc Registry
+        uses: docker/login-action@v3
         with:
-          push: true
-          context: ${{ github.workspace }}
-          tags: |
-            pandare/panda-ng:${{ github.sha }}
-            pandare/panda-ng:${{ steps.version.outputs.prefixed-v-version }}
-            pandare/panda-ng:latest
+          registry: ${{ secrets.PANDA_ARC_REGISTRY }}
+          username: ${{ secrets.PANDA_ARC_REGISTRY_USER }}
+          password: ${{ secrets.PANDA_ARC_REGISTRY_PASSWORD }}
       
+      - name: Build Docker image and push to Dockerhub
+        uses: docker/build-push-action@v6.18.0
+        with:
+          context: ${{ github.workspace }}
+          # Only push to DockerHub if on main
+          push: ${{ github.ref == 'refs/heads/main' }}
+          cache-from: |
+            type=registry,ref=${{secrets.PANDA_ARC_REGISTRY}}/pandare/qemu:cache,mode=max
+          cache-to: |
+            type=registry,ref=${{secrets.PANDA_ARC_REGISTRY}}/pandare/qemu:cache,mode=max
+          tags: |
+            pandare/qemu:${{ github.sha }}
+            pandare/qemu:${{ steps.version_logic.outputs.tag }}
+            pandare/qemu:latest
+          load: true
+          build-args: |
+            REGISTRY=${{ secrets.PANDA_ARC_REGISTRY }}/proxy
+      
+      - name: Build Docker image and load packager to local Docker
+        uses: docker/build-push-action@v6.18.0
+        with:
+          context: ${{ github.workspace }}
+          push: false
+          target: packager
+          cache-from: |
+            type=registry,ref=${{secrets.PANDA_ARC_REGISTRY}}/pandare/qemu:cache,mode=max
+            type=registry,ref=${{secrets.PANDA_ARC_REGISTRY}}/pandare/qemu:package_cache,mode=max
+          cache-to: |
+            type=registry,ref=${{secrets.PANDA_ARC_REGISTRY}}/pandare/qemu:package_cache,mode=max
+          tags: |
+            packager
+          build-args: |
+            REGISTRY=${{ secrets.PANDA_ARC_REGISTRY }}/proxy
+          load: true
+
       - name: Build package
         working-directory: panda/debian
-        run: ./setup.sh Ubuntu 22.04
+        run: |
+          docker run --rm -v $(pwd):/out packager bash -c "cp /pandare.deb /libpanda-ng.tar.gz /out"
+          mv pandare.deb pandare_22.04.deb
 
       - name: Upload wheel and debian packages to release
         uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.version.outputs.prefixed-v-version }}
+          # Use the unified version logic (either 'panda-vX.Y.Z' or 'dev_X')
+          tag_name: ${{ steps.version_logic.outputs.tag }}
           files: |
             panda/debian/pandare*.deb
             panda/debian/libpanda-ng.tar.gz

@@ -18,7 +18,6 @@
 #include "qemu/accel.h"
 #include "cpu.h"
 #include "system/address-spaces.h"
-#include "exec/exec-all.h"
 #include "exec/target_page.h"
 #include "system/memory.h"
 #include "panda/types.h"
