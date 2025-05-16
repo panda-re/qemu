@@ -45,8 +45,19 @@
 #include "tb-context.h"
 #include "tb-internal.h"
 #include "internal-common.h"
-#include "panda/callbacks/cb-support.h"
-#include "panda/common.h"
+
+/**
+ * PANDA IMPORTS
+ */
+void panda_callbacks_before_block_exec(CPUState *env, TranslationBlock *tb);
+void panda_callbacks_after_block_exec(CPUState *env, TranslationBlock *tb, uint8_t exitCode);
+void panda_callbacks_before_block_translate(CPUState *env, uint64_t pc);
+void panda_callbacks_after_block_translate(CPUState *env, TranslationBlock *tb);
+void panda_callbacks_block_translate(CPUState *env, struct qemu_plugin_tb *tb);
+int32_t panda_callbacks_before_handle_exception(CPUState *cpu, int32_t exception_index);
+/**
+ * END PANDA IMPORTS
+ */
 /* -icount align implementation. */
 
 typedef struct SyncClocks {
@@ -366,14 +377,13 @@ static inline bool check_for_breakpoints(CPUState *cpu, vaddr pc,
 TranslationBlock *panda_lookup_tb(CPUState *cpu, uint64_t pc);
 TranslationBlock *panda_lookup_tb(CPUState *cpu, uint64_t pc)
 {
+    TCGTBCPUState s = cpu->cc->tcg_ops->get_tb_cpu_state(cpu);
     TranslationBlock *tb;
-    uint64_t cs_base;
-    uint32_t flags, cflags;
 
-    cflags = curr_cflags(cpu);
-    cpu_get_tb_cpu_state(cpu_env(cpu), &pc, &cs_base, &flags);
+    s.cflags = curr_cflags(cpu);
+    s.pc = pc;
 
-    tb = tb_lookup(cpu, pc, cs_base, flags, cflags);
+    tb = tb_lookup(cpu, s);
     if (tb == NULL) {
         return NULL;
     }
