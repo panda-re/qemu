@@ -1,4 +1,4 @@
-#ifndef EXEC_ALL_H
+#ifndef QEMU_TYPEDEFS_H
 // If this file is included from a file that doesn't define TranslationBlock (e.g., memory.c), we still need to be valid
 typedef struct {} TranslationBlock;
 #endif
