@@ -33,6 +33,7 @@
 extern "C" {
 #endif
 #ifdef CONFIG_SOFTMMU
+#include "qemu/osdep.h"
 #include "cpu.h"
 #endif
 #if defined(__cplusplus)
