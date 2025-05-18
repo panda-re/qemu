@@ -1721,7 +1721,7 @@ qcow2_do_open(BlockDriverState *bs, QDict *options, int flags,
                 ret = -EINVAL;
                 goto fail;
             }
-        } else if (!(flags & BDRV_O_NO_IO)) {
+        } else {
             error_setg(errp, "Missing CRYPTO header for crypt method %d",
                        s->crypt_method_header);
             ret = -EINVAL;
@@ -1976,7 +1976,7 @@ static void qcow2_refresh_limits(BlockDriverState *bs, Error **errp)
 {
     BDRVQcow2State *s = bs->opaque;
 
-    if (bs->encrypted) {
+    if (s->crypto) {
         /* Encryption works on a sector granularity */
         bs->bl.request_alignment = qcrypto_block_get_sector_size(s->crypto);
     }
@@ -2141,9 +2141,9 @@ static void qcow2_join_options(QDict *options, QDict *old_options)
 }
 
 static int coroutine_fn GRAPH_RDLOCK
-qcow2_co_block_status(BlockDriverState *bs, bool want_zero, int64_t offset,
-                      int64_t count, int64_t *pnum, int64_t *map,
-                      BlockDriverState **file)
+qcow2_co_block_status(BlockDriverState *bs, unsigned int mode,
+                      int64_t offset, int64_t count, int64_t *pnum,
+                      int64_t *map, BlockDriverState **file)
 {
     BDRVQcow2State *s = bs->opaque;
     uint64_t host_offset;

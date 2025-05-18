@@ -23,7 +23,9 @@
 #include "system/tcg.h"
 #include "cpu-qom.h"
 #include "kvm/hyperv-proto.h"
+#include "exec/cpu-common.h"
 #include "exec/cpu-defs.h"
+#include "exec/cpu-interrupt.h"
 #include "exec/memop.h"
 #include "hw/i386/topology.h"
 #include "qapi/qapi-types-common.h"
@@ -32,12 +34,6 @@
 #include "standard-headers/asm-x86/kvm_para.h"
 
 #define XEN_NR_VIRQS 24
-
-#define KVM_HAVE_MCE_INJECTION 1
-
-/* support for self modifying code even if the modified instruction is
-   close to the modifying instruction */
-#define TARGET_HAS_PRECISE_SMC
 
 #ifdef TARGET_X86_64
 #define I386_ELF_MACHINE  EM_X86_64
@@ -1610,8 +1606,6 @@ typedef struct {
 #define MAX_FIXED_COUNTERS 3
 #define MAX_GP_COUNTERS    (MSR_IA32_PERF_STATUS - MSR_P6_EVNTSEL0)
 
-#define TARGET_INSN_START_EXTRA_WORDS 1
-
 #define NB_OPMASK_REGS 8
 
 /* CPU can't have 0xFFFFFFFF APIC ID, use that value to distinguish
@@ -1810,11 +1804,6 @@ typedef struct CPUCaches {
         CPUCacheInfo *l2_cache;
         CPUCacheInfo *l3_cache;
 } CPUCaches;
-
-typedef struct HVFX86LazyFlags {
-    target_ulong result;
-    target_ulong auxbits;
-} HVFX86LazyFlags;
 
 typedef struct CPUArchState {
     /* standard registers */
@@ -2108,8 +2097,7 @@ typedef struct CPUArchState {
     QemuMutex xen_timers_lock;
 #endif
 #if defined(CONFIG_HVF)
-    HVFX86LazyFlags hvf_lflags;
-    void *hvf_mmio_buf;
+    void *emu_mmio_buf;
 #endif
 
     uint64_t mcg_cap;
@@ -2367,7 +2355,6 @@ int x86_cpu_gdb_read_register(CPUState *cpu, GByteArray *buf, int reg);
 int x86_cpu_gdb_write_register(CPUState *cpu, uint8_t *buf, int reg);
 void x86_cpu_gdb_init(CPUState *cs);
 
-void x86_cpu_list(void);
 int cpu_x86_support_mca_broadcast(CPUX86State *env);
 
 #ifndef CONFIG_USER_ONLY
@@ -2561,8 +2548,6 @@ uint64_t cpu_get_tsc(CPUX86State *env);
 #define TARGET_DEFAULT_CPU_TYPE X86_CPU_TYPE_NAME("qemu32")
 #endif
 
-#define cpu_list x86_cpu_list
-
 /* MMU modes definitions */
 #define MMU_KSMAP64_IDX    0
 #define MMU_KSMAP32_IDX    1
@@ -2597,34 +2582,16 @@ static inline bool is_mmu_index_32(int mmu_index)
     return mmu_index & 1;
 }
 
-int x86_mmu_index_pl(CPUX86State *env, unsigned pl);
-int cpu_mmu_index_kernel(CPUX86State *env);
-
 #define CC_DST  (env->cc_dst)
 #define CC_SRC  (env->cc_src)
 #define CC_SRC2 (env->cc_src2)
 #define CC_OP   (env->cc_op)
 
-#include "exec/cpu-all.h"
 #include "svm.h"
 
 #if !defined(CONFIG_USER_ONLY)
 #include "hw/i386/apic.h"
 #endif
-
-static inline void cpu_get_tb_cpu_state(CPUX86State *env, vaddr *pc,
-                                        uint64_t *cs_base, uint32_t *flags)
-{
-    *flags = env->hflags |
-        (env->eflags & (IOPL_MASK | TF_MASK | RF_MASK | VM_MASK | AC_MASK));
-    if (env->hflags & HF_CS64_MASK) {
-        *cs_base = 0;
-        *pc = env->eip;
-    } else {
-        *cs_base = env->segs[R_CS].base;
-        *pc = (uint32_t)(*cs_base + env->eip);
-    }
-}
 
 void do_cpu_init(X86CPU *cpu);
 
@@ -2842,5 +2809,30 @@ static inline bool ctl_has_irq(CPUX86State *env)
     defined(CONFIG_LINUX)
 # define TARGET_VSYSCALL_PAGE  (UINT64_C(-10) << 20)
 #endif
+
+/* majority(NOT a, b, c) = (a ^ b) ? b : c */
+#define MAJ_INV1(a, b, c)  ((((a) ^ (b)) & ((b) ^ (c))) ^ (c))
+
+/*
+ * ADD_COUT_VEC(x, y) = majority((x + y) ^ x ^ y, x, y)
+ *
+ * If two corresponding bits in x and y are the same, that's the carry
+ * independent of the value (x+y)^x^y.  Hence x^y can be replaced with
+ * 1 in (x+y)^x^y, resulting in majority(NOT (x+y), x, y)
+ */
+#define ADD_COUT_VEC(op1, op2, result) \
+   MAJ_INV1(result, op1, op2)
+
+/*
+ * SUB_COUT_VEC(x, y) = NOT majority(x, NOT y, (x - y) ^ x ^ NOT y)
+ *                    = majority(NOT x, y, (x - y) ^ x ^ y)
+ *
+ * Note that the carry out is actually a borrow, i.e. it is inverted.
+ * If two corresponding bits in x and y are different, the value of the
+ * bit in (x-y)^x^y likewise does not matter.  Hence, x^y can be replaced
+ * with 0 in (x-y)^x^y, resulting in majority(NOT x, y, x-y)
+ */
+#define SUB_COUT_VEC(op1, op2, result) \
+   MAJ_INV1(op1, op2, result)
 
 #endif /* I386_CPU_H */

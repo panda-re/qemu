@@ -2,7 +2,7 @@
 // Author(s): Manos Pitsidianakis <manos.pitsidianakis@linaro.org>
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-use std::{ffi::CStr, ptr::addr_of_mut};
+use std::{ffi::CStr, mem::size_of, ptr::addr_of_mut};
 
 use qemu_api::{
     chardev::{CharBackend, Chardev, Event},
@@ -12,6 +12,7 @@ use qemu_api::{
     prelude::*,
     qdev::{Clock, ClockEvent, DeviceImpl, DeviceState, Property, ResetType, ResettablePhasesImpl},
     qom::{ObjectImpl, Owned, ParentField},
+    static_assert,
     sysbus::{SysBusDevice, SysBusDeviceImpl},
     vmstate::VMStateDescription,
 };
@@ -73,7 +74,7 @@ impl std::ops::Index<u32> for Fifo {
 }
 
 #[repr(C)]
-#[derive(Debug, Default, qemu_api_macros::offsets)]
+#[derive(Debug, Default)]
 pub struct PL011Registers {
     #[doc(alias = "fr")]
     pub flags: registers::Flags,
@@ -97,7 +98,7 @@ pub struct PL011Registers {
 }
 
 #[repr(C)]
-#[derive(qemu_api_macros::Object, qemu_api_macros::offsets)]
+#[derive(qemu_api_macros::Object)]
 /// PL011 Device Model in QEMU
 pub struct PL011State {
     pub parent_obj: ParentField<SysBusDevice>,
@@ -123,6 +124,12 @@ pub struct PL011State {
     #[doc(alias = "migrate_clk")]
     pub migrate_clock: bool,
 }
+
+// Some C users of this device embed its state struct into their own
+// structs, so the size of the Rust version must not be any larger
+// than the size of the C one. If this assert triggers you need to
+// expand the padding_for_rust[] array in the C PL011State struct.
+static_assert!(size_of::<PL011State>() <= size_of::<qemu_api::bindings::PL011State>());
 
 qom_isa!(PL011State : SysBusDevice, DeviceState, Object);
 
@@ -183,25 +190,7 @@ impl PL011Registers {
 
         let mut update = false;
         let result = match offset {
-            DR => {
-                self.flags.set_receive_fifo_full(false);
-                let c = self.read_fifo[self.read_pos];
-                if self.read_count > 0 {
-                    self.read_count -= 1;
-                    self.read_pos = (self.read_pos + 1) & (self.fifo_depth() - 1);
-                }
-                if self.read_count == 0 {
-                    self.flags.set_receive_fifo_empty(true);
-                }
-                if self.read_count + 1 == self.read_trigger {
-                    self.int_level &= !Interrupt::RX.0;
-                }
-                // Update error bits.
-                self.receive_status_error_clear.set_from_data(c);
-                // Must call qemu_chr_fe_accept_input
-                update = true;
-                u32::from(c)
-            }
+            DR => self.read_data_register(&mut update),
             RSR => u32::from(self.receive_status_error_clear),
             FR => u32::from(self.flags),
             FBRD => self.fbrd,
@@ -232,12 +221,7 @@ impl PL011Registers {
         // eprintln!("write offset {offset} value {value}");
         use RegisterOffset::*;
         match offset {
-            DR => {
-                // interrupts always checked
-                let _ = self.loopback_tx(value.into());
-                self.int_level |= Interrupt::TX.0;
-                return true;
-            }
+            DR => return self.write_data_register(value),
             RSR => {
                 self.receive_status_error_clear = 0.into();
             }
@@ -299,6 +283,32 @@ impl PL011Registers {
         false
     }
 
+    fn read_data_register(&mut self, update: &mut bool) -> u32 {
+        self.flags.set_receive_fifo_full(false);
+        let c = self.read_fifo[self.read_pos];
+
+        if self.read_count > 0 {
+            self.read_count -= 1;
+            self.read_pos = (self.read_pos + 1) & (self.fifo_depth() - 1);
+        }
+        if self.read_count == 0 {
+            self.flags.set_receive_fifo_empty(true);
+        }
+        if self.read_count + 1 == self.read_trigger {
+            self.int_level &= !Interrupt::RX.0;
+        }
+        self.receive_status_error_clear.set_from_data(c);
+        *update = true;
+        u32::from(c)
+    }
+
+    fn write_data_register(&mut self, value: u32) -> bool {
+        // interrupts always checked
+        let _ = self.loopback_tx(value.into());
+        self.int_level |= Interrupt::TX.0;
+        true
+    }
+
     #[inline]
     #[must_use]
     fn loopback_tx(&mut self, value: registers::Data) -> bool {
@@ -319,7 +329,7 @@ impl PL011Registers {
         // hardware flow-control is enabled.
         //
         // For simplicity, the above described is not emulated.
-        self.loopback_enabled() && self.put_fifo(value)
+        self.loopback_enabled() && self.fifo_rx_put(value)
     }
 
     #[must_use]
@@ -429,7 +439,7 @@ impl PL011Registers {
     }
 
     #[must_use]
-    pub fn put_fifo(&mut self, value: registers::Data) -> bool {
+    pub fn fifo_rx_put(&mut self, value: registers::Data) -> bool {
         let depth = self.fifo_depth();
         assert!(depth > 0);
         let slot = (self.read_pos + self.read_count) & (depth - 1);
@@ -570,19 +580,26 @@ impl PL011State {
     fn can_receive(&self) -> u32 {
         let regs = self.regs.borrow();
         // trace_pl011_can_receive(s->lcr, s->read_count, r);
-        u32::from(regs.read_count < regs.fifo_depth())
+        regs.fifo_depth() - regs.read_count
     }
 
     fn receive(&self, buf: &[u8]) {
-        if buf.is_empty() {
+        let mut regs = self.regs.borrow_mut();
+        if regs.loopback_enabled() {
+            // In loopback mode, the RX input signal is internally disconnected
+            // from the entire receiving logics; thus, all inputs are ignored,
+            // and BREAK detection on RX input signal is also not performed.
             return;
         }
-        let mut regs = self.regs.borrow_mut();
-        let c: u32 = buf[0].into();
-        let update_irq = !regs.loopback_enabled() && regs.put_fifo(c.into());
+
+        let mut update_irq = false;
+        for &c in buf {
+            let c: u32 = c.into();
+            update_irq |= regs.fifo_rx_put(c.into());
+        }
+
         // Release the BqlRefCell before calling self.update()
         drop(regs);
-
         if update_irq {
             self.update();
         }
@@ -592,7 +609,7 @@ impl PL011State {
         let mut update_irq = false;
         let mut regs = self.regs.borrow_mut();
         if event == Event::CHR_EVENT_BREAK && !regs.loopback_enabled() {
-            update_irq = regs.put_fifo(registers::Data::BREAK);
+            update_irq = regs.fifo_rx_put(registers::Data::BREAK);
         }
         // Release the BqlRefCell before calling self.update()
         drop(regs);

@@ -93,11 +93,10 @@
 //! without incurring into violations of orphan rules for traits.
 
 use std::{
-    ffi::CStr,
+    ffi::{c_void, CStr},
     fmt,
     mem::ManuallyDrop,
     ops::{Deref, DerefMut},
-    os::raw::c_void,
     ptr::NonNull,
 };
 
@@ -227,7 +226,7 @@ unsafe extern "C" fn rust_instance_post_init<T: ObjectImpl>(obj: *mut bindings::
 
 unsafe extern "C" fn rust_class_init<T: ObjectType + ObjectImpl>(
     klass: *mut ObjectClass,
-    _data: *mut c_void,
+    _data: *const c_void,
 ) {
     let mut klass = NonNull::new(klass)
         .unwrap()
@@ -389,7 +388,7 @@ where
     {
         #[allow(clippy::as_ptr_cast_mut)]
         {
-            self.as_ptr::<U>() as *mut _
+            self.as_ptr::<U>().cast_mut()
         }
     }
 }
@@ -492,7 +491,7 @@ pub trait ObjectImpl: ObjectType + IsA<Object> {
     /// the effects of copying the contents of the parent's class struct
     /// to the descendants.
     const CLASS_BASE_INIT: Option<
-        unsafe extern "C" fn(klass: *mut ObjectClass, data: *mut c_void),
+        unsafe extern "C" fn(klass: *mut ObjectClass, data: *const c_void),
     > = None;
 
     const TYPE_INFO: TypeInfo = TypeInfo {
@@ -513,8 +512,8 @@ pub trait ObjectImpl: ObjectType + IsA<Object> {
         class_size: core::mem::size_of::<Self::Class>(),
         class_init: Some(rust_class_init::<Self>),
         class_base_init: Self::CLASS_BASE_INIT,
-        class_data: core::ptr::null_mut(),
-        interfaces: core::ptr::null_mut(),
+        class_data: core::ptr::null(),
+        interfaces: core::ptr::null(),
     };
 
     // methods on ObjectClass
@@ -535,9 +534,10 @@ pub trait ObjectImpl: ObjectType + IsA<Object> {
     /// While `klass`'s parent class is initialized on entry, the other fields
     /// are all zero; it is therefore assumed that all fields in `T` can be
     /// zeroed, otherwise it would not be possible to provide the class as a
-    /// `&mut T`.  TODO: add a bound of [`Zeroable`](crate::zeroable::Zeroable)
-    /// to T; this is more easily done once Zeroable does not require a manual
-    /// implementation (Rust 1.75.0).
+    /// `&mut T`.  TODO: it may be possible to add an unsafe trait that checks
+    /// that all fields *after the parent class* (but not the parent class
+    /// itself) are Zeroable.  This unsafe trait can be added via a derive
+    /// macro.
     const CLASS_INIT: fn(&mut Self::Class);
 }
 
@@ -638,7 +638,7 @@ impl<T: ObjectType> Owned<T> {
         // SAFETY NOTE: while NonNull requires a mutable pointer, only
         // Deref is implemented so the pointer passed to from_raw
         // remains const
-        Owned(NonNull::new(ptr as *mut T).unwrap())
+        Owned(NonNull::new(ptr.cast_mut()).unwrap())
     }
 
     /// Obtain a raw C pointer from a reference.  `src` is consumed

@@ -22,7 +22,7 @@
 #include "qemu/module.h"
 #include "qemu/error-report.h"
 #include "qemu/bswap.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "hw/sysbus.h"
 #include "hw/pci/msi.h"
 #include "hw/boards.h"
@@ -416,7 +416,7 @@ static const VMStateDescription vmstate_riscv_imsic = {
         }
 };
 
-static void riscv_imsic_class_init(ObjectClass *klass, void *data)
+static void riscv_imsic_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -26,6 +26,7 @@
 #include "tcg/startup.h"
 #include "target_mman.h"
 #include "exec/page-protection.h"
+#include "exec/mmap-lock.h"
 #include "exec/tb-flush.h"
 #include "exec/translation-block.h"
 #include <elf.h>
@@ -8134,8 +8135,8 @@ static void open_self_maps_4(const struct open_self_maps_data *d,
  * Callback for walk_memory_regions, when read_self_maps() fails.
  * Proceed without the benefit of host /proc/self/maps cross-check.
  */
-static int open_self_maps_3(void *opaque, target_ulong guest_start,
-                            target_ulong guest_end, unsigned long flags)
+static int open_self_maps_3(void *opaque, vaddr guest_start,
+                            vaddr guest_end, int flags)
 {
     static const MapInfo mi = { .is_priv = true };
 
@@ -8146,8 +8147,8 @@ static int open_self_maps_3(void *opaque, target_ulong guest_start,
 /*
  * Callback for walk_memory_regions, when read_self_maps() succeeds.
  */
-static int open_self_maps_2(void *opaque, target_ulong guest_start,
-                            target_ulong guest_end, unsigned long flags)
+static int open_self_maps_2(void *opaque, vaddr guest_start,
+                            vaddr guest_end, int flags)
 {
     const struct open_self_maps_data *d = opaque;
     uintptr_t host_start = (uintptr_t)g2h_untagged(guest_start);
@@ -9119,35 +9120,38 @@ static void risc_hwprobe_fill_pairs(CPURISCVState *env,
     }
 }
 
-static int cpu_set_valid(abi_long arg3, abi_long arg4)
+/*
+ * If the cpumask_t of (target_cpus, cpusetsize) cannot be read: -EFAULT.
+ * If the cpumast_t has no bits set: -EINVAL.
+ * Otherwise the cpumask_t contains some bit set: 0.
+ * Unlike the kernel, we do not mask cpumask_t by the set of online cpus,
+ * nor bound the search by cpumask_size().
+ */
+static int nonempty_cpu_set(abi_ulong cpusetsize, abi_ptr target_cpus)
 {
-    int ret, i, tmp;
-    size_t host_mask_size, target_mask_size;
-    unsigned long *host_mask;
+    unsigned char *p = lock_user(VERIFY_READ, target_cpus, cpusetsize, 1);
+    int ret = -TARGET_EFAULT;
 
-    /*
-     * cpu_set_t represent CPU masks as bit masks of type unsigned long *.
-     * arg3 contains the cpu count.
-     */
-    tmp = (8 * sizeof(abi_ulong));
-    target_mask_size = ((arg3 + tmp - 1) / tmp) * sizeof(abi_ulong);
-    host_mask_size = (target_mask_size + (sizeof(*host_mask) - 1)) &
-                     ~(sizeof(*host_mask) - 1);
-
-    host_mask = alloca(host_mask_size);
-
-    ret = target_to_host_cpu_mask(host_mask, host_mask_size,
-                                  arg4, target_mask_size);
-    if (ret != 0) {
-        return ret;
-    }
-
-    for (i = 0 ; i < host_mask_size / sizeof(*host_mask); i++) {
-        if (host_mask[i] != 0) {
-            return 0;
+    if (p) {
+        ret = -TARGET_EINVAL;
+        /*
+         * Since we only care about the empty/non-empty state of the cpumask_t
+         * not the individual bits, we do not need to repartition the bits
+         * from target abi_ulong to host unsigned long.
+         *
+         * Note that the kernel does not round up cpusetsize to a multiple of
+         * sizeof(abi_ulong).  After bounding cpusetsize by cpumask_size(),
+         * it copies exactly cpusetsize bytes into a zeroed buffer.
+         */
+        for (abi_ulong i = 0; i < cpusetsize; ++i) {
+            if (p[i]) {
+                ret = 0;
+                break;
+            }
         }
+        unlock_user(p, target_cpus, 0);
     }
-    return -TARGET_EINVAL;
+    return ret;
 }
 
 static abi_long do_riscv_hwprobe(CPUArchState *cpu_env, abi_long arg1,
@@ -9164,7 +9168,7 @@ static abi_long do_riscv_hwprobe(CPUArchState *cpu_env, abi_long arg1,
 
     /* check cpu_set */
     if (arg3 != 0) {
-        ret = cpu_set_valid(arg3, arg4);
+        ret = nonempty_cpu_set(arg3, arg4);
         if (ret != 0) {
             return ret;
         }

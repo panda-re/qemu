@@ -110,6 +110,10 @@
 #include <sys/diskslice.h>
 #endif
 
+#ifdef EMSCRIPTEN
+#include <sys/ioctl.h>
+#endif
+
 /* OS X does not have O_DSYNC */
 #ifndef O_DSYNC
 #ifdef O_SYNC
@@ -194,6 +198,7 @@ static int fd_open(BlockDriverState *bs)
 }
 
 static int64_t raw_getlength(BlockDriverState *bs);
+static int coroutine_fn raw_co_flush_to_disk(BlockDriverState *bs);
 
 typedef struct RawPosixAIOData {
     BlockDriverState *bs;
@@ -804,6 +809,13 @@ static int raw_open_common(BlockDriverState *bs, QDict *options,
 #endif
     s->needs_alignment = raw_needs_alignment(bs);
 
+    bs->supported_write_flags = BDRV_REQ_FUA;
+    if (s->use_linux_aio && !laio_has_fua()) {
+        bs->supported_write_flags &= ~BDRV_REQ_FUA;
+    } else if (s->use_linux_io_uring && !luring_has_fua()) {
+        bs->supported_write_flags &= ~BDRV_REQ_FUA;
+    }
+
     bs->supported_zero_flags = BDRV_REQ_MAY_UNMAP | BDRV_REQ_NO_FALLBACK;
     if (S_ISREG(st.st_mode)) {
         /* When extending regular files, we get zeros from the OS */
@@ -1268,10 +1280,10 @@ static int get_sysfs_zoned_model(struct stat *st, BlockZoneModel *zoned)
 }
 #endif /* defined(CONFIG_BLKZONED) */
 
+#ifdef CONFIG_LINUX
 /*
  * Get a sysfs attribute value as a long integer.
  */
-#ifdef CONFIG_LINUX
 static long get_sysfs_long_val(struct stat *st, const char *attribute)
 {
     g_autofree char *str = NULL;
@@ -1291,6 +1303,30 @@ static long get_sysfs_long_val(struct stat *st, const char *attribute)
     }
     return ret;
 }
+
+/*
+ * Get a sysfs attribute value as a uint32_t.
+ */
+static int get_sysfs_u32_val(struct stat *st, const char *attribute,
+                             uint32_t *u32)
+{
+    g_autofree char *str = NULL;
+    const char *end;
+    unsigned int val;
+    int ret;
+
+    ret = get_sysfs_str_val(st, attribute, &str);
+    if (ret < 0) {
+        return ret;
+    }
+
+    /* The file is ended with '\n', pass 'end' to accept that. */
+    ret = qemu_strtoui(str, &end, 10, &val);
+    if (ret == 0 && end && *end == '\0') {
+        *u32 = val;
+    }
+    return ret;
+}
 #endif
 
 static int hdev_get_max_segments(int fd, struct stat *st)
@@ -1305,6 +1341,23 @@ static int hdev_get_max_segments(int fd, struct stat *st)
         return -ENOTSUP;
     }
     return get_sysfs_long_val(st, "max_segments");
+#else
+    return -ENOTSUP;
+#endif
+}
+
+/*
+ * Fills in *dalign with the discard alignment and returns 0 on success,
+ * -errno otherwise.
+ */
+static int hdev_get_pdiscard_alignment(struct stat *st, uint32_t *dalign)
+{
+#ifdef CONFIG_LINUX
+    /*
+     * Note that Linux "discard_granularity" is QEMU "discard_alignment". Linux
+     * "discard_alignment" is something else.
+     */
+    return get_sysfs_u32_val(st, "discard_granularity", dalign);
 #else
     return -ENOTSUP;
 #endif
@@ -1516,6 +1569,30 @@ static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
         ret = hdev_get_max_segments(s->fd, &st);
         if (ret > 0) {
             bs->bl.max_hw_iov = ret;
+        }
+    }
+
+    if (S_ISBLK(st.st_mode)) {
+        uint32_t dalign = 0;
+        int ret;
+
+        ret = hdev_get_pdiscard_alignment(&st, &dalign);
+        if (ret == 0 && dalign != 0) {
+            uint32_t ralign = bs->bl.request_alignment;
+
+            /* Probably never happens, but handle it just in case */
+            if (dalign < ralign && (ralign % dalign == 0)) {
+                dalign = ralign;
+            }
+
+            /* The block layer requires a multiple of request_alignment */
+            if (dalign % ralign != 0) {
+                error_setg(errp, "Invalid pdiscard_alignment limit %u is not a "
+                        "multiple of request_alignment %u", dalign, ralign);
+                return;
+            }
+
+            bs->bl.pdiscard_alignment = dalign;
         }
     }
 
@@ -2003,8 +2080,11 @@ static int handle_aiocb_write_zeroes_unmap(void *opaque)
 }
 
 #ifndef HAVE_COPY_FILE_RANGE
-static off_t copy_file_range(int in_fd, off_t *in_off, int out_fd,
-                             off_t *out_off, size_t len, unsigned int flags)
+#ifndef EMSCRIPTEN
+static
+#endif
+ssize_t copy_file_range(int in_fd, off_t *in_off, int out_fd,
+                        off_t *out_off, size_t len, unsigned int flags)
 {
 #ifdef __NR_copy_file_range
     return syscall(__NR_copy_file_range, in_fd, in_off, out_fd,
@@ -2477,7 +2557,8 @@ static inline bool raw_check_linux_aio(BDRVRawState *s)
 #endif
 
 static int coroutine_fn raw_co_prw(BlockDriverState *bs, int64_t *offset_ptr,
-                                   uint64_t bytes, QEMUIOVector *qiov, int type)
+                                   uint64_t bytes, QEMUIOVector *qiov, int type,
+                                   int flags)
 {
     BDRVRawState *s = bs->opaque;
     RawPosixAIOData acb;
@@ -2508,13 +2589,13 @@ static int coroutine_fn raw_co_prw(BlockDriverState *bs, int64_t *offset_ptr,
 #ifdef CONFIG_LINUX_IO_URING
     } else if (raw_check_linux_io_uring(s)) {
         assert(qiov->size == bytes);
-        ret = luring_co_submit(bs, s->fd, offset, qiov, type);
+        ret = luring_co_submit(bs, s->fd, offset, qiov, type, flags);
         goto out;
 #endif
 #ifdef CONFIG_LINUX_AIO
     } else if (raw_check_linux_aio(s)) {
         assert(qiov->size == bytes);
-        ret = laio_co_submit(s->fd, offset, qiov, type,
+        ret = laio_co_submit(s->fd, offset, qiov, type, flags,
                               s->aio_max_batch);
         goto out;
 #endif
@@ -2534,6 +2615,10 @@ static int coroutine_fn raw_co_prw(BlockDriverState *bs, int64_t *offset_ptr,
 
     assert(qiov->size == bytes);
     ret = raw_thread_pool_submit(handle_aiocb_rw, &acb);
+    if (ret == 0 && (flags & BDRV_REQ_FUA)) {
+        /* TODO Use pwritev2() instead if it's available */
+        ret = raw_co_flush_to_disk(bs);
+    }
     goto out; /* Avoid the compiler err of unused label */
 
 out:
@@ -2571,14 +2656,14 @@ static int coroutine_fn raw_co_preadv(BlockDriverState *bs, int64_t offset,
                                       int64_t bytes, QEMUIOVector *qiov,
                                       BdrvRequestFlags flags)
 {
-    return raw_co_prw(bs, &offset, bytes, qiov, QEMU_AIO_READ);
+    return raw_co_prw(bs, &offset, bytes, qiov, QEMU_AIO_READ, flags);
 }
 
 static int coroutine_fn raw_co_pwritev(BlockDriverState *bs, int64_t offset,
                                        int64_t bytes, QEMUIOVector *qiov,
                                        BdrvRequestFlags flags)
 {
-    return raw_co_prw(bs, &offset, bytes, qiov, QEMU_AIO_WRITE);
+    return raw_co_prw(bs, &offset, bytes, qiov, QEMU_AIO_WRITE, flags);
 }
 
 static int coroutine_fn raw_co_flush_to_disk(BlockDriverState *bs)
@@ -2600,12 +2685,12 @@ static int coroutine_fn raw_co_flush_to_disk(BlockDriverState *bs)
 
 #ifdef CONFIG_LINUX_IO_URING
     if (raw_check_linux_io_uring(s)) {
-        return luring_co_submit(bs, s->fd, 0, NULL, QEMU_AIO_FLUSH);
+        return luring_co_submit(bs, s->fd, 0, NULL, QEMU_AIO_FLUSH, 0);
     }
 #endif
 #ifdef CONFIG_LINUX_AIO
     if (s->has_laio_fdsync && raw_check_linux_aio(s)) {
-        return laio_co_submit(s->fd, 0, NULL, QEMU_AIO_FLUSH, 0);
+        return laio_co_submit(s->fd, 0, NULL, QEMU_AIO_FLUSH, 0, 0);
     }
 #endif
     return raw_thread_pool_submit(handle_aiocb_flush, &acb);
@@ -3188,7 +3273,7 @@ static int find_allocation(BlockDriverState *bs, off_t start,
  * well exceed it.
  */
 static int coroutine_fn raw_co_block_status(BlockDriverState *bs,
-                                            bool want_zero,
+                                            unsigned int mode,
                                             int64_t offset,
                                             int64_t bytes, int64_t *pnum,
                                             int64_t *map,
@@ -3204,7 +3289,8 @@ static int coroutine_fn raw_co_block_status(BlockDriverState *bs,
         return ret;
     }
 
-    if (!want_zero) {
+    if (!(mode & BDRV_WANT_ZERO)) {
+        /* There is no backing file - all bytes are allocated in this file.  */
         *pnum = bytes;
         *map = offset;
         *file = bs;
@@ -3540,7 +3626,7 @@ static int coroutine_fn raw_co_zone_append(BlockDriverState *bs,
     }
 
     trace_zbd_zone_append(bs, *offset >> BDRV_SECTOR_BITS);
-    return raw_co_prw(bs, offset, len, qiov, QEMU_AIO_ZONE_APPEND);
+    return raw_co_prw(bs, offset, len, qiov, QEMU_AIO_ZONE_APPEND, 0);
 }
 #endif
 

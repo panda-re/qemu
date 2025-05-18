@@ -12,14 +12,16 @@
 #ifndef HW_VFIO_VFIO_PCI_H
 #define HW_VFIO_VFIO_PCI_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "hw/pci/pci_device.h"
-#include "hw/vfio/vfio-common.h"
+#include "hw/vfio/vfio-device.h"
+#include "hw/vfio/vfio-region.h"
 #include "qemu/event_notifier.h"
 #include "qemu/queue.h"
 #include "qemu/timer.h"
 #include "qom/object.h"
 #include "system/kvm.h"
+#include "vfio-display.h"
 
 #define PCI_ANY_ID (~0)
 
@@ -116,8 +118,16 @@ typedef struct VFIOMSIXInfo {
     bool noresize;
 } VFIOMSIXInfo;
 
+/*
+ * TYPE_VFIO_PCI_BASE is an abstract type used to share code
+ * between VFIO implementations that use a kernel driver
+ * with those that use user sockets.
+ */
+#define TYPE_VFIO_PCI_BASE "vfio-pci-base"
+OBJECT_DECLARE_SIMPLE_TYPE(VFIOPCIDevice, VFIO_PCI_BASE)
+
 #define TYPE_VFIO_PCI "vfio-pci"
-OBJECT_DECLARE_SIMPLE_TYPE(VFIOPCIDevice, VFIO_PCI)
+/* TYPE_VFIO_PCI shares struct VFIOPCIDevice. */
 
 struct VFIOPCIDevice {
     PCIDevice pdev;

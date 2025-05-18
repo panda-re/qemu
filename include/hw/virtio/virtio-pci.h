@@ -155,6 +155,7 @@ struct VirtIOPCIProxy {
     uint32_t modern_io_bar_idx;
     uint32_t modern_mem_bar_idx;
     int config_cap;
+    uint16_t last_pcie_cap_offset;
     uint32_t flags;
     bool disable_modern;
     bool ignore_backend_features;
@@ -255,8 +256,8 @@ typedef struct VirtioPCIDeviceTypeInfo {
     size_t class_size;
     void (*instance_init)(Object *obj);
     void (*instance_finalize)(Object *obj);
-    void (*class_init)(ObjectClass *klass, void *data);
-    InterfaceInfo *interfaces;
+    void (*class_init)(ObjectClass *klass, const void *data);
+    const InterfaceInfo *interfaces;
 } VirtioPCIDeviceTypeInfo;
 
 /* Register virtio-pci type(s).  @t must be static. */

@@ -21,10 +21,11 @@
 #include "qemu/osdep.h"
 #include "cpu.h"
 #include "internals.h"
-#include "exec/exec-all.h"
 #include "exec/cputlb.h"
-#include "exec/cpu_ldst.h"
+#include "accel/tcg/cpu-ldst.h"
+#include "accel/tcg/probe.h"
 #include "exec/helper-proto.h"
+#include "exec/tlb-flags.h"
 #include "trace.h"
 
 /* Exceptions processing helpers */
@@ -279,7 +280,9 @@ target_ulong helper_sret(CPURISCVState *env)
     }
 
     target_ulong retpc = env->sepc;
-    if (!riscv_has_ext(env, RVC) && (retpc & 0x3)) {
+    if (!riscv_cpu_allow_16bit_insn(&env_archcpu(env)->cfg,
+                                    env->priv_ver,
+                                    env->misa_ext) && (retpc & 0x3)) {
         riscv_raise_exception(env, RISCV_EXCP_INST_ADDR_MIS, GETPC());
     }
 
@@ -357,7 +360,9 @@ static void check_ret_from_m_mode(CPURISCVState *env, target_ulong retpc,
         riscv_raise_exception(env, RISCV_EXCP_ILLEGAL_INST, GETPC());
     }
 
-    if (!riscv_has_ext(env, RVC) && (retpc & 0x3)) {
+    if (!riscv_cpu_allow_16bit_insn(&env_archcpu(env)->cfg,
+                                    env->priv_ver,
+                                    env->misa_ext) && (retpc & 0x3)) {
         riscv_raise_exception(env, RISCV_EXCP_INST_ADDR_MIS, GETPC());
     }
 

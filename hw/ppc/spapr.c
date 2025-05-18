@@ -77,7 +77,7 @@
 #include "hw/virtio/virtio-scsi.h"
 #include "hw/virtio/vhost-scsi-common.h"
 
-#include "exec/ram_addr.h"
+#include "system/ram_addr.h"
 #include "system/confidential-guest-support.h"
 #include "hw/usb.h"
 #include "qemu/config-file.h"
@@ -296,6 +296,7 @@ static void spapr_dt_pa_features(SpaprMachineState *spapr,
         pa_features[40 + 2] &= ~0x80; /* Radix MMU */
     }
     if (spapr_get_cap(spapr, SPAPR_CAP_DAWR1)) {
+        g_assert(pa_size > 66);
         pa_features[66] |= 0x80;
     }
 
@@ -4594,7 +4595,7 @@ static void spapr_cpu_exec_exit(PPCVirtualHypervisor *vhyp, PowerPCCPU *cpu)
     }
 }
 
-static void spapr_machine_class_init(ObjectClass *oc, void *data)
+static void spapr_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     SpaprMachineClass *smc = SPAPR_MACHINE_CLASS(oc);
@@ -4716,7 +4717,7 @@ static const TypeInfo spapr_machine_info = {
     .instance_finalize = spapr_machine_finalizefn,
     .class_size    = sizeof(SpaprMachineClass),
     .class_init    = spapr_machine_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_FW_PATH_PROVIDER },
         { TYPE_NMI },
         { TYPE_HOTPLUG_HANDLER },
@@ -4738,7 +4739,7 @@ static void spapr_machine_latest_class_options(MachineClass *mc)
 #define DEFINE_SPAPR_MACHINE_IMPL(latest, ...)                       \
     static void MACHINE_VER_SYM(class_init, spapr, __VA_ARGS__)(     \
         ObjectClass *oc,                                             \
-        void *data)                                                  \
+        const void *data)                                            \
     {                                                                \
         MachineClass *mc = MACHINE_CLASS(oc);                        \
         MACHINE_VER_SYM(class_options, spapr, __VA_ARGS__)(mc);      \
@@ -4766,14 +4767,25 @@ static void spapr_machine_latest_class_options(MachineClass *mc)
     DEFINE_SPAPR_MACHINE_IMPL(false, major, minor)
 
 /*
- * pseries-10.0
+ * pseries-10.1
  */
-static void spapr_machine_10_0_class_options(MachineClass *mc)
+static void spapr_machine_10_1_class_options(MachineClass *mc)
 {
     /* Defaults for the latest behaviour inherited from the base class */
 }
 
-DEFINE_SPAPR_MACHINE_AS_LATEST(10, 0);
+DEFINE_SPAPR_MACHINE_AS_LATEST(10, 1);
+
+/*
+ * pseries-10.0
+ */
+static void spapr_machine_10_0_class_options(MachineClass *mc)
+{
+    spapr_machine_10_1_class_options(mc);
+    compat_props_add(mc->compat_props, hw_compat_10_0, hw_compat_10_0_len);
+}
+
+DEFINE_SPAPR_MACHINE(10, 0);
 
 /*
  * pseries-9.2
@@ -4815,6 +4827,7 @@ static void spapr_machine_8_2_class_options(MachineClass *mc)
 {
     spapr_machine_9_0_class_options(mc);
     compat_props_add(mc->compat_props, hw_compat_8_2, hw_compat_8_2_len);
+    mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("power9_v2.2");
 }
 
 DEFINE_SPAPR_MACHINE(8, 2);

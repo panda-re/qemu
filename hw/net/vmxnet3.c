@@ -932,7 +932,6 @@ static void vmxnet3_rx_update_descr(struct NetRxPkt *pkt,
 
 nocsum:
     rxcd->cnc = 1;
-    return;
 }
 
 static void
@@ -2492,7 +2491,7 @@ static void vmxnet3_realize(DeviceState *qdev, Error **errp)
     vc->parent_dc_realize(qdev, errp);
 }
 
-static void vmxnet3_class_init(ObjectClass *class, void *data)
+static void vmxnet3_class_init(ObjectClass *class, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
     PCIDeviceClass *c = PCI_DEVICE_CLASS(class);
@@ -2523,7 +2522,7 @@ static const TypeInfo vmxnet3_info = {
     .instance_size = sizeof(VMXNET3State),
     .class_init    = vmxnet3_class_init,
     .instance_init = vmxnet3_instance_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_PCIE_DEVICE },
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { }

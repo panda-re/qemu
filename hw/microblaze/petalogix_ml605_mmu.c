@@ -36,7 +36,7 @@
 #include "hw/boards.h"
 #include "hw/char/serial-mm.h"
 #include "hw/qdev-properties.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "hw/ssi/ssi.h"
 
 #include "boot.h"
@@ -218,12 +218,12 @@ petalogix_ml605_init(MachineState *machine)
 
 static void petalogix_ml605_machine_init(MachineClass *mc)
 {
-#if TARGET_BIG_ENDIAN
-    mc->desc = "PetaLogix linux refdesign for xilinx ml605 (big endian)";
-    mc->deprecation_reason = "big endian support is not tested";
-#else
-    mc->desc = "PetaLogix linux refdesign for xilinx ml605 (little endian)";
-#endif
+    if (TARGET_BIG_ENDIAN) {
+        mc->desc = "PetaLogix linux refdesign for xilinx ml605 (big endian)";
+        mc->deprecation_reason = "big endian support is not tested";
+    } else {
+        mc->desc = "PetaLogix linux refdesign for xilinx ml605 (little endian)";
+    }
     mc->init = petalogix_ml605_init;
 }
 

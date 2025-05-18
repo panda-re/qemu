@@ -16,7 +16,7 @@
 #include "qemu/rcu.h"
 #include "exec/target_page.h"
 #include "system/system.h"
-#include "exec/ramblock.h"
+#include "system/ramblock.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "file.h"
@@ -35,11 +35,6 @@
 #include "io/channel-file.h"
 #include "io/channel-socket.h"
 #include "yank_functions.h"
-
-/* Multiple fd's */
-
-#define MULTIFD_MAGIC 0x11223344U
-#define MULTIFD_VERSION 1
 
 typedef struct {
     uint32_t magic;

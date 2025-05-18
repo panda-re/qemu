@@ -406,7 +406,6 @@ static void asc_fifo_write(void *opaque, hwaddr addr, uint64_t value,
     } else {
         fs->fifo[addr] = value;
     }
-    return;
 }
 
 static const MemoryRegionOps asc_fifo_ops = {
@@ -700,7 +699,7 @@ static const Property asc_properties[] = {
     DEFINE_PROP_UINT8("asctype", ASCState, type, ASC_TYPE_ASC),
 };
 
-static void asc_class_init(ObjectClass *oc, void *data)
+static void asc_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     ResettableClass *rc = RESETTABLE_CLASS(oc);

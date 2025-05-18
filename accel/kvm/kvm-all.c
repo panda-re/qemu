@@ -33,8 +33,9 @@
 #include "system/cpus.h"
 #include "system/accel-blocker.h"
 #include "qemu/bswap.h"
-#include "exec/memory.h"
-#include "exec/ram_addr.h"
+#include "exec/tswap.h"
+#include "system/memory.h"
+#include "system/ram_addr.h"
 #include "qemu/event_notifier.h"
 #include "qemu/main-loop.h"
 #include "trace.h"
@@ -56,6 +57,11 @@
 #ifdef CONFIG_EVENTFD
 #include <sys/eventfd.h>
 #endif
+
+#if defined(__i386__) || defined(__x86_64__) || defined(__aarch64__)
+# define KVM_HAVE_MCE_INJECTION 1
+#endif
+
 
 /* KVM uses PAGE_SIZE in its definition of KVM_COALESCED_MMIO_MAX. We
  * need to use the real host PAGE_SIZE, as that's what KVM will use.
@@ -437,9 +443,8 @@ int kvm_unpark_vcpu(KVMState *s, unsigned long vcpu_id)
     return kvm_fd;
 }
 
-static void kvm_reset_parked_vcpus(void *param)
+static void kvm_reset_parked_vcpus(KVMState *s)
 {
-    KVMState *s = param;
     struct KVMParkedVcpu *cpu;
 
     QLIST_FOREACH(cpu, &s->kvm_parked_vcpus, node) {
@@ -1314,21 +1319,22 @@ bool kvm_hwpoisoned_mem(void)
 
 static uint32_t adjust_ioeventfd_endianness(uint32_t val, uint32_t size)
 {
-#if HOST_BIG_ENDIAN != TARGET_BIG_ENDIAN
-    /* The kernel expects ioeventfd values in HOST_BIG_ENDIAN
-     * endianness, but the memory core hands them in target endianness.
-     * For example, PPC is always treated as big-endian even if running
-     * on KVM and on PPC64LE.  Correct here.
-     */
-    switch (size) {
-    case 2:
-        val = bswap16(val);
-        break;
-    case 4:
-        val = bswap32(val);
-        break;
+    if (target_needs_bswap()) {
+        /*
+         * The kernel expects ioeventfd values in HOST_BIG_ENDIAN
+         * endianness, but the memory core hands them in target endianness.
+         * For example, PPC is always treated as big-endian even if running
+         * on KVM and on PPC64LE.  Correct here, swapping back.
+         */
+        switch (size) {
+        case 2:
+            val = bswap16(val);
+            break;
+        case 4:
+            val = bswap32(val);
+            break;
+        }
     }
-#endif
     return val;
 }
 
@@ -2738,7 +2744,6 @@ static int kvm_init(MachineState *ms)
     }
 
     qemu_register_reset(kvm_unpoison_all, NULL);
-    qemu_register_reset(kvm_reset_parked_vcpus, s);
 
     if (s->kernel_irqchip_allowed) {
         kvm_irqchip_create(s);
@@ -2908,6 +2913,10 @@ static void do_kvm_cpu_synchronize_post_reset(CPUState *cpu, run_on_cpu_data arg
 void kvm_cpu_synchronize_post_reset(CPUState *cpu)
 {
     run_on_cpu(cpu, do_kvm_cpu_synchronize_post_reset, RUN_ON_CPU_NULL);
+
+    if (cpu == first_cpu) {
+        kvm_reset_parked_vcpus(kvm_state);
+    }
 }
 
 static void do_kvm_cpu_synchronize_post_init(CPUState *cpu, run_on_cpu_data arg)
@@ -3957,7 +3966,7 @@ static int kvm_gdbstub_sstep_flags(void)
     return kvm_sstep_flags;
 }
 
-static void kvm_accel_class_init(ObjectClass *oc, void *data)
+static void kvm_accel_class_init(ObjectClass *oc, const void *data)
 {
     AccelClass *ac = ACCEL_CLASS(oc);
     ac->name = "KVM";

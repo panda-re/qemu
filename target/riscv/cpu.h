@@ -23,7 +23,9 @@
 #include "hw/core/cpu.h"
 #include "hw/registerfields.h"
 #include "hw/qdev-properties.h"
+#include "exec/cpu-common.h"
 #include "exec/cpu-defs.h"
+#include "exec/cpu-interrupt.h"
 #include "exec/gdbstub.h"
 #include "qemu/cpu-float.h"
 #include "qom/object.h"
@@ -43,12 +45,6 @@ typedef struct CPUArchState CPURISCVState;
 # define TYPE_RISCV_CPU_BASE            TYPE_RISCV_CPU_BASE64
 #endif
 
-/*
- * RISC-V-specific extra insn start words:
- * 1: Original instruction opcode
- * 2: more information about instruction
- */
-#define TARGET_INSN_START_EXTRA_WORDS 2
 /*
  * b0: Whether a instruction always raise a store AMO or not.
  */
@@ -632,8 +628,6 @@ G_NORETURN void riscv_raise_exception(CPURISCVState *env,
 target_ulong riscv_cpu_get_fflags(CPURISCVState *env);
 void riscv_cpu_set_fflags(CPURISCVState *env, target_ulong);
 
-#include "exec/cpu-all.h"
-
 FIELD(TB_FLAGS, MEM_IDX, 0, 3)
 FIELD(TB_FLAGS, FS, 3, 2)
 /* Vector flags */
@@ -765,6 +759,18 @@ static inline RISCVMXL riscv_cpu_sxl(CPURISCVState *env)
 }
 #endif
 
+static inline bool riscv_cpu_allow_16bit_insn(const RISCVCPUConfig *cfg,
+                                              target_long priv_ver,
+                                              uint32_t misa_ext)
+{
+    /* In priv spec version 1.12 or newer, C always implies Zca */
+    if (priv_ver >= PRIV_VERSION_1_12_0) {
+        return cfg->ext_zca;
+    } else {
+        return misa_ext & RVC;
+    }
+}
+
 /*
  * Encode LMUL to lmul as follows:
  *     LMUL    vlmul    lmul
@@ -795,9 +801,6 @@ static inline uint32_t vext_get_vlmax(uint32_t vlenb, uint32_t vsew,
      */
     return vlen >> (vsew + 3 - lmul);
 }
-
-void cpu_get_tb_cpu_state(CPURISCVState *env, vaddr *pc,
-                          uint64_t *cs_base, uint32_t *pflags);
 
 bool riscv_cpu_is_32bit(RISCVCPU *cpu);
 

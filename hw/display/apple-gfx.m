@@ -18,7 +18,7 @@
 #include "qapi/visitor.h"
 #include "qapi/error.h"
 #include "block/aio-wait.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "system/dma.h"
 #include "migration/blocker.h"
 #include "ui/console.h"
@@ -69,7 +69,7 @@ struct PGTask_s {
     mach_vm_address_t address;
     uint64_t len;
     /*
-     * All unique MemoryRegions for which a mapping has been created in in this
+     * All unique MemoryRegions for which a mapping has been created in this
      * task, and on which we have thus called memory_region_ref(). There are
      * usually very few regions of system RAM in total, so we expect this array
      * to be very short. Therefore, no need for sorting or fancy search

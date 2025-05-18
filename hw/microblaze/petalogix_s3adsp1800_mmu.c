@@ -33,7 +33,7 @@
 #include "system/system.h"
 #include "hw/boards.h"
 #include "hw/misc/unimp.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "hw/char/xilinx_uartlite.h"
 
 #include "boot.h"
@@ -141,7 +141,8 @@ petalogix_s3adsp1800_init(MachineState *machine)
                            NULL);
 }
 
-static void petalogix_s3adsp1800_machine_class_init(ObjectClass *oc, void *data)
+static void petalogix_s3adsp1800_machine_class_init(ObjectClass *oc,
+                                                    const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 

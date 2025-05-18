@@ -13,7 +13,7 @@
 #ifndef HW_VFIO_VFIO_CONTAINER_BASE_H
 #define HW_VFIO_VFIO_CONTAINER_BASE_H
 
-#include "exec/memory.h"
+#include "system/memory.h"
 
 typedef struct VFIODevice VFIODevice;
 typedef struct VFIOIOMMUClass VFIOIOMMUClass;
@@ -71,12 +71,17 @@ typedef struct VFIORamDiscardListener {
     QLIST_ENTRY(VFIORamDiscardListener) next;
 } VFIORamDiscardListener;
 
+VFIOAddressSpace *vfio_address_space_get(AddressSpace *as);
+void vfio_address_space_put(VFIOAddressSpace *space);
+void vfio_address_space_insert(VFIOAddressSpace *space,
+                               VFIOContainerBase *bcontainer);
+
 int vfio_container_dma_map(VFIOContainerBase *bcontainer,
                            hwaddr iova, ram_addr_t size,
                            void *vaddr, bool readonly);
 int vfio_container_dma_unmap(VFIOContainerBase *bcontainer,
                              hwaddr iova, ram_addr_t size,
-                             IOMMUTLBEntry *iotlb);
+                             IOMMUTLBEntry *iotlb, bool unmap_all);
 bool vfio_container_add_section_window(VFIOContainerBase *bcontainer,
                                        MemoryRegionSection *section,
                                        Error **errp);
@@ -84,8 +89,12 @@ void vfio_container_del_section_window(VFIOContainerBase *bcontainer,
                                        MemoryRegionSection *section);
 int vfio_container_set_dirty_page_tracking(VFIOContainerBase *bcontainer,
                                            bool start, Error **errp);
+bool vfio_container_dirty_tracking_is_started(
+    const VFIOContainerBase *bcontainer);
+bool vfio_container_devices_dirty_tracking_is_supported(
+    const VFIOContainerBase *bcontainer);
 int vfio_container_query_dirty_bitmap(const VFIOContainerBase *bcontainer,
-                   VFIOBitmap *vbmap, hwaddr iova, hwaddr size, Error **errp);
+    uint64_t iova, uint64_t size, ram_addr_t ram_addr, Error **errp);
 
 GList *vfio_container_get_iova_ranges(const VFIOContainerBase *bcontainer);
 
@@ -106,17 +115,27 @@ OBJECT_DECLARE_TYPE(VFIOContainerBase, VFIOIOMMUClass, VFIO_IOMMU)
 struct VFIOIOMMUClass {
     ObjectClass parent_class;
 
-    /* Properties */
-    const char *hiod_typename;
-
     /* basic feature */
     bool (*setup)(VFIOContainerBase *bcontainer, Error **errp);
+    void (*listener_begin)(VFIOContainerBase *bcontainer);
+    void (*listener_commit)(VFIOContainerBase *bcontainer);
     int (*dma_map)(const VFIOContainerBase *bcontainer,
                    hwaddr iova, ram_addr_t size,
                    void *vaddr, bool readonly);
+    /**
+     * @dma_unmap
+     *
+     * Unmap an address range from the container.
+     *
+     * @bcontainer: #VFIOContainerBase to use for unmap
+     * @iova: start address to unmap
+     * @size: size of the range to unmap
+     * @iotlb: The IOMMU TLB mapping entry (or NULL)
+     * @unmap_all: if set, unmap the entire address space
+     */
     int (*dma_unmap)(const VFIOContainerBase *bcontainer,
                      hwaddr iova, ram_addr_t size,
-                     IOMMUTLBEntry *iotlb);
+                     IOMMUTLBEntry *iotlb, bool unmap_all);
     bool (*attach_device)(const char *name, VFIODevice *vbasedev,
                           AddressSpace *as, Error **errp);
     void (*detach_device)(VFIODevice *vbasedev);
@@ -163,4 +182,5 @@ struct VFIOIOMMUClass {
                        MemoryRegionSection *section);
     void (*release)(VFIOContainerBase *bcontainer);
 };
+
 #endif /* HW_VFIO_VFIO_CONTAINER_BASE_H */

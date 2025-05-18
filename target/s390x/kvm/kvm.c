@@ -41,7 +41,7 @@
 #include "system/runstate.h"
 #include "system/device_tree.h"
 #include "gdbstub/enums.h"
-#include "exec/ram_addr.h"
+#include "system/ram_addr.h"
 #include "trace.h"
 #include "hw/s390x/s390-pci-inst.h"
 #include "hw/s390x/s390-pci-bus.h"
@@ -295,12 +295,6 @@ void kvm_s390_crypto_reset(void)
 void kvm_s390_set_max_pagesize(uint64_t pagesize, Error **errp)
 {
     if (pagesize == 4 * KiB) {
-        return;
-    }
-
-    if (!hpage_1m_allowed()) {
-        error_setg(errp, "This QEMU machine does not support huge page "
-                   "mappings");
         return;
     }
 

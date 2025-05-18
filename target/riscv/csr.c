@@ -24,10 +24,10 @@
 #include "tcg/tcg-cpu.h"
 #include "pmu.h"
 #include "time_helper.h"
-#include "exec/exec-all.h"
 #include "exec/cputlb.h"
 #include "exec/tb-flush.h"
-#include "system/cpu-timers.h"
+#include "exec/icount.h"
+#include "accel/tcg/getpc.h"
 #include "qemu/guest-random.h"
 #include "qapi/error.h"
 #include <stdbool.h>
@@ -190,6 +190,11 @@ static RISCVException cfi_ss(CPURISCVState *env, int csrno)
 {
     if (!env_archcpu(env)->cfg.ext_zicfiss) {
         return RISCV_EXCP_ILLEGAL_INST;
+    }
+
+    /* If ext implemented, M-mode always have access to SSP CSR */
+    if (env->priv == PRV_M) {
+        return RISCV_EXCP_NONE;
     }
 
     /* if bcfi not active for current env, access to csr is illegal */
@@ -4297,7 +4302,7 @@ static RISCVException rmw_sctrdepth(CPURISCVState *env, int csrno,
         }
 
         /* Update sctrstatus.WRPTR with a legal value */
-        depth = 16 << depth;
+        depth = 16ULL << depth;
         env->sctrstatus =
             env->sctrstatus & (~SCTRSTATUS_WRPTR_MASK | (depth - 1));
     }

@@ -242,10 +242,7 @@ static uint32_t esp_get_stc(ESPState *s)
 
 static uint8_t esp_pdma_read(ESPState *s)
 {
-    uint8_t val;
-
-    val = esp_fifo_pop(s);
-    return val;
+    return esp_fifo_pop(s);
 }
 
 static void esp_pdma_write(ESPState *s, uint8_t val)
@@ -1571,7 +1568,7 @@ static const VMStateDescription vmstate_sysbus_esp_scsi = {
     }
 };
 
-static void sysbus_esp_class_init(ObjectClass *klass, void *data)
+static void sysbus_esp_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -1597,7 +1594,7 @@ static void esp_init(Object *obj)
     fifo8_create(&s->cmdfifo, ESP_CMDFIFO_SZ);
 }
 
-static void esp_class_init(ObjectClass *klass, void *data)
+static void esp_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -7755,7 +7755,11 @@ static int nvme_start_ctrl(NvmeCtrl *n)
     for (int i = 1; i <= NVME_MAX_NAMESPACES; i++) {
         NvmeNamespace *ns = nvme_subsys_ns(n->subsys, i);
 
-        if (ns && nvme_csi_supported(n, ns->csi) && !ns->params.detached) {
+        if (!ns || (!ns->params.shared && ns->ctrl != n)) {
+            continue;
+        }
+
+        if (nvme_csi_supported(n, ns->csi) && !ns->params.detached) {
             if (!ns->attached || ns->params.shared) {
                 nvme_attach_ns(n, ns);
             }
@@ -8988,6 +8992,7 @@ static void nvme_realize(PCIDevice *pci_dev, Error **errp)
     if (n->namespace.blkconf.blk) {
         ns = &n->namespace;
         ns->params.nsid = 1;
+        ns->ctrl = n;
 
         if (nvme_ns_setup(ns, errp)) {
             return;
@@ -9178,7 +9183,7 @@ static const VMStateDescription nvme_vmstate = {
     .unmigratable = 1,
 };
 
-static void nvme_class_init(ObjectClass *oc, void *data)
+static void nvme_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
     PCIDeviceClass *pc = PCI_DEVICE_CLASS(oc);
@@ -9216,7 +9221,7 @@ static const TypeInfo nvme_info = {
     .instance_size = sizeof(NvmeCtrl),
     .instance_init = nvme_instance_init,
     .class_init    = nvme_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_PCIE_DEVICE },
         { }
     },

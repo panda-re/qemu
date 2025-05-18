@@ -9,14 +9,14 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
+import os
+import subprocess
+
+from datetime import datetime
 from qemu_test import QemuSystemTest, Asset
 from qemu_test import wait_for_console_pattern, exec_command
 from qemu_test import skipIfMissingCommands, skipBigDataTest
 from qemu_test import exec_command_and_wait_for_pattern
-import os
-import time
-import subprocess
-from datetime import datetime
 
 # Alpine is a light weight distro that supports QEMU. These tests boot
 # that on the machine then run a QEMU guest inside it in KVM mode,
@@ -125,6 +125,7 @@ class HypervisorTest(QemuSystemTest):
 
     def test_hv_pseries(self):
         self.require_accelerator("tcg")
+        self.require_netdev('user')
         self.set_machine('pseries')
         self.vm.add_args("-accel", "tcg,thread=multi")
         self.vm.add_args('-device', 'nvme,serial=1234,drive=drive0')
@@ -136,6 +137,7 @@ class HypervisorTest(QemuSystemTest):
 
     def test_hv_pseries_kvm(self):
         self.require_accelerator("kvm")
+        self.require_netdev('user')
         self.set_machine('pseries')
         self.vm.add_args("-accel", "kvm")
         self.vm.add_args('-device', 'nvme,serial=1234,drive=drive0')
@@ -147,6 +149,7 @@ class HypervisorTest(QemuSystemTest):
 
     def test_hv_powernv(self):
         self.require_accelerator("tcg")
+        self.require_netdev('user')
         self.set_machine('powernv')
         self.vm.add_args("-accel", "tcg,thread=multi")
         self.vm.add_args('-device', 'nvme,bus=pcie.2,addr=0x0,serial=1234,drive=drive0',

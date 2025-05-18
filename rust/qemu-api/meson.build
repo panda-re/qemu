@@ -5,9 +5,6 @@ _qemu_api_cfg = run_command(rustc_args,
 libc_dep = dependency('libc-0.2-rs')
 
 # _qemu_api_cfg += ['--cfg', 'feature="allocator"']
-if rustc.version().version_compare('>=1.77.0')
-  _qemu_api_cfg += ['--cfg', 'has_offset_of']
-endif
 if get_option('debug_mutex')
   _qemu_api_cfg += ['--cfg', 'feature="debug_cell"']
 endif
@@ -23,12 +20,10 @@ _qemu_api_rs = static_library(
       'src/callbacks.rs',
       'src/cell.rs',
       'src/chardev.rs',
-      'src/c_str.rs',
       'src/errno.rs',
       'src/irq.rs',
       'src/memory.rs',
       'src/module.rs',
-      'src/offset_of.rs',
       'src/prelude.rs',
       'src/qdev.rs',
       'src/qom.rs',
@@ -58,7 +53,8 @@ rust_qemu_api_objs = static_library(
               libchardev.extract_all_objects(recursive: false),
               libcrypto.extract_all_objects(recursive: false),
               libauthz.extract_all_objects(recursive: false),
-              libio.extract_all_objects(recursive: false)])
+              libio.extract_all_objects(recursive: false),
+              libmigration.extract_all_objects(recursive: false)])
 rust_qemu_api_deps = declare_dependency(
     dependencies: [
       qom_ss.dependencies(),
@@ -71,7 +67,7 @@ rust_qemu_api_deps = declare_dependency(
 test('rust-qemu-api-integration',
     executable(
         'rust-qemu-api-integration',
-        'tests/tests.rs',
+        files('tests/tests.rs', 'tests/vmstate_tests.rs'),
         override_options: ['rust_std=2021', 'build.rust_std=2021'],
         rust_args: ['--test'],
         install: false,
