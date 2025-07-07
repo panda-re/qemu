@@ -1,0 +1,30 @@
+name: Parallel Tests
+# For PRs to dev or pushes that modify the root Dockerfile, build from scratch
+# then run CI tests using that container in parallel
+# For forked repos that can't use our panda-arc test suite, just build and run make check
+on:
+  # Allow to repo owner to manually run this workflow for external PRs once code is vetted
+  workflow_dispatch:
+
+  # Run automatically for internal PRs and pushes
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build_container:
+    if: github.repository  == 'panda-re/qemu'
+    runs-on: ubuntu-latest 
+    steps:
+    #   - name: Install git
+    #     run: sudo apt-get -qq update -y && sudo apt-get -qq install git -y
+      - uses: actions/checkout@v4 # Clones to $GITHUB_WORKSPACE. NOTE: this requires git > 2.18 (not on ubuntu 18.04 by default) to get .git directory
+        with:
+          fetch-depth: 0
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ github.workspace }}
+          push: false

@@ -930,7 +930,7 @@ static const Property xive_tctx_properties[] = {
                      XivePresenter *),
 };
 
-static void xive_tctx_class_init(ObjectClass *klass, void *data)
+static void xive_tctx_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -1412,7 +1412,7 @@ static const Property xive_source_properties[] = {
                      XiveNotifier *),
 };
 
-static void xive_source_class_init(ObjectClass *klass, void *data)
+static void xive_source_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -1662,12 +1662,20 @@ uint32_t xive_get_vpgroup_size(uint32_t nvp_index)
      * (starting with the least significant bits) in the NVP index
      * gives the size of the group.
      */
-    return 1 << (ctz32(~nvp_index) + 1);
+    int first_zero = cto32(nvp_index);
+    if (first_zero >= 31) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: Invalid group index 0x%08x",
+                                       nvp_index);
+        return 0;
+    }
+
+    return 1U << (first_zero + 1);
 }
 
 static uint8_t xive_get_group_level(bool crowd, bool ignore,
                                     uint32_t nvp_blk, uint32_t nvp_index)
 {
+    int first_zero;
     uint8_t level;
 
     if (!ignore) {
@@ -1675,18 +1683,31 @@ static uint8_t xive_get_group_level(bool crowd, bool ignore,
         return 0;
     }
 
-    level = (ctz32(~nvp_index) + 1) & 0b1111;
+    first_zero = cto32(nvp_index);
+    if (first_zero >= 31) {
+        qemu_log_mask(LOG_GUEST_ERROR, "XIVE: Invalid group index 0x%08x",
+                                       nvp_index);
+        return 0;
+    }
+
+    level = (first_zero + 1) & 0b1111;
     if (crowd) {
         uint32_t blk;
 
         /* crowd level is bit position of first 0 from the right in nvp_blk */
-        blk = ctz32(~nvp_blk) + 1;
+        first_zero = cto32(nvp_blk);
+        if (first_zero >= 31) {
+            qemu_log_mask(LOG_GUEST_ERROR, "XIVE: Invalid crowd block 0x%08x",
+                                           nvp_blk);
+            return 0;
+        }
+        blk = first_zero + 1;
 
         /*
          * Supported crowd sizes are 2^1, 2^2, and 2^4. 2^3 is not supported.
          * HW will encode level 4 as the value 3.  See xive2_pgofnext().
          */
-        switch (level) {
+        switch (blk) {
         case 1:
         case 2:
             break;
@@ -2064,7 +2085,7 @@ static const Property xive_router_properties[] = {
                      TYPE_XIVE_FABRIC, XiveFabric *),
 };
 
-static void xive_router_class_init(ObjectClass *klass, void *data)
+static void xive_router_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     XiveNotifierClass *xnc = XIVE_NOTIFIER_CLASS(klass);
@@ -2087,7 +2108,7 @@ static const TypeInfo xive_router_info = {
     .instance_size = sizeof(XiveRouter),
     .class_size    = sizeof(XiveRouterClass),
     .class_init    = xive_router_class_init,
-    .interfaces    = (InterfaceInfo[]) {
+    .interfaces    = (const InterfaceInfo[]) {
         { TYPE_XIVE_NOTIFIER },
         { TYPE_XIVE_PRESENTER },
         { }
@@ -2233,7 +2254,7 @@ static const Property xive_end_source_properties[] = {
                      XiveRouter *),
 };
 
-static void xive_end_source_class_init(ObjectClass *klass, void *data)
+static void xive_end_source_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

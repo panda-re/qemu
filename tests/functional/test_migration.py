@@ -11,13 +11,12 @@
 # This work is licensed under the terms of the GNU GPL, version 2 or
 # later.  See the COPYING file in the top-level directory.
 
-
 import tempfile
-import os
 import time
 
 from qemu_test import QemuSystemTest, skipIfMissingCommands
 from qemu_test.ports import Ports
+
 
 class MigrationTest(QemuSystemTest):
 
@@ -87,13 +86,12 @@ class MigrationTest(QemuSystemTest):
             dest_uri = 'unix:%s/qemu-test.sock' % socket_path
             self.do_migrate(dest_uri)
 
-    @skipIfMissingCommands('nc')
+    @skipIfMissingCommands('ncat')
     def test_migration_with_exec(self):
-        """The test works for both netcat-traditional and netcat-openbsd packages."""
         with Ports() as ports:
             free_port = self._get_free_port(ports)
-            dest_uri = 'exec:nc -l localhost %u' % free_port
-            src_uri = 'exec:nc localhost %u' % free_port
+            dest_uri = 'exec:ncat -l localhost %u' % free_port
+            src_uri = 'exec:ncat localhost %u' % free_port
             self.do_migrate(dest_uri, src_uri)
 
 if __name__ == '__main__':

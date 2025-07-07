@@ -37,17 +37,20 @@ typedef struct AccelClass {
     /*< public >*/
 
     const char *name;
-    int (*init_machine)(MachineState *ms);
-#ifndef CONFIG_USER_ONLY
-    void (*setup_post)(MachineState *ms, AccelState *accel);
-    bool (*has_memory)(MachineState *ms, AddressSpace *as,
-                       hwaddr start_addr, hwaddr size);
-#endif
+    /* Cached by accel_init_ops_interfaces() when created */
+    AccelOpsClass *ops;
+
+    int (*init_machine)(AccelState *as, MachineState *ms);
     bool (*cpu_common_realize)(CPUState *cpu, Error **errp);
     void (*cpu_common_unrealize)(CPUState *cpu);
 
+    /* system related hooks */
+    void (*setup_post)(AccelState *as);
+    bool (*has_memory)(AccelState *accel, AddressSpace *as,
+                       hwaddr start_addr, hwaddr size);
+
     /* gdbstub related hooks */
-    int (*gdbstub_supported_sstep_flags)(void);
+    int (*gdbstub_supported_sstep_flags)(AccelState *as);
 
     bool *allowed;
     /*
@@ -78,12 +81,10 @@ const char *current_accel_name(void);
 
 void accel_init_interfaces(AccelClass *ac);
 
-#ifndef CONFIG_USER_ONLY
 int accel_init_machine(AccelState *accel, MachineState *ms);
 
 /* Called just before os_setup_post (ie just before drop OS privs) */
 void accel_setup_post(MachineState *ms);
-#endif /* !CONFIG_USER_ONLY */
 
 /**
  * accel_cpu_instance_init:

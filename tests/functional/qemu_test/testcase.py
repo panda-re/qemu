@@ -23,7 +23,7 @@ import unittest
 import uuid
 
 from qemu.machine import QEMUMachine
-from qemu.utils import kvm_available, tcg_available
+from qemu.utils import hvf_available, kvm_available, tcg_available
 
 from .archive import archive_extract
 from .asset import Asset
@@ -32,12 +32,6 @@ from .uncompress import uncompress
 
 
 class QemuBaseTest(unittest.TestCase):
-
-    arch = None
-
-    workdir = None
-    log = None
-    logdir = None
 
     '''
     @params compressed: filename, Asset, or file-like object to uncompress
@@ -323,7 +317,9 @@ class QemuSystemTest(QemuBaseTest):
         :type accelerator: str
         """
         checker = {'tcg': tcg_available,
-                   'kvm': kvm_available}.get(accelerator)
+                   'kvm': kvm_available,
+                   'hvf': hvf_available,
+                  }.get(accelerator)
         if checker is None:
             self.skipTest("Don't know how to check for the presence "
                           "of accelerator %s" % accelerator)

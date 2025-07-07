@@ -21,7 +21,7 @@
 #include "qapi/error.h"
 #include "hw/sysbus.h"
 #include "monitor/monitor.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 
 static void sysbus_dev_print(Monitor *mon, DeviceState *dev, int indent);
 static char *sysbus_get_fw_dev_path(DeviceState *dev);
@@ -71,7 +71,7 @@ void foreach_dynamic_sysbus_device(FindSysbusDeviceFunc *func, void *opaque)
 }
 
 
-static void system_bus_class_init(ObjectClass *klass, void *data)
+static void system_bus_class_init(ObjectClass *klass, const void *data)
 {
     BusClass *k = BUS_CLASS(klass);
 
@@ -280,7 +280,7 @@ static char *sysbus_get_fw_dev_path(DeviceState *dev)
     return g_strdup(qdev_fw_name(dev));
 }
 
-static void sysbus_device_class_init(ObjectClass *klass, void *data)
+static void sysbus_device_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
     k->realize = sysbus_device_realize;
@@ -320,7 +320,8 @@ BusState *sysbus_get_default(void)
     return main_system_bus;
 }
 
-static void dynamic_sysbus_device_class_init(ObjectClass *klass, void *data)
+static void dynamic_sysbus_device_class_init(ObjectClass *klass,
+                                             const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
 

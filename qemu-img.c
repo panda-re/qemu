@@ -3505,6 +3505,7 @@ static int img_snapshot(int argc, char **argv)
         break;
 
     case SNAPSHOT_DELETE:
+        bdrv_drain_all_begin();
         bdrv_graph_rdlock_main_loop();
         ret = bdrv_snapshot_find(bs, &sn, snapshot_name);
         if (ret < 0) {
@@ -3520,6 +3521,7 @@ static int img_snapshot(int argc, char **argv)
             }
         }
         bdrv_graph_rdunlock_main_loop();
+        bdrv_drain_all_end();
         break;
     }
 
@@ -4488,7 +4490,11 @@ static void bench_cb(void *opaque, int ret)
          */
         b->in_flight++;
         b->offset += b->step;
-        b->offset %= b->image_size;
+        if (b->image_size <= b->bufsize) {
+            b->offset = 0;
+        } else {
+            b->offset %= b->image_size - b->bufsize;
+        }
         if (b->write) {
             acb = blk_aio_pwritev(b->blk, offset, b->qiov, 0, bench_cb, b);
         } else {
@@ -4567,7 +4573,7 @@ static int img_bench(int argc, char **argv)
         {
             unsigned long res;
 
-            if (qemu_strtoul(optarg, NULL, 0, &res) < 0 || res > INT_MAX) {
+            if (qemu_strtoul(optarg, NULL, 0, &res) <= 0 || res > INT_MAX) {
                 error_report("Invalid queue depth specified");
                 return 1;
             }

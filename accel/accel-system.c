@@ -29,7 +29,7 @@
 #include "system/accel-ops.h"
 #include "system/cpus.h"
 #include "qemu/error-report.h"
-#include "accel-system.h"
+#include "accel-internal.h"
 
 int accel_init_machine(AccelState *accel, MachineState *ms)
 {
@@ -37,7 +37,7 @@ int accel_init_machine(AccelState *accel, MachineState *ms)
     int ret;
     ms->accelerator = accel;
     *(acc->allowed) = true;
-    ret = acc->init_machine(ms);
+    ret = acc->init_machine(accel, ms);
     if (ret < 0) {
         ms->accelerator = NULL;
         *(acc->allowed) = false;
@@ -58,12 +58,12 @@ void accel_setup_post(MachineState *ms)
     AccelState *accel = ms->accelerator;
     AccelClass *acc = ACCEL_GET_CLASS(accel);
     if (acc->setup_post) {
-        acc->setup_post(ms, accel);
+        acc->setup_post(accel);
     }
 }
 
 /* initialize the arch-independent accel operation interfaces */
-void accel_system_init_ops_interfaces(AccelClass *ac)
+void accel_init_ops_interfaces(AccelClass *ac)
 {
     const char *ac_name;
     char *ops_name;
@@ -85,8 +85,9 @@ void accel_system_init_ops_interfaces(AccelClass *ac)
      * non-NULL create_vcpu_thread operation.
      */
     ops = ACCEL_OPS_CLASS(oc);
+    ac->ops = ops;
     if (ops->ops_init) {
-        ops->ops_init(ops);
+        ops->ops_init(ac);
     }
     cpus_register_accel(ops);
 }

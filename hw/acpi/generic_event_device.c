@@ -458,18 +458,18 @@ static void acpi_ged_initfn(Object *obj)
      * container for memory hotplug IO and expose it as GED sysbus
      * MMIO so that boards can map it separately.
      */
-     memory_region_init(&s->container_memhp, OBJECT(dev), "memhp container",
-                        MEMORY_HOTPLUG_IO_LEN);
-     sysbus_init_mmio(sbd, &s->container_memhp);
-     acpi_memory_hotplug_init(&s->container_memhp, OBJECT(dev),
-                              &s->memhp_state, 0);
+    memory_region_init(&s->container_memhp, OBJECT(dev), "memhp container",
+                       MEMORY_HOTPLUG_IO_LEN);
+    sysbus_init_mmio(sbd, &s->container_memhp);
+    acpi_memory_hotplug_init(&s->container_memhp, OBJECT(dev),
+                             &s->memhp_state, 0);
 
     memory_region_init_io(&ged_st->regs, obj, &ged_regs_ops, ged_st,
                           TYPE_ACPI_GED "-regs", ACPI_GED_REG_COUNT);
     sysbus_init_mmio(sbd, &ged_st->regs);
 }
 
-static void acpi_ged_class_init(ObjectClass *class, void *data)
+static void acpi_ged_class_init(ObjectClass *class, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(class);
     HotplugHandlerClass *hc = HOTPLUG_HANDLER_CLASS(class);
@@ -494,7 +494,7 @@ static const TypeInfo acpi_ged_info = {
     .instance_size = sizeof(AcpiGedState),
     .instance_init  = acpi_ged_initfn,
     .class_init    = acpi_ged_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },
         { TYPE_ACPI_DEVICE_IF },
         { }

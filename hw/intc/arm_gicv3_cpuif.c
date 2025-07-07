@@ -22,6 +22,7 @@
 #include "cpu.h"
 #include "target/arm/cpregs.h"
 #include "target/arm/cpu-features.h"
+#include "target/arm/internals.h"
 #include "system/tcg.h"
 #include "system/qtest.h"
 
@@ -583,7 +584,6 @@ static void icv_ap_write(CPUARMState *env, const ARMCPRegInfo *ri,
     }
 
     gicv3_cpuif_virt_irq_fiq_update(cs);
-    return;
 }
 
 static uint64_t icv_bpr_read(CPUARMState *env, const ARMCPRegInfo *ri)
