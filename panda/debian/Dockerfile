@@ -19,6 +19,7 @@ RUN mkdir -p /package-root/usr/local/lib/panda/contrib/plugins
 COPY --from=panda  /panda/build/contrib/plugins/libpanda_plugin_interface.so /package-root/usr/local/lib/panda/contrib/plugins
 COPY --from=panda  /usr/include/panda-ng /package-root/usr/include/panda-ng
 COPY --from=panda /panda/build/config-host.mak /package-root/usr/local/share/panda
+COPY --from=panda /panda/build/qemu-img /package-root/usr/local/bin/qemu-img
 
 # Create DEBIAN directory and control file
 COPY control /package-root/DEBIAN/control
