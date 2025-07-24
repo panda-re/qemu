@@ -23,6 +23,7 @@
 
 #include "hw/registerfields.h"
 #include "target/arm/kvm-consts.h"
+#include "cpu.h"
 
 /*
  * ARMCPRegInfo type field bits:
@@ -1064,6 +1065,9 @@ void arm_cp_write_ignore(CPUARMState *env, const ARMCPRegInfo *ri,
 /* CPReadFn that can be used for read-as-zero behaviour */
 uint64_t arm_cp_read_zero(CPUARMState *env, const ARMCPRegInfo *ri);
 
+/* CPReadFn that just reads the value from ri->fieldoffset */
+uint64_t raw_read(CPUARMState *env, const ARMCPRegInfo *ri);
+
 /* CPWriteFn that just writes the value to ri->fieldoffset */
 void raw_write(CPUARMState *env, const ARMCPRegInfo *ri, uint64_t value);
 
@@ -1156,5 +1160,33 @@ static inline bool arm_cpreg_traps_in_nv(const ARMCPRegInfo *ri)
      */
     return ri->opc1 == 4 || ri->opc1 == 5;
 }
+
+/* Macros for accessing a specified CP register bank */
+#define A32_BANKED_REG_GET(_env, _regname, _secure)                     \
+    ((_secure) ? (_env)->cp15._regname##_s : (_env)->cp15._regname##_ns)
+
+#define A32_BANKED_REG_SET(_env, _regname, _secure, _val)       \
+    do {                                                        \
+        if (_secure) {                                          \
+            (_env)->cp15._regname##_s = (_val);                 \
+        } else {                                                \
+            (_env)->cp15._regname##_ns = (_val);                \
+        }                                                       \
+    } while (0)
+
+/*
+ * Macros for automatically accessing a specific CP register bank depending on
+ * the current secure state of the system.  These macros are not intended for
+ * supporting instruction translation reads/writes as these are dependent
+ * solely on the SCR.NS bit and not the mode.
+ */
+#define A32_BANKED_CURRENT_REG_GET(_env, _regname)                          \
+    A32_BANKED_REG_GET((_env), _regname,                                    \
+                       (arm_is_secure(_env) && !arm_el_is_aa64((_env), 3)))
+
+#define A32_BANKED_CURRENT_REG_SET(_env, _regname, _val)                    \
+    A32_BANKED_REG_SET((_env), _regname,                                    \
+                       (arm_is_secure(_env) && !arm_el_is_aa64((_env), 3)), \
+                       (_val))
 
 #endif /* TARGET_ARM_CPREGS_H */

@@ -763,8 +763,8 @@ Names beginning with ``x-`` used to signify "experimental".  This
 convention has been replaced by special feature "unstable".
 
 Pragmas ``command-name-exceptions`` and ``member-name-exceptions`` let
-you violate naming rules.  Use for new code is strongly discouraged. See
-`Pragma directives`_ for details.
+you violate naming rules.  Use for new code is strongly discouraged.
+See `Pragma directives`_ for details.
 
 
 Downstream extensions
@@ -876,25 +876,35 @@ structuring content.
 Headings and subheadings
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-A free-form documentation comment containing a line which starts with
-some ``=`` symbols and then a space defines a section heading::
+Free-form documentation does not start with ``@SYMBOL`` and can contain
+arbitrary rST markup. Headings can be marked up using the standard rST
+syntax::
 
     ##
-    # = This is a top level heading
+    # *************************
+    # This is a level 2 heading
+    # *************************
     #
     # This is a free-form comment which will go under the
     # top level heading.
     ##
 
     ##
-    # == This is a second level heading
+    # This is a third level heading
+    # ==============================
+    #
+    # Level 4
+    # _______
+    #
+    # Level 5
+    # ^^^^^^^
+    #
+    # Level 6
+    # """""""
     ##
 
-A heading line must be the first line of the documentation
-comment block.
-
-Section headings must always be correctly nested, so you can only
-define a third-level heading inside a second-level heading, and so on.
+Level 1 headings are reserved for use by the generated documentation
+page itself, leaving level 2 as the highest level that should be used.
 
 
 Documentation markup
@@ -1013,7 +1023,7 @@ like this::
 document the success and the error response, respectively.
 
 "Errors" sections should be formatted as an rST list, each entry
-detailing a relevant error condition. For example::
+detailing a relevant error condition.  For example::
 
  # Errors:
  #     - If @device does not exist, DeviceNotFound
@@ -1026,31 +1036,28 @@ definition.
 QMP).  In other sections, the text is formatted, and rST markup can be
 used.
 
-QMP Examples can be added by using the ``.. qmp-example::``
-directive. In its simplest form, this can be used to contain a single
-QMP code block which accepts standard JSON syntax with additional server
-directionality indicators (``->`` and ``<-``), and elisions (``...``).
+QMP Examples can be added by using the ``.. qmp-example::`` directive.
+In its simplest form, this can be used to contain a single QMP code
+block which accepts standard JSON syntax with additional server
+directionality indicators (``->`` and ``<-``), and elisions.  An
+elision is commonly ``...``, but it can also be or a pair of ``...``
+with text in between.
 
 Optionally, a plaintext title may be provided by using the ``:title:``
-directive option. If the title is omitted, the example title will
+directive option.  If the title is omitted, the example title will
 default to "Example:".
 
 A simple QMP example::
 
   # .. qmp-example::
-  #    :title: Using query-block
   #
-  #    -> { "execute": "query-block" }
-  #    <- { ... }
+  #     -> { "execute": "query-name" }
+  #     <- { "return": { "name": "Fred" } }
 
-More complex or multi-step examples where exposition is needed before or
-between QMP code blocks can be created by using the ``:annotated:``
-directive option. When using this option, nested QMP code blocks must be
-entered explicitly with rST's ``::`` syntax.
-
-Highlighting in non-QMP languages can be accomplished by using the
-``.. code-block:: lang`` directive, and non-highlighted text can be
-achieved by omitting the language argument.
+More complex or multi-step examples where exposition is needed before
+or between QMP code blocks can be created by using the ``:annotated:``
+directive option.  When using this option, nested QMP code blocks must
+be entered explicitly with rST's ``::`` syntax.
 
 For example::
 
@@ -1061,10 +1068,20 @@ For example::
   #    This is a more complex example that can use
   #    ``arbitrary rST syntax`` in its exposition::
   #
-  #      -> { "execute": "query-block" }
-  #      <- { ... }
+  #     -> { "execute": "query-block" }
+  #     <- { "return": [
+  #             {
+  #               "device": "ide0-hd0",
+  #               ...
+  #             }
+  #             ... more ...
+  #          ] }
   #
   #    Above, lengthy output has been omitted for brevity.
+
+Highlighting in non-QMP languages can be accomplished by using the
+``.. code-block:: lang`` directive, and non-highlighted text can be
+achieved by omitting the language argument.
 
 
 Examples of complete definition documentation::
@@ -1466,7 +1483,9 @@ As an example, we'll use the following schema, which describes a
 single complex user-defined type, along with command which takes a
 list of that type as a parameter, and returns a single element of that
 type.  The user is responsible for writing the implementation of
-qmp_my_command(); everything else is produced by the generator. ::
+qmp_my_command(); everything else is produced by the generator.
+
+::
 
     $ cat example-schema.json
     { 'struct': 'UserDefOne',

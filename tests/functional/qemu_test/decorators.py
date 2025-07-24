@@ -5,7 +5,8 @@
 import importlib
 import os
 import platform
-from unittest import skipUnless
+import resource
+from unittest import skipIf, skipUnless
 
 from .cmd import which
 
@@ -25,6 +26,19 @@ def skipIfMissingCommands(*args):
 
     return skipUnless(has_cmds, 'required command(s) "%s" not installed' %
                                 ", ".join(args))
+
+'''
+Decorator to skip execution of a test if the current
+host operating system does match one of the prohibited
+ones.
+Example
+
+  @skipIfOperatingSystem("Linux", "Darwin")
+'''
+def skipIfOperatingSystem(*args):
+    return skipIf(platform.system() in args,
+                  'running on an OS (%s) that is not able to run this test' %
+                  ", ".join(args))
 
 '''
 Decorator to skip execution of a test if the current
@@ -118,3 +132,20 @@ def skipIfMissingImports(*args):
 
     return skipUnless(has_imports, 'required import(s) "%s" not installed' %
                                    ", ".join(args))
+
+'''
+Decorator to skip execution of a test if the system's
+locked memory limit is below the required threshold.
+Takes required locked memory threshold in kB.
+Example:
+
+  @skipLockedMemoryTest(2_097_152)
+'''
+def skipLockedMemoryTest(locked_memory):
+    # get memlock hard limit in bytes
+    _, ulimit_memory = resource.getrlimit(resource.RLIMIT_MEMLOCK)
+
+    return skipUnless(
+        ulimit_memory == resource.RLIM_INFINITY or ulimit_memory >= locked_memory * 1024,
+        f'Test required {locked_memory} kB of available locked memory',
+    )

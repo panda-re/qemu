@@ -190,7 +190,7 @@ ssize_t load_elf(const char *filename,
 void load_elf_hdr(const char *filename, void *hdr, bool *is64, Error **errp);
 
 ssize_t load_aout(const char *filename, hwaddr addr, int max_sz,
-                  int bswap_needed, hwaddr target_page_size);
+                  bool big_endian, hwaddr target_page_size);
 
 #define LOAD_UIMAGE_LOADADDR_INVALID (-1)
 
@@ -270,8 +270,6 @@ int rom_add_elf_program(const char *name, GMappedFile *mapped_file, void *data,
                         AddressSpace *as);
 int rom_check_and_register_reset(void);
 void rom_set_fw(FWCfgState *f);
-void rom_set_order_override(int order);
-void rom_reset_order_override(void);
 
 /**
  * rom_transaction_begin:
