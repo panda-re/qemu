@@ -1,7 +1,7 @@
 # First run the main Dockerfile to build the base image and name it panda. Then we run here
 # to generate a debian package
 
-FROM debian:buster-slim
+FROM panda
 
 # Install necessary tools for packaging
 RUN apt-get -qq update && \
@@ -11,7 +11,6 @@ RUN apt-get -qq update && \
 # Get dependencies list from base image
 COPY --from=panda /tmp/base_dep.txt /tmp
 COPY --from=panda /tmp/build_dep.txt /tmp
-
 # Set up /package-root with files from panda we'll package
 COPY --from=panda /usr/local/lib/x86_64-linux-gnu /package-root/usr/local/lib/panda
 COPY --from=panda /usr/local/share/qemu /package-root/usr/local/share/panda
