@@ -68,9 +68,9 @@ jobs:
           context: ${{ github.workspace }}
           push: true
           cache-from: |
-            type=registry,ref=${{secrets.PANDA_ARC_REGISTRY}}/library/panda-ng:cache,mode=max
+            type=registry,ref=${{secrets.PANDA_ARC_REGISTRY}}/pandare/panda-ng:cache,mode=max
           cache-to: |
-            type=registry,ref=${{secrets.PANDA_ARC_REGISTRY}}/library/panda-ng:cache,mode=max
+            type=registry,ref=${{secrets.PANDA_ARC_REGISTRY}}/pandare/panda-ng:cache,mode=max
           tags: |
             pandare/panda-ng:${{ github.sha }}
             pandare/panda-ng:${{ steps.version.outputs.prefixed-v-version }}
