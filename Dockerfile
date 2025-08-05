@@ -1,16 +1,92 @@
-ARG BASE_IMAGE="ubuntu:22.04"
+ARG REGISTRY="docker.io"
+ARG BASE_IMAGE="${REGISTRY}/ubuntu:22.04"
 ARG TARGET_LIST="x86_64-softmmu,i386-softmmu,arm-softmmu,aarch64-softmmu,ppc-softmmu,ppc64-softmmu,mips-softmmu,mipsel-softmmu,mips64-softmmu,mips64el-softmmu,loongarch64-softmmu,riscv32-softmmu,riscv64-softmmu"
 
 ### BASE IMAGE
 FROM $BASE_IMAGE AS base
 ARG BASE_IMAGE
 
-# Copy dependencies lists into container. We copy them all and then do a mv because
-# we need to transform base_image into a windows compatible filename which we can't
-# do in a COPY command.
-COPY ./panda/dependencies/* /tmp
-RUN mv /tmp/$(echo "$BASE_IMAGE" | sed 's/:/_/g')_build.txt /tmp/build_dep.txt && \
-    mv /tmp/$(echo "$BASE_IMAGE" | sed 's/:/_/g')_base.txt /tmp/base_dep.txt
+RUN cat > /tmp/base_dep.txt <<EOF
+    # Panda dependencies    
+    # Note that libcapstone >= v4.1 is also required, but that's not available in apt 
+    git 
+    libdwarf1   
+    libjsoncpp-dev  
+    libllvm11  
+    libprotobuf-c-dev   
+    libvte-2.91-0   
+    libwireshark-dev    
+    libwiretap-dev  
+    libxen-dev  
+    libz3-dev   
+    python3 
+    python3-pip 
+    wget    
+    # pyperipheral (only needed for armel)  
+    libpython3-dev  
+    # pypanda dependencies  
+    genisoimage 
+    libffi-dev  
+    python3-protobuf    
+    python3-colorama    
+    # Not sure what this one is needed for  
+    liblzo2-2   
+    # apt-rdepends qemu-system-common   
+    acl 
+    libc6   
+    libcap-ng0  
+    libcap2 
+    libgbm1 
+    libglib2.0-0    
+    libgnutls30 
+    libnettle8  
+    libpixman-1-0   
+    libvirglrenderer1   
+    
+    # apt-rdepends qemu-block-extra 
+    libcurl3-gnutls 
+    libglib2.0-0    
+    libiscsi7   
+    librados2   
+    librbd1 
+    libssh-4    
+    
+    # apt-rdepends qemu-system-arm, seems most of the system-[arch]es have same dependencies    
+    libaio1 
+    libasound2  
+    libbrlapi-dev   
+    libc6   
+    libcacard0  
+    libepoxy0   
+    libfdt1 
+    libgbm1 
+    libgcc-s1   
+    libglib2.0-0    
+    libgnutls30 
+    libibverbs1 
+    libjpeg8    
+    libncursesw6    
+    libnuma1    
+    libpixman-1-0   
+    libpmem1    
+    libpng16-16 
+    librdmacm1  
+    libsasl2-2  
+    libseccomp2 
+    libslirp0   
+    libspice-server1    
+    libstdc++6  
+    libtinfo6   
+    libusb-1.0-0    
+    libusbredirparser1  
+    libvirglrenderer1   
+    zlib1g  
+    
+    #rr2 dependencies   
+    libarchive-dev  
+    libssl-dev  
+EOF
+
 
 # Base image just needs runtime dependencies
 RUN [ -e /tmp/base_dep.txt ] && \
@@ -22,6 +98,101 @@ RUN [ -e /tmp/base_dep.txt ] && \
 FROM base AS builder
 ARG BASE_IMAGE
 ARG TARGET_LIST
+
+
+RUN cat > /tmp/build_dep.txt <<EOF
+    libc++-dev  
+    libelf-dev  
+    libtool-bin  
+    libwireshark-dev  
+    libwiretap-dev  
+    lsb-core  
+    zip  
+  
+    # panda build deps  
+    # Note libcapstone-dev is required, but we need v4 + which isn't in apt  
+    build-essential  
+    chrpath  
+    clang-11  
+    gcc  
+    libdwarf-dev  
+    libprotoc-dev  
+    llvm-11-dev  
+    protobuf-c-compiler  
+    protobuf-compiler  
+    python3-dev  
+    libpixman-1-dev  
+    zip  
+  
+    # pypanda dependencies  
+    python3-setuptools  
+    python3-wheel  
+  
+    # pypanda test dependencies  
+    gcc-multilib  
+    libc6-dev-i386  
+    nasm  
+  
+    # Qemu build deps  
+    debhelper  
+    device-tree-compiler  
+    libgnutls28-dev  
+    libaio-dev  
+    libasound2-dev  
+    libattr1-dev  
+    libbrlapi-dev  
+    libcacard-dev  
+    libcap-dev  
+    libcap-ng-dev  
+    libcurl4-gnutls-dev  
+    libdrm-dev  
+    libepoxy-dev  
+    libfdt-dev  
+    libgbm-dev  
+    libibumad-dev  
+    libibverbs-dev  
+    libiscsi-dev  
+    libjpeg-dev  
+    libncursesw5-dev  
+    libnuma-dev  
+    libpmem-dev  
+    libpng-dev  
+    libpulse-dev  
+    librbd-dev  
+    librdmacm-dev  
+    libsasl2-dev  
+    libseccomp-dev  
+    libslirp-dev  
+    libspice-protocol-dev  
+    libspice-server-dev  
+    libssh-dev  
+    libudev-dev  
+    libusb-1.0-0-dev  
+    libusbredirparser-dev  
+    libvirglrenderer-dev  
+    nettle-dev  
+    python3  
+    python3-sphinx  
+    texinfo  
+    uuid-dev  
+    xfslibs-dev  
+    zlib1g-dev  
+    libc6.1-dev-alpha-cross  
+  
+    # qemu build deps that conflict with gcc-multilib  
+    #gcc-alpha-linux-gnu  
+    #gcc-powerpc64-linux-gnu  
+    #gcc-s390x-linux-gnu  
+  
+    # rust install deps  
+    curl  
+  
+    # libosi install deps  
+    cmake  
+    ninja-build  
+    rapidjson-dev 
+EOF
+
 
 RUN [ -e /tmp/build_dep.txt ] && \
     apt-get -qq update && \
