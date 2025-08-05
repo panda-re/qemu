@@ -36,11 +36,6 @@ else
 	version=$(lsb_release -r | awk '{print $2}')
 fi
 
-# Check if the given version is supported
-if [[ ! -f "../dependencies/ubuntu_${version}_base.txt" ]]; then
-	echo "ERROR: Ubuntu ${version} is not supported, no dependencies file found"
-	exit 1
-fi
 
 # Build the installer to generate the wheel file
 DOCKER_BUILDKIT=1 docker build --target cleanup -t panda --build-arg BASE_IMAGE="ubuntu:${version}" ../..
