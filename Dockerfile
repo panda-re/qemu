@@ -221,7 +221,7 @@ FROM builder AS libgen
 RUN apt-get install -y gdb && \
     python3 -m pip install cffi tree-sitter==0.24.0 tree-sitter-c==0.23.0
 
-RUN git clone https://github.com/panda-re/libpanda-ng /libpanda-ng && \
+RUN git clone https://github.com/panda-re/libpanda-ng /libpanda-ng  && \
     mkdir /libpanda-ng/build && cd /libpanda-ng/build && \
     bash /libpanda-ng/run_all.sh /panda
 
