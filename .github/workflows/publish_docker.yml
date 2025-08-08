@@ -100,7 +100,7 @@ jobs:
         working-directory: panda/debian
         run: |
           docker run --rm -v $(pwd):/out packager bash -c "cp /pandare.deb /libpanda-ng.tar.gz /out"
-          mv pandare.deb pandare-22.04.deb
+          mv pandare.deb pandare_22.04.deb
 
       - name: Upload wheel and debian packages to release
         uses: softprops/action-gh-release@v2
