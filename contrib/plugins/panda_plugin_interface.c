@@ -149,7 +149,7 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_
                         int argc, char **argv)
 {
     qemu_plugin_register_vcpu_tb_trans_cb(id, vcpu_tb_trans);
-    qemu_plugin_register_vcpu_init_cb(id, vcpu_init);
-    qemu_plugin_register_vcpu_exit_cb(id, vcpu_exit);
+    // qemu_plugin_register_vcpu_init_cb(id, vcpu_init);
+    // qemu_plugin_register_vcpu_exit_cb(id, vcpu_exit);
     return 0;
 }
