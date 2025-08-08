@@ -1,209 +1,209 @@
+#syntax=docker/dockerfile:1.17-labs
 ARG REGISTRY="docker.io"
 ARG BASE_IMAGE="${REGISTRY}/ubuntu:22.04"
 ARG TARGET_LIST="x86_64-softmmu,i386-softmmu,arm-softmmu,aarch64-softmmu,ppc-softmmu,ppc64-softmmu,mips-softmmu,mipsel-softmmu,mips64-softmmu,mips64el-softmmu,loongarch64-softmmu,riscv32-softmmu,riscv64-softmmu"
 
 ### BASE IMAGE
 FROM $BASE_IMAGE AS base
-ARG BASE_IMAGE
 
 RUN cat > /tmp/base_dep.txt <<EOF
-    # Panda dependencies    
-    # Note that libcapstone >= v4.1 is also required, but that's not available in apt 
-    git 
-    libdwarf1   
-    libjsoncpp-dev  
-    libllvm11  
-    libprotobuf-c-dev   
-    libvte-2.91-0   
-    libwireshark-dev    
-    libwiretap-dev  
-    libxen-dev  
-    libz3-dev   
-    python3 
-    python3-pip 
-    wget    
-    # pyperipheral (only needed for armel)  
-    libpython3-dev  
-    # pypanda dependencies  
-    genisoimage 
-    libffi-dev  
-    python3-protobuf    
-    python3-colorama    
-    # Not sure what this one is needed for  
-    liblzo2-2   
-    # apt-rdepends qemu-system-common   
-    acl 
-    libc6   
-    libcap-ng0  
-    libcap2 
-    libgbm1 
-    libglib2.0-0    
-    libgnutls30 
-    libnettle8  
-    libpixman-1-0   
-    libvirglrenderer1   
-    
-    # apt-rdepends qemu-block-extra 
-    libcurl3-gnutls 
-    libglib2.0-0    
-    libiscsi7   
-    librados2   
-    librbd1 
-    libssh-4    
-    
-    # apt-rdepends qemu-system-arm, seems most of the system-[arch]es have same dependencies    
-    libaio1 
-    libasound2  
-    libbrlapi-dev   
-    libc6   
-    libcacard0  
-    libepoxy0   
-    libfdt1 
-    libgbm1 
-    libgcc-s1   
-    libglib2.0-0    
-    libgnutls30 
-    libibverbs1 
-    libjpeg8    
-    libncursesw6    
-    libnuma1    
-    libpixman-1-0   
-    libpmem1    
-    libpng16-16 
-    librdmacm1  
-    libsasl2-2  
-    libseccomp2 
-    libslirp0   
-    libspice-server1    
-    libstdc++6  
-    libtinfo6   
-    libusb-1.0-0    
-    libusbredirparser1  
-    libvirglrenderer1   
-    zlib1g  
-    
-    #rr2 dependencies   
-    libarchive-dev  
-    libssl-dev  
+# Panda dependencies
+# Note that libcapstone >= v4.1 is also required, but that's not available in apt 
+git 
+libdwarf1 
+libjsoncpp-dev
+libllvm11
+libprotobuf-c-dev 
+libvte-2.91-0 
+libwireshark-dev
+libwiretap-dev
+libxen-dev
+libz3-dev 
+python3 
+python3-pip 
+wget
+# pyperipheral (only needed for armel)
+libpython3-dev
+# pypanda dependencies
+genisoimage 
+libffi-dev
+python3-protobuf
+python3-colorama
+# Not sure what this one is needed for
+liblzo2-2 
+# apt-rdepends qemu-system-common 
+acl 
+libc6 
+libcap-ng0
+libcap2 
+libgbm1 
+libglib2.0-0
+libgnutls30 
+libnettle8
+libpixman-1-0 
+libvirglrenderer1 
+
+# apt-rdepends qemu-block-extra 
+libcurl3-gnutls 
+libglib2.0-0
+libiscsi7 
+librados2 
+librbd1 
+libssh-4
+
+# apt-rdepends qemu-system-arm, seems most of the system-[arch]es have same dependencies
+libaio1 
+libasound2
+libbrlapi-dev 
+libc6 
+libcacard0
+libepoxy0 
+libfdt1 
+libgbm1 
+libgcc-s1 
+libglib2.0-0
+libgnutls30 
+libibverbs1 
+libjpeg8
+libncursesw6
+libnuma1
+libpixman-1-0 
+libpmem1
+libpng16-16 
+librdmacm1
+libsasl2-2
+libseccomp2 
+libslirp0 
+libspice-server1
+libstdc++6
+libtinfo6 
+libusb-1.0-0
+libusbredirparser1
+libvirglrenderer1 
+zlib1g
+
+#rr2 dependencies 
+libarchive-dev
+libssl-dev
 EOF
 
 
 # Base image just needs runtime dependencies
-RUN [ -e /tmp/base_dep.txt ] && \
-    apt-get -qq update && \
+RUN apt-get -qq update && \
     DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends curl $(cat /tmp/base_dep.txt | grep -o '^[^#]*') && \
     apt-get clean
 
-### BUILD IMAGE - STAGE 2
-FROM base AS builder
-ARG BASE_IMAGE
-ARG TARGET_LIST
-
-
 RUN cat > /tmp/build_dep.txt <<EOF
-    libc++-dev  
-    libelf-dev  
-    libtool-bin  
-    libwireshark-dev  
-    libwiretap-dev  
-    lsb-core  
-    zip  
-  
-    # panda build deps  
-    # Note libcapstone-dev is required, but we need v4 + which isn't in apt  
-    build-essential  
-    chrpath  
-    clang-11  
-    gcc  
-    libdwarf-dev  
-    libprotoc-dev  
-    llvm-11-dev  
-    protobuf-c-compiler  
-    protobuf-compiler  
-    python3-dev  
-    libpixman-1-dev  
-    zip  
-  
-    # pypanda dependencies  
-    python3-setuptools  
-    python3-wheel  
-  
-    # pypanda test dependencies  
-    gcc-multilib  
-    libc6-dev-i386  
-    nasm  
-  
-    # Qemu build deps  
-    debhelper  
-    device-tree-compiler  
-    libgnutls28-dev  
-    libaio-dev  
-    libasound2-dev  
-    libattr1-dev  
-    libbrlapi-dev  
-    libcacard-dev  
-    libcap-dev  
-    libcap-ng-dev  
-    libcurl4-gnutls-dev  
-    libdrm-dev  
-    libepoxy-dev  
-    libfdt-dev  
-    libgbm-dev  
-    libibumad-dev  
-    libibverbs-dev  
-    libiscsi-dev  
-    libjpeg-dev  
-    libncursesw5-dev  
-    libnuma-dev  
-    libpmem-dev  
-    libpng-dev  
-    libpulse-dev  
-    librbd-dev  
-    librdmacm-dev  
-    libsasl2-dev  
-    libseccomp-dev  
-    libslirp-dev  
-    libspice-protocol-dev  
-    libspice-server-dev  
-    libssh-dev  
-    libudev-dev  
-    libusb-1.0-0-dev  
-    libusbredirparser-dev  
-    libvirglrenderer-dev  
-    nettle-dev  
-    python3  
-    python3-sphinx  
-    texinfo  
-    uuid-dev  
-    xfslibs-dev  
-    zlib1g-dev  
-    libc6.1-dev-alpha-cross  
-  
-    # qemu build deps that conflict with gcc-multilib  
-    #gcc-alpha-linux-gnu  
-    #gcc-powerpc64-linux-gnu  
-    #gcc-s390x-linux-gnu  
-  
-    # rust install deps  
-    curl  
-  
-    # libosi install deps  
-    cmake  
-    ninja-build  
-    rapidjson-dev 
+libc++-dev
+libelf-dev
+libtool-bin
+libwireshark-dev
+libwiretap-dev
+lsb-core
+zip
+
+# panda build deps
+# Note libcapstone-dev is required, but we need v4 + which isn't in apt
+build-essential
+chrpath
+clang-11
+gcc
+libdwarf-dev
+libprotoc-dev
+llvm-11-dev
+protobuf-c-compiler
+protobuf-compiler
+python3-dev
+libpixman-1-dev
+zip
+
+# pypanda dependencies
+python3-setuptools
+python3-wheel
+
+# pypanda test dependencies
+gcc-multilib
+libc6-dev-i386
+nasm
+
+# Qemu build deps
+debhelper
+device-tree-compiler
+libgnutls28-dev
+libaio-dev
+libasound2-dev
+libattr1-dev
+libbrlapi-dev
+libcacard-dev
+libcap-dev
+libcap-ng-dev
+libcurl4-gnutls-dev
+libdrm-dev
+libepoxy-dev
+libfdt-dev
+libgbm-dev
+libibumad-dev
+libibverbs-dev
+libiscsi-dev
+libjpeg-dev
+libncursesw5-dev
+libnuma-dev
+libpmem-dev
+libpng-dev
+libpulse-dev
+librbd-dev
+librdmacm-dev
+libsasl2-dev
+libseccomp-dev
+libslirp-dev
+libspice-protocol-dev
+libspice-server-dev
+libssh-dev
+libudev-dev
+libusb-1.0-0-dev
+libusbredirparser-dev
+libvirglrenderer-dev
+nettle-dev
+python3
+python3-sphinx
+texinfo
+uuid-dev
+xfslibs-dev
+zlib1g-dev
+libc6.1-dev-alpha-cross
+
+# qemu build deps that conflict with gcc-multilib
+#gcc-alpha-linux-gnu
+#gcc-powerpc64-linux-gnu
+#gcc-s390x-linux-gnu
+
+# rust install deps
+curl
+
+# libosi install deps
+cmake
+ninja-build
+rapidjson-dev 
 EOF
 
+### BUILD IMAGE - STAGE 2
+FROM base AS builder
 
-RUN [ -e /tmp/build_dep.txt ] && \
-    apt-get -qq update && \
+RUN apt-get -qq update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends $(cat /tmp/build_dep.txt | grep -o '^[^#]*') && \
     apt-get clean
 
 # Build and install panda
 # Copy repo root directory to /panda, note we explicitly copy in .git directory
 # Note .dockerignore file keeps us from copying things we don't need
-COPY . /panda/
+COPY --exclude=.git \
+    --exclude=.github \
+    --exclude=.gitlab-ci.d \
+    --exclude=Dockerfile \
+    --exclude=panda/debian \
+    . /panda/
 
+ARG TARGET_LIST
 # Note we diable NUMA for docker builds because it causes make check to fail in docker
 RUN mkdir /panda/build && cd /panda/build && \
      python3 -m pip install setuptools_scm && \
@@ -232,6 +232,38 @@ RUN find /usr/local/lib/x86_64-linux-gnu -name "*.so" -exec strip {} \;
 RUN strip /panda/build/contrib/plugins/libpanda_plugin_interface.so
 RUN mkdir -p /usr/include/panda-ng
 COPY --from=libgen /libpanda-ng/build/* /usr/include/panda-ng
+
+FROM base AS packager
+
+# Install necessary tools for packaging
+RUN apt-get -qq update && \
+    DEBIAN_FRONTEND=noninteractive apt-get -qq install -y \
+        fakeroot dpkg-dev
+
+# Set up /package-root with files from panda we'll package
+COPY --from=cleanup /usr/local/lib/x86_64-linux-gnu /package-root/usr/local/lib/panda
+COPY --from=cleanup /usr/local/share/qemu /package-root/usr/local/share/panda
+RUN mkdir -p /package-root/usr/local/lib/panda/contrib/plugins /package-root/DEBIAN/
+COPY --from=cleanup  /panda/build/contrib/plugins/libpanda_plugin_interface.so /package-root/usr/local/lib/panda/contrib/plugins
+COPY --from=cleanup  /usr/include/panda-ng /package-root/usr/include/panda-ng
+COPY --from=cleanup /panda/build/config-host.mak /package-root/usr/local/share/panda
+COPY --from=cleanup /panda/build/qemu-img /package-root/usr/local/bin/qemu-img
+
+# Create DEBIAN directory and control file
+COPY ./panda/debian/control /package-root/DEBIAN/control
+
+# Update control file with dependencies
+# Build time. We only select dependencies that are not commented out or blank
+RUN dependencies=$(grep '^[a-zA-Z]' /tmp/build_dep.txt | tr '\n' ',' | sed 's/,,\+/,/g'| sed 's/,$//') && \
+    sed -i "s/BUILD_DEPENDS_LIST/Build-Depends: $dependencies/" /package-root/DEBIAN/control
+
+# Run time. Also includes ipxe-qemu so we can get pc-bios files
+RUN dependencies=$(grep '^[a-zA-Z]' /tmp/base_dep.txt | tr '\n' ',' | sed 's/,,\+/,/g' | sed 's/,$//') && \
+    sed -i "s/DEPENDS_LIST/Depends: ipxe-qemu,${dependencies}/" /package-root/DEBIAN/control
+
+# Build the package
+RUN fakeroot dpkg-deb --build /package-root /pandare.deb
+RUN tar -czvf /libpanda-ng.tar.gz -C /package-root/usr/include/panda-ng .
 
 FROM base AS panda
 COPY --from=cleanup /panda/build/libpanda* /usr/local/bin

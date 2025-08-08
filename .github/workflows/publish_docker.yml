@@ -75,12 +75,32 @@ jobs:
             pandare/panda-ng:${{ github.sha }}
             pandare/panda-ng:${{ steps.version.outputs.prefixed-v-version }}
             pandare/panda-ng:latest
+          outputs: |
+            type=image
           build-args: |
             REGISTRY=${{ secrets.PANDA_ARC_REGISTRY }}/proxy
       
+      - name: Build Docker image and push to Dockerhub
+        uses: docker/build-push-action@v6.18.0
+        with:
+          context: ${{ github.workspace }}
+          push: false
+          target: packager
+          cache-from: |
+            type=registry,ref=${{secrets.PANDA_ARC_REGISTRY}}/pandare/panda-ng:cache,mode=max
+          cache-to: |
+            type=registry,ref=${{secrets.PANDA_ARC_REGISTRY}}/pandare/panda-ng:cache,mode=max
+          tags: |
+            packager
+          build-args: |
+            REGISTRY=${{ secrets.PANDA_ARC_REGISTRY }}/proxy
+          outputs: |
+            type=image
+      
       - name: Build package
         working-directory: panda/debian
-        run: ./setup.sh Ubuntu 22.04
+        run: |
+          docker run --rm -v $(pwd):/out packager bash -c "cp /pandare.deb /libpanda-ng.tar.gz /out"
 
       - name: Upload wheel and debian packages to release
         uses: softprops/action-gh-release@v2
