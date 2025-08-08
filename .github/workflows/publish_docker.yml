@@ -75,12 +75,11 @@ jobs:
             pandare/qemu:${{ github.sha }}
             pandare/qemu:${{ steps.version.outputs.prefixed-v-version }}
             pandare/qemu:latest
-          outputs: |
-            type=image
+          load: true
           build-args: |
             REGISTRY=${{ secrets.PANDA_ARC_REGISTRY }}/proxy
       
-      - name: Build Docker image and push to Dockerhub
+      - name: Build Docker image and load packager to local Docker
         uses: docker/build-push-action@v6.18.0
         with:
           context: ${{ github.workspace }}
@@ -88,19 +87,20 @@ jobs:
           target: packager
           cache-from: |
             type=registry,ref=${{secrets.PANDA_ARC_REGISTRY}}/pandare/qemu:cache,mode=max
+            type=registry,ref=${{secrets.PANDA_ARC_REGISTRY}}/pandare/qemu:package_cache,mode=max
           cache-to: |
-            type=registry,ref=${{secrets.PANDA_ARC_REGISTRY}}/pandare/qemu:cache,mode=max
+            type=registry,ref=${{secrets.PANDA_ARC_REGISTRY}}/pandare/qemu:package_cache,mode=max
           tags: |
             packager
           build-args: |
             REGISTRY=${{ secrets.PANDA_ARC_REGISTRY }}/proxy
-          outputs: |
-            type=image
-      
+          load: true
+
       - name: Build package
         working-directory: panda/debian
         run: |
           docker run --rm -v $(pwd):/out packager bash -c "cp /pandare.deb /libpanda-ng.tar.gz /out"
+          mv pandare.deb pandare-22.04.deb
 
       - name: Upload wheel and debian packages to release
         uses: softprops/action-gh-release@v2
