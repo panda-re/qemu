@@ -68,13 +68,13 @@ jobs:
           context: ${{ github.workspace }}
           push: true
           cache-from: |
-            type=registry,ref=${{secrets.PANDA_ARC_REGISTRY}}/pandare/panda-ng:cache,mode=max
+            type=registry,ref=${{secrets.PANDA_ARC_REGISTRY}}/pandare/qemu:cache,mode=max
           cache-to: |
-            type=registry,ref=${{secrets.PANDA_ARC_REGISTRY}}/pandare/panda-ng:cache,mode=max
+            type=registry,ref=${{secrets.PANDA_ARC_REGISTRY}}/pandare/qemu:cache,mode=max
           tags: |
-            pandare/panda-ng:${{ github.sha }}
-            pandare/panda-ng:${{ steps.version.outputs.prefixed-v-version }}
-            pandare/panda-ng:latest
+            pandare/qemu:${{ github.sha }}
+            pandare/qemu:${{ steps.version.outputs.prefixed-v-version }}
+            pandare/qemu:latest
           outputs: |
             type=image
           build-args: |
@@ -87,9 +87,9 @@ jobs:
           push: false
           target: packager
           cache-from: |
-            type=registry,ref=${{secrets.PANDA_ARC_REGISTRY}}/pandare/panda-ng:cache,mode=max
+            type=registry,ref=${{secrets.PANDA_ARC_REGISTRY}}/pandare/qemu:cache,mode=max
           cache-to: |
-            type=registry,ref=${{secrets.PANDA_ARC_REGISTRY}}/pandare/panda-ng:cache,mode=max
+            type=registry,ref=${{secrets.PANDA_ARC_REGISTRY}}/pandare/qemu:cache,mode=max
           tags: |
             packager
           build-args: |
