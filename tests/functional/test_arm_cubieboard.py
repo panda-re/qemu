@@ -4,8 +4,6 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import os
-
 from qemu_test import LinuxKernelTest, Asset, exec_command_and_wait_for_pattern
 from qemu_test import interrupt_interactive_console_until_pattern
 from qemu_test import skipBigDataTest
@@ -107,6 +105,8 @@ class CubieboardMachine(LinuxKernelTest):
         # This test download a 7.5 MiB compressed image and expand it
         # to 126 MiB.
         self.set_machine('cubieboard')
+        self.require_netdev('user')
+
         image_path = self.uncompress(self.ASSET_OPENWRT)
         image_pow2ceil_expand(image_path)
 
@@ -126,7 +126,7 @@ class CubieboardMachine(LinuxKernelTest):
                 self, 'Hit any key to stop autoboot:', '=>')
         exec_command_and_wait_for_pattern(self, "setenv extraargs '" +
                                                 kernel_command_line + "'", '=>')
-        exec_command_and_wait_for_pattern(self, 'boot', 'Starting kernel ...');
+        exec_command_and_wait_for_pattern(self, 'boot', 'Starting kernel ...')
 
         self.wait_for_console_pattern(
             'Please press Enter to activate this console.')
