@@ -362,7 +362,7 @@ char* resolve_file_from_plugin_directory(const char* file_name_fmt, const char* 
     plugin_path = attempt_normalize_path(g_strdup_printf(
                                 "%s/panda/plugins/%s", dir,
                                   name_formatted));
-    printf("plugin_path: %s\n", plugin_path);
+    // printf("plugin_path: %s\n", plugin_path);
 
     g_free(dir);
     if (TRUE == g_file_test(plugin_path, G_FILE_TEST_EXISTS)) {
@@ -383,7 +383,7 @@ char* resolve_file_from_plugin_directory(const char* file_name_fmt, const char* 
     if (extra_plugin_path != NULL) {
         plugin_path = attempt_normalize_path(
             g_strdup_printf("%s/%s", extra_plugin_path, name_formatted));
-        printf("plugin_path: %s\n", plugin_path);
+        // printf("plugin_path: %s\n", plugin_path);
         if (TRUE == g_file_test(plugin_path, G_FILE_TEST_EXISTS)) {
             return plugin_path;
         }

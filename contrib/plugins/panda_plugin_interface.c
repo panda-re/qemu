@@ -148,7 +148,6 @@ static void vcpu_exit(qemu_plugin_id_t id, unsigned int vcpu_index)
 QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
                         int argc, char **argv)
 {
-    printf("Hello from pandacore plugin\n");
     qemu_plugin_register_vcpu_tb_trans_cb(id, vcpu_tb_trans);
     qemu_plugin_register_vcpu_init_cb(id, vcpu_init);
     qemu_plugin_register_vcpu_exit_cb(id, vcpu_exit);
