@@ -8,5 +8,6 @@ specific_ss.add(
         'panda_mem.c',
         'panda_qemu_plugin_helpers.c',
         'wrap_ops.c',
+        'panda_monitor.c',
     )
 )

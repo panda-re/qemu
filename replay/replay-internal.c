@@ -215,7 +215,9 @@ bool replay_mutex_locked(void)
 /* Ordering constraints, replay_lock must be taken before BQL */
 void replay_mutex_lock(void)
 {
+#ifndef PANDA_DYNAMIC_RECORD
     if (replay_mode != REPLAY_MODE_NONE) {
+#endif
         unsigned long id;
         g_assert(!bql_locked());
         g_assert(!replay_mutex_locked());
@@ -226,19 +228,25 @@ void replay_mutex_lock(void)
         }
         replay_locked = true;
         qemu_mutex_unlock(&lock);
+#ifndef PANDA_DYNAMIC_RECORD
     }
+#endif
 }
 
 void replay_mutex_unlock(void)
 {
+#ifndef PANDA_DYNAMIC_RECORD
     if (replay_mode != REPLAY_MODE_NONE) {
+#endif
         g_assert(replay_mutex_locked());
         qemu_mutex_lock(&lock);
         ++mutex_head;
         replay_locked = false;
         qemu_cond_broadcast(&mutex_cond);
         qemu_mutex_unlock(&lock);
+#ifndef PANDA_DYNAMIC_RECORD
     }
+#endif
 }
 
 void replay_advance_current_icount(uint64_t current_icount)
