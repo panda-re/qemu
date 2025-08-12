@@ -211,5 +211,6 @@ G_NORETURN void replay_sync_error(const char *error);
    Should be called before virtual devices initialization
    to make cached timers available for post_load functions. */
 void replay_vmstate_register(void);
+void replay_vmstate_unregister(void);
 
 #endif

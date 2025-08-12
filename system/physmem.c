@@ -2738,12 +2738,15 @@ void address_space_dispatch_free(AddressSpaceDispatch *d)
     g_free(d);
 }
 
+#ifndef PANDA_DYNAMIC_RECORD
 static void do_nothing(CPUState *cpu, run_on_cpu_data d)
 {
 }
+#endif
 
 static void tcg_log_global_after_sync(MemoryListener *listener)
 {
+#ifndef PANDA_DYNAMIC_RECORD
     CPUAddressSpace *cpuas;
 
     /* Wait for the CPU to end the current TB.  This avoids the following
@@ -2774,6 +2777,7 @@ static void tcg_log_global_after_sync(MemoryListener *listener)
         cpuas = container_of(listener, CPUAddressSpace, tcg_as_listener);
         run_on_cpu(cpuas->cpu, do_nothing, RUN_ON_CPU_NULL);
     }
+#endif
 }
 
 static void tcg_commit_cpu(CPUState *cpu, run_on_cpu_data data)

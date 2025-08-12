@@ -135,6 +135,8 @@ uint64_t blkreplay_next_id(void);
 
 /* Character device */
 
+/*! Clears drivers that should save their contents */
+void replay_clear_char_drivers(void);
 /*! Registers char driver to save it's events */
 void replay_register_char_driver(struct Chardev *chr);
 /*! Saves write to char device event to the log */

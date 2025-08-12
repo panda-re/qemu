@@ -120,3 +120,34 @@
 #     <- { "return": {} }
 ##
 { 'command': 'replay-seek', 'data': { 'icount': 'int' } }
+
+##
+# @begin-record:
+#
+# Begin a dynamic recording.
+#
+# @snapshot: Name of the snapshot to create at the start of this recording.
+# @logfile: name of the record/replay log file.
+#
+# Since: 9.2.50
+#
+# .. qmp-example::
+#
+#     -> { "execute": "begin-record", "arguments": { "snapshot": "my-recording", "logfile": "log.rr" } }
+#     <- { "return": {} }
+##
+{ 'command': 'begin-record', 'data': { 'snapshot': 'str', 'logfile': 'str' } }
+
+##
+# @end-record:
+#
+# End a dynamic recording.
+#
+# Since: 9.2.50
+#
+# .. qmp-example::
+#
+#     -> { "execute": "end-record", "arguments": { } }
+#     <- { "return": {} }
+##
+{ 'command': 'end-record' }

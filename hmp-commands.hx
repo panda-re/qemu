@@ -1761,6 +1761,34 @@ SRST
 ERST
 
     {
+        .name       = "begin_record",
+        .args_type  = "snapshot:s,logfile:s",
+        .params     = "snapshot logfile",
+        .help       = "Begin a dynamic recording by creating the given snapshot and logging to logfile",
+        .cmd        = hmp_begin_record,
+    },
+
+SRST
+``begin_record`` *snapshot* *logfile*
+  Begin a dynamic recording by creating a snapshot with the tag *snapshot*
+  and then creating a RR log named *logfile*. Recording will continue until
+  qemu exits or ``end_record`` is run.
+ERST
+
+    {
+        .name       = "end_record",
+        .args_type  = "",
+        .params     = "",
+        .help       = "Stops a dynamic recording",
+        .cmd        = hmp_end_record,
+    },
+
+SRST
+``end_record``
+  Ends a dynamic recording that was started by ``begin_record``.
+ERST
+
+    {
         .name       = "calc_dirty_rate",
         .args_type  = "dirty_ring:-r,dirty_bitmap:-b,second:l,sample_pages_per_GB:l?",
         .params     = "[-r] [-b] second [sample_pages_per_GB]",

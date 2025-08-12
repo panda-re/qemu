@@ -142,6 +142,10 @@
 #include "qemu/guest-random.h"
 #include "qemu/keyval.h"
 
+#ifdef PANDA_DYNAMIC_RECORD
+void replay_mutex_init(void);
+#endif
+
 #define MAX_VIRTIO_CONSOLES 1
 
 typedef struct BlockdevOptionsQueueEntry {
@@ -3749,6 +3753,9 @@ void qemu_init(int argc, char **argv)
     cpu_timers_init();
 
     user_register_global_props();
+#ifdef PANDA_DYNAMIC_RECORD
+    replay_mutex_init();
+#endif
     replay_configure(icount_opts);
 
     configure_rtc(qemu_find_opts_singleton("rtc"));

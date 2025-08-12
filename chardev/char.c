@@ -217,7 +217,11 @@ void qemu_chr_be_write_impl(Chardev *s, const uint8_t *buf, int len)
 
 void qemu_chr_be_write(Chardev *s, const uint8_t *buf, int len)
 {
+#ifdef PANDA_DYNAMIC_RECORD
+    if (qemu_chr_replay(s) && replay_mode != REPLAY_MODE_NONE) {
+#else
     if (qemu_chr_replay(s)) {
+#endif
         if (replay_mode == REPLAY_MODE_PLAY) {
             return;
         }
@@ -622,15 +626,19 @@ ChardevBackend *qemu_chr_parse_opts(QemuOpts *opts, Error **errp)
 
 static void qemu_chardev_set_replay(Chardev *chr, Error **errp)
 {
+#ifndef PANDA_DYNAMIC_RECORD
     if (replay_mode != REPLAY_MODE_NONE) {
         if (CHARDEV_GET_CLASS(chr)->chr_ioctl) {
             error_setg(errp, "Replay: ioctl is not supported "
                              "for serial devices yet");
             return;
         }
+#endif
         qemu_chr_set_feature(chr, QEMU_CHAR_FEATURE_REPLAY);
+#ifndef PANDA_DYNAMIC_RECORD
         replay_register_char_driver(chr);
     }
+#endif
 }
 
 static Chardev *do_qemu_chr_new_from_opts(QemuOpts *opts, GMainContext *context,
@@ -1130,7 +1138,11 @@ ChardevReturn *qmp_chardev_change(const char *id, ChardevBackend *backend,
         return NULL;
     }
 
+#ifdef PANDA_DYNAMIC_RECORD
+    if (qemu_chr_replay(chr) && replay_mode != REPLAY_MODE_NONE) {
+#else
     if (qemu_chr_replay(chr)) {
+#endif
         error_setg(errp,
             "Chardev '%s' cannot be changed in record/replay mode", id);
         return NULL;
@@ -1220,7 +1232,11 @@ void qmp_chardev_remove(const char *id, Error **errp)
         error_setg(errp, "Chardev '%s' is busy", id);
         return;
     }
+#ifdef PANDA_DYNAMIC_RECORD
+    if (qemu_chr_replay(chr) && replay_mode != REPLAY_MODE_NONE) {
+#else
     if (qemu_chr_replay(chr)) {
+#endif
         error_setg(errp,
             "Chardev '%s' cannot be unplugged in record/replay mode", id);
         return;

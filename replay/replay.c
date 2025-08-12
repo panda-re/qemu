@@ -363,7 +363,9 @@ static void replay_enable(const char *fname, int mode)
 
     replay_filename = g_strdup(fname);
     replay_mode = mode;
+#ifndef PANDA_DYNAMIC_RECORD
     replay_mutex_init();
+#endif
 
     replay_state.data_kind = -1;
     replay_state.instruction_count = 0;
@@ -495,6 +497,11 @@ void replay_add_blocker(const char *feature)
     error_setg(&reason, "Record/replay is not supported with %s",
                feature);
     replay_blockers = g_slist_prepend(replay_blockers, reason);
+}
+
+const GSList* replay_get_blockers(void)
+{
+    return replay_blockers;
 }
 
 const char *replay_get_filename(void)
