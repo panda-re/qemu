@@ -54,7 +54,11 @@ typedef enum {
     QEMU_CHAR_FEATURE_LAST,
 } ChardevFeature;
 
+#ifdef PANDA_DYNAMIC_RECORD
+#define qemu_chr_replay(chr) (qemu_chr_has_feature(chr, QEMU_CHAR_FEATURE_REPLAY) && replay_mode != REPLAY_MODE_NONE)
+#else
 #define qemu_chr_replay(chr) qemu_chr_has_feature(chr, QEMU_CHAR_FEATURE_REPLAY)
+#endif
 
 struct Chardev {
     Object parent_obj;

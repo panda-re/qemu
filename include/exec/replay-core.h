@@ -25,6 +25,8 @@ void replay_start(void);
 void replay_finish(void);
 /* Adds replay blocker with the specified error description */
 void replay_add_blocker(const char *feature);
+/* XXX: Get the list of blockers that have been added */
+const GSList* replay_get_blockers(void);
 /* Returns name of the replay log file */
 const char *replay_get_filename(void);
 
