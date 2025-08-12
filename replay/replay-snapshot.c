@@ -70,6 +70,11 @@ void replay_vmstate_register(void)
     vmstate_register(NULL, 0, &vmstate_replay, &replay_state);
 }
 
+void replay_vmstate_unregister(void)
+{
+    vmstate_unregister(NULL, &vmstate_replay, &replay_state);
+}
+
 void replay_vmstate_init(void)
 {
     Error *err = NULL;

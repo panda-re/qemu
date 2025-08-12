@@ -38,11 +38,20 @@ static int find_char_driver(Chardev *chr)
     return -1;
 }
 
+void replay_clear_char_drivers(void)
+{
+    g_free(char_drivers);
+    char_drivers = NULL;
+    drivers_count = 0;
+}
+
 void replay_register_char_driver(Chardev *chr)
 {
+#ifndef PANDA_DYNAMIC_RECORD
     if (replay_mode == REPLAY_MODE_NONE) {
         return;
     }
+#endif
     char_drivers = g_realloc(char_drivers,
                              sizeof(*char_drivers) * (drivers_count + 1));
     char_drivers[drivers_count++] = chr;

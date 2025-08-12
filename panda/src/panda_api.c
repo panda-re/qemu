@@ -6,6 +6,7 @@
 #include "panda/panda_api.h"
 #include "panda/common.h"
 #include "system/system.h"
+#include "system/replay.h"
 
 // for map_memory
 #include "qapi/error.h"
@@ -17,6 +18,9 @@
 #include "system/runstate.h"
 #include "panda/callbacks/cb-support.h"
 #include "panda/wrap_ops.h"
+
+// for savevm/loadvm
+#include "migration/snapshot.h"
 
 // call main_aux and run everything up to and including panda_callbacks_after_machine_init
 int panda_init(int argc, char **argv, char **envp) {
@@ -47,11 +51,11 @@ void panda_stop(int code) {
     vm_stop(code);
 }
 
-// void panda_cont(void) {
-// //    printf ("panda_api: cont cpu\n");
-//     panda_exit_loop = false; // is this unnecessary?
-//     vm_start();
-// }
+void panda_cont(void) {
+//    printf ("panda_api: cont cpu\n");
+    panda_exit_loop = false; // is this unnecessary?
+    vm_start();
+}
 
 // int panda_delvm(char *snapshot_name) {
 //     delvm_name(snapshot_name);
@@ -74,9 +78,11 @@ void panda_stop(int code) {
 //     qemu_system_reset_request();
 // }
 
-// int panda_snap(char *snapshot_name) {
-//     return save_vmstate(NULL, snapshot_name);
-// }
+int panda_snap(char *snapshot_name) {
+    Error* err = NULL;
+    save_snapshot(snapshot_name, true, NULL, false, NULL, &err);
+    return err == NULL;
+}
 
 // void panda_cleanup_record(void){
 //     if(rr_in_record()){
@@ -138,9 +144,9 @@ void panda_disable_callback_helper(void *plugin, panda_cb_type type, panda_cb* c
 
 //int panda_replay(char *replay_name) -> Now use panda_replay_being(char * replay_name)
 
-// uint64_t rr_get_guest_instr_count_external(void){
-// 	return rr_get_guest_instr_count();
-// }
+uint64_t rr_get_guest_instr_count_external(void){
+	return replay_get_current_icount();
+}
 
 // XXX: why do we have these as _external wrappers instead of just using the real fns?
 // XXX: b/c funcs called via wrapper are inlined, don't otherwise get exported. Unclear if inlining has any significat perf benefit.
