@@ -9,14 +9,12 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-import time
 import os
-import logging
 
-from qemu_test import QemuSystemTest, Asset
-from qemu_test import exec_command, wait_for_console_pattern
+from qemu_test import QemuSystemTest, Asset, wait_for_console_pattern
 from qemu_test import exec_command_and_wait_for_pattern
 from test_aarch64_rme_virt import test_realms_guest
+
 
 class Aarch64RMESbsaRefMachine(QemuSystemTest):
 
@@ -33,6 +31,7 @@ class Aarch64RMESbsaRefMachine(QemuSystemTest):
     def test_aarch64_rme_sbsaref(self):
         self.set_machine('sbsa-ref')
         self.require_accelerator('tcg')
+        self.require_netdev('user')
 
         self.vm.set_console()
 

@@ -9,7 +9,7 @@ in Sphinx is provided by the QAPI Domain, located in
 `Python Domain
 <https://www.sphinx-doc.org/en/master/usage/domains/python.html>`_
 included with Sphinx, but provides special directives and roles
-speciically for annotating and documenting QAPI definitions
+for annotating and documenting QAPI definitions
 specifically.
 
 A `Domain
@@ -41,7 +41,7 @@ Schema or generating documentation from code that exists. It is merely
 the rST syntax used to describe things. For instance, the Sphinx Python
 domain adds syntax like ``:py:func:`` for describing Python functions in
 documentation, but it's the autodoc module that is responsible for
-reading python code and generating such syntax. QAPI is analagous here:
+reading Python code and generating such syntax. QAPI is analogous here:
 qapidoc.py is responsible for reading the QAPI Schema and generating rST
 syntax, and qapi_domain.py is responsible for translating that special
 syntax and providing APIs for Sphinx internals.
@@ -101,7 +101,7 @@ without types. The QAPI domain uses this class for features, returns,
 and enum values.
 
 TypedField:
-  * Creates a grouped, typed field. Multiple adjacent entres will be
+  * Creates a grouped, typed field. Multiple adjacent entries will be
     merged into one section, and the content will form a bulleted list.
   * *Must* take at least one argument, but supports up to two -
     nominally, a name and a type.
@@ -242,6 +242,37 @@ Example::
              }
 
 
+``:return-nodesc:``
+-------------------
+
+Document the return type of a QAPI command, without an accompanying
+description.
+
+:availability: This field list is only available in the body of the
+               Command directive.
+:syntax: ``:return-nodesc: type``
+:type: `sphinx.util.docfields.Field
+       <https://pydoc.dev/sphinx/latest/sphinx.util.docfields.Field.html?private=1>`_
+
+
+Example::
+
+   .. qapi:command:: query-replay
+      :since: 5.2
+
+      Retrieve the record/replay information.  It includes current
+      instruction count which may be used for ``replay-break`` and
+      ``replay-seek`` commands.
+
+      :return-nodesc: ReplayInfo
+
+      .. qmp-example::
+
+          -> { "execute": "query-replay" }
+          <- { "return": {
+                 "mode": "play", "filename": "log.rr", "icount": 220414 }
+             }
+
 ``:value:``
 -----------
 
@@ -344,6 +375,7 @@ Will allow you to add arbitrary field lists in QAPI directives::
 
       :see also: Lorem ipsum, dolor sit amet ...
 
+.. _QAPI-domain-cross-references:
 
 Cross-references
 ================
@@ -385,13 +417,13 @@ Type names in references can be surrounded by brackets, like
 ``[typename]``, to indicate an array of that type.  The cross-reference
 will apply only to the type name between the brackets. For example;
 ``:qapi:type:`[Qcow2BitmapInfoFlags]``` renders to:
-:qapi:type:`[Qcow2BitmapInfoFlags]`
+:qapi:type:`[QMP:Qcow2BitmapInfoFlags]`
 
 To indicate an optional argument/member in a field list, the type name
 can be suffixed with ``?``. The cross-reference will be transformed to
 "type, Optional" with the link applying only to the type name. For
 example; ``:qapi:type:`BitmapSyncMode?``` renders to:
-:qapi:type:`BitmapSyncMode?`
+:qapi:type:`QMP:BitmapSyncMode?`
 
 
 Namespaces
@@ -400,17 +432,38 @@ Namespaces
 Mimicking the `Python domain target specification syntax
 <https://www.sphinx-doc.org/en/master/usage/domains/python.html#target-specification>`_,
 QAPI allows you to specify the fully qualified path for a data
-type. QAPI enforces globally unique names, so it's unlikely you'll need
-this specific feature, but it may be extended in the near future to
-allow referencing identically named commands and data types from
-different utilities; i.e. QEMU Storage Daemon vs QMP.
+type.
 
+* A namespace can be explicitly provided;
+  e.g. ``:qapi:type:`QMP:BitmapSyncMode``
 * A module can be explicitly provided;
-  ``:qapi:type:`block-core.BitmapSyncMode``` will render to:
-  :qapi:type:`block-core.BitmapSyncMode`
+  ``:qapi:type:`QMP:block-core.BitmapSyncMode``` will render to:
+  :qapi:type:`QMP:block-core.BitmapSyncMode`
 * If you don't want to display the "fully qualified" name, it can be
-  prefixed with a tilde; ``:qapi:type:`~block-core.BitmapSyncMode```
-  will render to: :qapi:type:`~block-core.BitmapSyncMode`
+  prefixed with a tilde; ``:qapi:type:`~QMP:block-core.BitmapSyncMode```
+  will render to: :qapi:type:`~QMP:block-core.BitmapSyncMode`
+
+
+Target resolution
+-----------------
+
+Any cross-reference to a QAPI type, whether using the ```any``` style of
+reference or the more explicit ```:qapi:any:`target``` syntax, allows
+for the presence or absence of either the namespace or module
+information.
+
+When absent, their value will be inferred from context by the presence
+of any ``qapi:namespace`` or ``qapi:module`` directives preceding the
+cross-reference.
+
+If no results are found when using the inferred values, other
+namespaces/modules will be searched as a last resort; but any explicitly
+provided values must always match in order to succeed.
+
+This allows for efficient cross-referencing with a minimum of syntax in
+the large majority of cases, but additional context or namespace markup
+may be required outside of the QAPI reference documents when linking to
+items that share a name across multiple documented QAPI schema.
 
 
 Custom link text
@@ -423,7 +476,7 @@ using the ``custom text <target>`` syntax.
 
 For example, ``:qapi:cmd:`Merge dirty bitmaps
 <block-dirty-bitmap-merge>``` will render as: :qapi:cmd:`Merge dirty
-bitmaps <block-dirty-bitmap-merge>`
+bitmaps <QMP:block-dirty-bitmap-merge>`
 
 
 Directives
@@ -464,8 +517,11 @@ removed in a future version.
 QAPI standard options
 ---------------------
 
-All QAPI directives -- *except* for module -- support these common options.
+All QAPI directives -- *except* for namespace and module -- support
+these common options.
 
+* ``:namespace: name`` -- This option allows you to override the
+  namespace association of a given definition.
 * ``:module: modname`` -- Borrowed from the Python domain, this option allows
   you to override the module association of a given definition.
 * ``:since: x.y`` -- Allows the documenting of "Since" information, which is
@@ -478,6 +534,28 @@ All QAPI directives -- *except* for module -- support these common options.
 * ``:unstable:`` -- Adds an eyecatch just below the signature bar that
   advertises that this definition is unstable and should not be used in
   production code.
+
+
+qapi:namespace
+--------------
+
+The ``qapi:namespace`` directive marks the start of a QAPI namespace. It
+does not take a content body, nor any options. All subsequent QAPI
+directives are associated with the most recent namespace. This affects
+the definition's "fully qualified name", allowing two different
+namespaces to create an otherwise identically named definition.
+
+This directive also influences how reference resolution works for any
+references that do not explicitly specify a namespace, so this directive
+can be used to nudge references into preferring targets from within that
+namespace.
+
+Example::
+
+   .. qapi:namespace:: QMP
+
+
+This directive has no visible effect.
 
 
 qapi:module

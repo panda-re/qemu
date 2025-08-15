@@ -11,6 +11,7 @@
 #include "tcg/tcg-op-gvec.h"
 #include "exec/translation-block.h"
 #include "exec/translator.h"
+#include "exec/target_page.h"
 #include "exec/helper-proto.h"
 #include "exec/helper-gen.h"
 #include "exec/log.h"
@@ -28,6 +29,8 @@ static TCGv cpu_lladdr, cpu_llval;
 #define HELPER_H "helper.h"
 #include "exec/helper-info.c.inc"
 #undef  HELPER_H
+
+#include "panda/callbacks/cb-helper-impl.h"
 
 #define DISAS_STOP        DISAS_TARGET_0
 #define DISAS_EXIT        DISAS_TARGET_1

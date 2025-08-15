@@ -17,6 +17,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
+#include "qemu/bswap.h"
 #include "qapi/error.h"
 #include "qemu/config-file.h"
 #include "qemu/module.h"
@@ -1284,6 +1285,9 @@ static int save_opt_one(void *opaque,
             }
             g_byte_array_append(data, (guint8 *)buf, ret);
         }
+
+        buf[0] = '\0';
+        g_byte_array_append(data, (guint8 *)buf, 1);
 
         qemu_close(fd);
 

@@ -21,6 +21,8 @@ DEF_HELPER_FLAGS_1(bitswap, TCG_CALL_NO_RWG_SE, tl, tl)
 DEF_HELPER_FLAGS_1(dbitswap, TCG_CALL_NO_RWG_SE, tl, tl)
 #endif
 
+DEF_HELPER_3(crc32, tl, tl, tl, i32)
+DEF_HELPER_3(crc32c, tl, tl, tl, i32)
 DEF_HELPER_FLAGS_4(rotx, TCG_CALL_NO_RWG_SE, tl, tl, i32, i32, i32)
 
 /* microMIPS functions */
@@ -601,3 +603,5 @@ DEF_HELPER_FLAGS_2(rddsp, 0, tl, tl, env)
 
 /* Vendor extensions */
 #include "tcg/vr54xx_helper.h.inc"
+
+#include "panda/callbacks/cb-helper-defs.h"

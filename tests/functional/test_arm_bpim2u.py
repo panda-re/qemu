@@ -140,6 +140,8 @@ class BananaPiMachine(LinuxKernelTest):
     @skipBigDataTest()
     def test_arm_bpim2u_openwrt_22_03_3(self):
         self.set_machine('bpim2u')
+        self.require_netdev('user')
+
         # This test download a 8.9 MiB compressed image and expand it
         # to 127 MiB.
         image_path = self.uncompress(self.ASSET_SD_IMAGE)
@@ -161,7 +163,7 @@ class BananaPiMachine(LinuxKernelTest):
                 self, 'Hit any key to stop autoboot:', '=>')
         exec_command_and_wait_for_pattern(self, "setenv extraargs '" +
                                                 kernel_command_line + "'", '=>')
-        exec_command_and_wait_for_pattern(self, 'boot', 'Starting kernel ...');
+        exec_command_and_wait_for_pattern(self, 'boot', 'Starting kernel ...')
 
         self.wait_for_console_pattern(
             'Please press Enter to activate this console.')

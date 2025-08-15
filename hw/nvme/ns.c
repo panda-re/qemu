@@ -763,6 +763,10 @@ static void nvme_ns_realize(DeviceState *dev, Error **errp)
 
     ns->id_ns.endgid = cpu_to_le16(0x1);
     ns->id_ns_ind.endgrpid = cpu_to_le16(0x1);
+
+    if (!ns->params.shared) {
+        ns->ctrl = n;
+    }
 }
 
 static const Property nvme_ns_props[] = {
@@ -802,7 +806,7 @@ static const Property nvme_ns_props[] = {
     DEFINE_PROP_STRING("fdp.ruhs", NvmeNamespace, params.fdp.ruhs),
 };
 
-static void nvme_ns_class_init(ObjectClass *oc, void *data)
+static void nvme_ns_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
