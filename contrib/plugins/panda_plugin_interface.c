@@ -135,15 +135,15 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
     panda_callbacks_block_translate(cpu, tb);
 }
 
-static void vcpu_init(qemu_plugin_id_t id, unsigned int vcpu_index)
-{
-    printf("vcpu_init %d\n", vcpu_index);
-}
+// static void vcpu_init(qemu_plugin_id_t id, unsigned int vcpu_index)
+// {
+//     printf("vcpu_init %d\n", vcpu_index);
+// }
 
-static void vcpu_exit(qemu_plugin_id_t id, unsigned int vcpu_index)
-{
-    printf("vcpu_exit %d\n", vcpu_index);
-}
+// static void vcpu_exit(qemu_plugin_id_t id, unsigned int vcpu_index)
+// {
+//     printf("vcpu_exit %d\n", vcpu_index);
+// }
 
 QEMU_PLUGIN_EXPORT int qemu_plugin_install(qemu_plugin_id_t id, const qemu_info_t *info,
                         int argc, char **argv)
