@@ -375,6 +375,10 @@ qemu_common_flags = [
 qemu_cflags = []
 qemu_ldflags = []
 
+if get_option('panda_dynamic_record')
+  qemu_cflags += ['-DPANDA_DYNAMIC_RECORD']
+endif
+
 if host_os == 'darwin'
   # Disable attempts to use ObjectiveC features in os/object.h since they
   # won't work when we're compiling with gcc as a C compiler.
