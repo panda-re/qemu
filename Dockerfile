@@ -7,84 +7,63 @@ ARG TARGET_LIST="x86_64-softmmu,i386-softmmu,arm-softmmu,aarch64-softmmu,ppc-sof
 FROM $BASE_IMAGE AS base
 
 RUN cat > /tmp/base_dep.txt <<EOF
-# Panda dependencies
-# Note that libcapstone >= v4.1 is also required, but that's not available in apt 
-git 
-libdwarf1 
-libjsoncpp-dev
-libllvm11
-libprotobuf-c-dev 
-libvte-2.91-0 
-libwireshark-dev
-libwiretap-dev
-libxen-dev
-libz3-dev 
-python3 
-python3-pip 
-wget
-# pyperipheral (only needed for armel)
-libpython3-dev
-# pypanda dependencies
-genisoimage 
-libffi-dev
-python3-protobuf
-python3-colorama
-# Not sure what this one is needed for
-liblzo2-2 
-# apt-rdepends qemu-system-common 
-acl 
-libc6 
-libcap-ng0
-libcap2 
-libgbm1 
-libglib2.0-0
-libgnutls30 
-libnettle8
-libpixman-1-0 
-libvirglrenderer1 
-
-# apt-rdepends qemu-block-extra 
-libcurl3-gnutls 
-libglib2.0-0
-libiscsi7 
-librados2 
-librbd1 
-libssh-4
-
-# apt-rdepends qemu-system-arm, seems most of the system-[arch]es have same dependencies
-libaio1 
-libasound2
-libbrlapi-dev 
-libc6 
-libcacard0
-libepoxy0 
-libfdt1 
-libgbm1 
-libgcc-s1 
-libglib2.0-0
-libgnutls30 
-libibverbs1 
-libjpeg8
-libncursesw6
-libnuma1
-libpixman-1-0 
-libpmem1
-libpng16-16 
-librdmacm1
-libsasl2-2
-libseccomp2 
-libslirp0 
-libspice-server1
+libc6
+libgcc-s1
 libstdc++6
-libtinfo6 
+zlib1g
+libglib2.0-0
+libgnutls30
+libnettle8
+libhogweed6
+libgmp10
+libpixman-1-0
+libpng16-16
+libjpeg8
+libepoxy0
+libudev1
 libusb-1.0-0
 libusbredirparser1
-libvirglrenderer1 
-zlib1g
-
-#rr2 dependencies 
-libarchive-dev
-libssl-dev
+libaio1
+libnuma1
+libpmem1
+libiscsi7
+librados2
+librbd1
+librdmacm1
+libibverbs1
+libslirp0
+libcacard0
+libbrlapi0.8
+libasound2
+libpulse0
+libfdt1
+libspice-server1
+libvirglrenderer1
+libdrm2
+libgbm1
+libx11-6
+libx11-xcb1
+libxcb-randr0
+libssh-4
+libcurl3-gnutls
+libssl3
+libldap-2.5-0
+liblber-2.5-0
+libsasl2-2
+libtinfo6
+libncursesw6
+libgstreamer1.0-0
+libgstreamer-plugins-base1.0-0
+liborc-0.4-0
+libopus0
+libvorbis0a
+libvorbisenc2
+libogg0
+libflac8
+python3
+python3-pip
+python3-protobuf
+python3-colorama
 EOF
 
 
@@ -94,6 +73,8 @@ RUN apt-get -qq update && \
     apt-get clean
 
 RUN cat > /tmp/build_dep.txt <<EOF
+python3-pip
+git
 libc++-dev
 libelf-dev
 libtool-bin
@@ -259,7 +240,7 @@ RUN dependencies=$(grep '^[a-zA-Z]' /tmp/build_dep.txt | tr '\n' ',' | sed 's/,,
 
 # Run time. Also includes ipxe-qemu so we can get pc-bios files
 RUN dependencies=$(grep '^[a-zA-Z]' /tmp/base_dep.txt | tr '\n' ',' | sed 's/,,\+/,/g' | sed 's/,$//') && \
-    sed -i "s/DEPENDS_LIST/Depends: ipxe-qemu,${dependencies}/" /package-root/DEBIAN/control
+    sed -i "s/DEPENDS_LIST/Depends: ${dependencies}/" /package-root/DEBIAN/control
 
 # Build the package
 RUN fakeroot dpkg-deb --build /package-root /pandare.deb
