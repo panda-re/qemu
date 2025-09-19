@@ -22,18 +22,26 @@
 #include <sys/ioctl.h>
 #include <linux/vfio.h>
 
-#include "hw/vfio/vfio-common.h"
-#include "exec/address-spaces.h"
-#include "exec/memory.h"
-#include "exec/ram_addr.h"
+#include "hw/vfio/vfio-device.h"
+#include "system/address-spaces.h"
+#include "system/memory.h"
+#include "system/ram_addr.h"
 #include "qemu/error-report.h"
 #include "qemu/range.h"
 #include "system/reset.h"
 #include "trace.h"
 #include "qapi/error.h"
+#include "migration/cpr.h"
+#include "migration/blocker.h"
 #include "pci.h"
+#include "hw/vfio/vfio-container.h"
+#include "vfio-helpers.h"
+#include "vfio-listener.h"
 
-VFIOGroupList vfio_group_list =
+#define TYPE_HOST_IOMMU_DEVICE_LEGACY_VFIO TYPE_HOST_IOMMU_DEVICE "-legacy-vfio"
+
+typedef QLIST_HEAD(VFIOGroupList, VFIOGroup) VFIOGroupList;
+static VFIOGroupList vfio_group_list =
     QLIST_HEAD_INITIALIZER(vfio_group_list);
 
 static int vfio_ram_block_discard_disable(VFIOContainer *container, bool state)
@@ -63,7 +71,7 @@ static int vfio_dma_unmap_bitmap(const VFIOContainer *container,
                                  hwaddr iova, ram_addr_t size,
                                  IOMMUTLBEntry *iotlb)
 {
-    const VFIOContainerBase *bcontainer = &container->bcontainer;
+    const VFIOContainerBase *bcontainer = VFIO_IOMMU(container);
     struct vfio_iommu_type1_dma_unmap *unmap;
     struct vfio_bitmap *bitmap;
     VFIOBitmap vbmap;
@@ -112,15 +120,11 @@ unmap_exit:
     return ret;
 }
 
-/*
- * DMA - Mapping and unmapping for the "type1" IOMMU interface used on x86
- */
-static int vfio_legacy_dma_unmap(const VFIOContainerBase *bcontainer,
-                                 hwaddr iova, ram_addr_t size,
-                                 IOMMUTLBEntry *iotlb)
+static int vfio_legacy_dma_unmap_one(const VFIOContainerBase *bcontainer,
+                                     hwaddr iova, ram_addr_t size,
+                                     IOMMUTLBEntry *iotlb)
 {
-    const VFIOContainer *container = container_of(bcontainer, VFIOContainer,
-                                                  bcontainer);
+    const VFIOContainer *container = VFIO_IOMMU_LEGACY(bcontainer);
     struct vfio_iommu_type1_dma_unmap unmap = {
         .argsz = sizeof(unmap),
         .flags = 0,
@@ -131,8 +135,10 @@ static int vfio_legacy_dma_unmap(const VFIOContainerBase *bcontainer,
     int ret;
     Error *local_err = NULL;
 
-    if (iotlb && vfio_devices_all_dirty_tracking_started(bcontainer)) {
-        if (!vfio_devices_all_device_dirty_tracking(bcontainer) &&
+    g_assert(!cpr_is_incoming());
+
+    if (iotlb && vfio_container_dirty_tracking_is_started(bcontainer)) {
+        if (!vfio_container_devices_dirty_tracking_is_supported(bcontainer) &&
             bcontainer->dirty_pages_supported) {
             return vfio_dma_unmap_bitmap(container, iova, size, iotlb);
         }
@@ -163,7 +169,7 @@ static int vfio_legacy_dma_unmap(const VFIOContainerBase *bcontainer,
     }
 
     if (need_dirty_sync) {
-        ret = vfio_get_dirty_bitmap(bcontainer, iova, size,
+        ret = vfio_container_query_dirty_bitmap(bcontainer, iova, size,
                                     iotlb->translated_addr, &local_err);
         if (ret) {
             error_report_err(local_err);
@@ -174,11 +180,39 @@ static int vfio_legacy_dma_unmap(const VFIOContainerBase *bcontainer,
     return 0;
 }
 
-static int vfio_legacy_dma_map(const VFIOContainerBase *bcontainer, hwaddr iova,
-                               ram_addr_t size, void *vaddr, bool readonly)
+/*
+ * DMA - Mapping and unmapping for the "type1" IOMMU interface used on x86
+ */
+static int vfio_legacy_dma_unmap(const VFIOContainerBase *bcontainer,
+                                 hwaddr iova, ram_addr_t size,
+                                 IOMMUTLBEntry *iotlb, bool unmap_all)
 {
-    const VFIOContainer *container = container_of(bcontainer, VFIOContainer,
-                                                  bcontainer);
+    int ret;
+
+    if (unmap_all) {
+        /* The unmap ioctl doesn't accept a full 64-bit span. */
+        Int128 llsize = int128_rshift(int128_2_64(), 1);
+
+        ret = vfio_legacy_dma_unmap_one(bcontainer, 0, int128_get64(llsize),
+                                        iotlb);
+
+        if (ret == 0) {
+            ret = vfio_legacy_dma_unmap_one(bcontainer, int128_get64(llsize),
+                                            int128_get64(llsize), iotlb);
+        }
+
+    } else {
+        ret = vfio_legacy_dma_unmap_one(bcontainer, iova, size, iotlb);
+    }
+
+    return ret;
+}
+
+static int vfio_legacy_dma_map(const VFIOContainerBase *bcontainer, hwaddr iova,
+                               ram_addr_t size, void *vaddr, bool readonly,
+                               MemoryRegion *mr)
+{
+    const VFIOContainer *container = VFIO_IOMMU_LEGACY(bcontainer);
     struct vfio_iommu_type1_dma_map map = {
         .argsz = sizeof(map),
         .flags = VFIO_DMA_MAP_FLAG_READ,
@@ -198,7 +232,7 @@ static int vfio_legacy_dma_map(const VFIOContainerBase *bcontainer, hwaddr iova,
      */
     if (ioctl(container->fd, VFIO_IOMMU_MAP_DMA, &map) == 0 ||
         (errno == EBUSY &&
-         vfio_legacy_dma_unmap(bcontainer, iova, size, NULL) == 0 &&
+         vfio_legacy_dma_unmap(bcontainer, iova, size, NULL, false) == 0 &&
          ioctl(container->fd, VFIO_IOMMU_MAP_DMA, &map) == 0)) {
         return 0;
     }
@@ -210,8 +244,7 @@ static int
 vfio_legacy_set_dirty_page_tracking(const VFIOContainerBase *bcontainer,
                                     bool start, Error **errp)
 {
-    const VFIOContainer *container = container_of(bcontainer, VFIOContainer,
-                                                  bcontainer);
+    const VFIOContainer *container = VFIO_IOMMU_LEGACY(bcontainer);
     int ret;
     struct vfio_iommu_type1_dirty_bitmap dirty = {
         .argsz = sizeof(dirty),
@@ -236,8 +269,7 @@ vfio_legacy_set_dirty_page_tracking(const VFIOContainerBase *bcontainer,
 static int vfio_legacy_query_dirty_bitmap(const VFIOContainerBase *bcontainer,
                       VFIOBitmap *vbmap, hwaddr iova, hwaddr size, Error **errp)
 {
-    const VFIOContainer *container = container_of(bcontainer, VFIOContainer,
-                                                  bcontainer);
+    const VFIOContainer *container = VFIO_IOMMU_LEGACY(bcontainer);
     struct vfio_iommu_type1_dirty_bitmap *dbitmap;
     struct vfio_iommu_type1_dirty_bitmap_get *range;
     int ret;
@@ -273,37 +305,6 @@ static int vfio_legacy_query_dirty_bitmap(const VFIOContainerBase *bcontainer,
     return ret;
 }
 
-static struct vfio_info_cap_header *
-vfio_get_iommu_type1_info_cap(struct vfio_iommu_type1_info *info, uint16_t id)
-{
-    if (!(info->flags & VFIO_IOMMU_INFO_CAPS)) {
-        return NULL;
-    }
-
-    return vfio_get_cap((void *)info, info->cap_offset, id);
-}
-
-bool vfio_get_info_dma_avail(struct vfio_iommu_type1_info *info,
-                             unsigned int *avail)
-{
-    struct vfio_info_cap_header *hdr;
-    struct vfio_iommu_type1_info_dma_avail *cap;
-
-    /* If the capability cannot be found, assume no DMA limiting */
-    hdr = vfio_get_iommu_type1_info_cap(info,
-                                        VFIO_IOMMU_TYPE1_INFO_DMA_AVAIL);
-    if (!hdr) {
-        return false;
-    }
-
-    if (avail != NULL) {
-        cap = (void *) hdr;
-        *avail = cap->avail;
-    }
-
-    return true;
-}
-
 static bool vfio_get_info_iova_range(struct vfio_iommu_type1_info *info,
                                      VFIOContainerBase *bcontainer)
 {
@@ -330,7 +331,7 @@ static bool vfio_get_info_iova_range(struct vfio_iommu_type1_info *info,
     return true;
 }
 
-static void vfio_kvm_device_add_group(VFIOGroup *group)
+static void vfio_group_add_kvm_device(VFIOGroup *group)
 {
     Error *err = NULL;
 
@@ -339,7 +340,7 @@ static void vfio_kvm_device_add_group(VFIOGroup *group)
     }
 }
 
-static void vfio_kvm_device_del_group(VFIOGroup *group)
+static void vfio_group_del_kvm_device(VFIOGroup *group)
 {
     Error *err = NULL;
 
@@ -424,7 +425,12 @@ static VFIOContainer *vfio_create_container(int fd, VFIOGroup *group,
         return NULL;
     }
 
-    if (!vfio_set_iommu(fd, group->fd, &iommu_type, errp)) {
+    /*
+     * During CPR, just set the container type and skip the ioctls, as the
+     * container and group are already configured in the kernel.
+     */
+    if (!cpr_is_incoming() &&
+        !vfio_set_iommu(fd, group->fd, &iommu_type, errp)) {
         return NULL;
     }
 
@@ -485,7 +491,7 @@ static void vfio_get_iommu_info_migration(VFIOContainer *container,
 {
     struct vfio_info_cap_header *hdr;
     struct vfio_iommu_type1_info_cap_migration *cap_mig;
-    VFIOContainerBase *bcontainer = &container->bcontainer;
+    VFIOContainerBase *bcontainer = VFIO_IOMMU(container);
 
     hdr = vfio_get_iommu_info_cap(info, VFIO_IOMMU_TYPE1_INFO_CAP_MIGRATION);
     if (!hdr) {
@@ -508,8 +514,7 @@ static void vfio_get_iommu_info_migration(VFIOContainer *container,
 
 static bool vfio_legacy_setup(VFIOContainerBase *bcontainer, Error **errp)
 {
-    VFIOContainer *container = container_of(bcontainer, VFIOContainer,
-                                            bcontainer);
+    VFIOContainer *container = VFIO_IOMMU_LEGACY(bcontainer);
     g_autofree struct vfio_iommu_type1_info *info = NULL;
     int ret;
 
@@ -535,16 +540,10 @@ static bool vfio_legacy_setup(VFIOContainerBase *bcontainer, Error **errp)
     return true;
 }
 
-static bool vfio_connect_container(VFIOGroup *group, AddressSpace *as,
-                                   Error **errp)
+static bool vfio_container_attach_discard_disable(VFIOContainer *container,
+                                            VFIOGroup *group, Error **errp)
 {
-    VFIOContainer *container;
-    VFIOContainerBase *bcontainer;
-    int ret, fd;
-    VFIOAddressSpace *space;
-    VFIOIOMMUClass *vioc;
-
-    space = vfio_get_address_space(as);
+    int ret;
 
     /*
      * VFIO is currently incompatible with discarding of RAM insofar as the
@@ -577,115 +576,166 @@ static bool vfio_connect_container(VFIOGroup *group, AddressSpace *as,
      * details once we know which type of IOMMU we are using.
      */
 
-    QLIST_FOREACH(bcontainer, &space->containers, next) {
-        container = container_of(bcontainer, VFIOContainer, bcontainer);
-        if (!ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &container->fd)) {
-            ret = vfio_ram_block_discard_disable(container, true);
-            if (ret) {
-                error_setg_errno(errp, -ret,
-                                 "Cannot set discarding of RAM broken");
-                if (ioctl(group->fd, VFIO_GROUP_UNSET_CONTAINER,
-                          &container->fd)) {
-                    error_report("vfio: error disconnecting group %d from"
-                                 " container", group->groupid);
-                }
-                return false;
-            }
-            group->container = container;
-            QLIST_INSERT_HEAD(&container->group_list, group, container_next);
-            vfio_kvm_device_add_group(group);
-            return true;
+    ret = vfio_ram_block_discard_disable(container, true);
+    if (ret) {
+        error_setg_errno(errp, -ret, "Cannot set discarding of RAM broken");
+        if (ioctl(group->fd, VFIO_GROUP_UNSET_CONTAINER, &container->fd)) {
+            error_report("vfio: error disconnecting group %d from"
+                         " container", group->groupid);
         }
     }
+    return !ret;
+}
 
-    fd = qemu_open("/dev/vfio/vfio", O_RDWR, errp);
-    if (fd < 0) {
-        goto put_space_exit;
+static bool vfio_container_group_add(VFIOContainer *container, VFIOGroup *group,
+                                     Error **errp)
+{
+    if (!vfio_container_attach_discard_disable(container, group, errp)) {
+        return false;
+    }
+    group->container = container;
+    QLIST_INSERT_HEAD(&container->group_list, group, container_next);
+    vfio_group_add_kvm_device(group);
+    /*
+     * Remember the container fd for each group, so we can attach to the same
+     * container after CPR.
+     */
+    cpr_resave_fd("vfio_container_for_group", group->groupid, container->fd);
+    return true;
+}
+
+static void vfio_container_group_del(VFIOContainer *container, VFIOGroup *group)
+{
+    QLIST_REMOVE(group, container_next);
+    group->container = NULL;
+    vfio_group_del_kvm_device(group);
+    vfio_ram_block_discard_disable(container, false);
+    cpr_delete_fd("vfio_container_for_group", group->groupid);
+}
+
+static bool vfio_container_connect(VFIOGroup *group, AddressSpace *as,
+                                   Error **errp)
+{
+    VFIOContainer *container;
+    VFIOContainerBase *bcontainer;
+    int ret, fd = -1;
+    VFIOAddressSpace *space;
+    VFIOIOMMUClass *vioc = NULL;
+    bool new_container = false;
+    bool group_was_added = false;
+
+    space = vfio_address_space_get(as);
+    fd = cpr_find_fd("vfio_container_for_group", group->groupid);
+
+    if (!cpr_is_incoming()) {
+        QLIST_FOREACH(bcontainer, &space->containers, next) {
+            container = VFIO_IOMMU_LEGACY(bcontainer);
+            if (!ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &container->fd)) {
+                return vfio_container_group_add(container, group, errp);
+            }
+        }
+
+        fd = qemu_open("/dev/vfio/vfio", O_RDWR, errp);
+        if (fd < 0) {
+            goto fail;
+        }
+    } else {
+        /*
+         * For incoming CPR, the group is already attached in the kernel.
+         * If a container with matching fd is found, then update the
+         * userland group list and return.  If not, then after the loop,
+         * create the container struct and group list.
+         */
+        QLIST_FOREACH(bcontainer, &space->containers, next) {
+            container = VFIO_IOMMU_LEGACY(bcontainer);
+
+            if (vfio_cpr_container_match(container, group, fd)) {
+                return vfio_container_group_add(container, group, errp);
+            }
+        }
     }
 
     ret = ioctl(fd, VFIO_GET_API_VERSION);
     if (ret != VFIO_API_VERSION) {
         error_setg(errp, "supported vfio version: %d, "
                    "reported version: %d", VFIO_API_VERSION, ret);
-        goto close_fd_exit;
+        goto fail;
     }
 
     container = vfio_create_container(fd, group, errp);
     if (!container) {
-        goto close_fd_exit;
+        goto fail;
     }
-    bcontainer = &container->bcontainer;
+    new_container = true;
+    bcontainer = VFIO_IOMMU(container);
 
-    if (!vfio_cpr_register_container(bcontainer, errp)) {
-        goto free_container_exit;
-    }
-
-    ret = vfio_ram_block_discard_disable(container, true);
-    if (ret) {
-        error_setg_errno(errp, -ret, "Cannot set discarding of RAM broken");
-        goto unregister_container_exit;
+    if (!vfio_legacy_cpr_register_container(container, errp)) {
+        goto fail;
     }
 
     vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
     assert(vioc->setup);
 
     if (!vioc->setup(bcontainer, errp)) {
-        goto enable_discards_exit;
+        goto fail;
     }
-
-    vfio_kvm_device_add_group(group);
 
     vfio_address_space_insert(space, bcontainer);
 
-    group->container = container;
-    QLIST_INSERT_HEAD(&container->group_list, group, container_next);
+    if (!vfio_container_group_add(container, group, errp)) {
+        goto fail;
+    }
+    group_was_added = true;
 
-    bcontainer->listener = vfio_memory_listener;
-    memory_listener_register(&bcontainer->listener, bcontainer->space->as);
-
-    if (bcontainer->error) {
-        error_propagate_prepend(errp, bcontainer->error,
-            "memory listener initialization failed: ");
-        goto listener_release_exit;
+    /*
+     * If CPR, register the listener later, after all state that may
+     * affect regions and mapping boundaries has been cpr load'ed.  Later,
+     * the listener will invoke its callback on each flat section and call
+     * dma_map to supply the new vaddr, and the calls will match the mappings
+     * remembered by the kernel.
+     */
+    if (!cpr_is_incoming()) {
+        if (!vfio_listener_register(bcontainer, errp)) {
+            goto fail;
+        }
     }
 
     bcontainer->initialized = true;
 
     return true;
-listener_release_exit:
-    QLIST_REMOVE(group, container_next);
-    vfio_kvm_device_del_group(group);
-    memory_listener_unregister(&bcontainer->listener);
-    if (vioc->release) {
-        vioc->release(bcontainer);
+
+fail:
+    if (new_container) {
+        vfio_listener_unregister(bcontainer);
     }
 
-enable_discards_exit:
-    vfio_ram_block_discard_disable(container, false);
-
-unregister_container_exit:
-    vfio_cpr_unregister_container(bcontainer);
-
-free_container_exit:
-    object_unref(container);
-
-close_fd_exit:
-    close(fd);
-
-put_space_exit:
-    vfio_put_address_space(space);
+    if (group_was_added) {
+        vfio_container_group_del(container, group);
+    }
+    if (vioc && vioc->release) {
+        vioc->release(bcontainer);
+    }
+    if (new_container) {
+        vfio_legacy_cpr_unregister_container(container);
+        object_unref(container);
+    }
+    if (fd >= 0) {
+        close(fd);
+    }
+    vfio_address_space_put(space);
 
     return false;
 }
 
-static void vfio_disconnect_container(VFIOGroup *group)
+static void vfio_container_disconnect(VFIOGroup *group)
 {
     VFIOContainer *container = group->container;
-    VFIOContainerBase *bcontainer = &container->bcontainer;
+    VFIOContainerBase *bcontainer = VFIO_IOMMU(container);
     VFIOIOMMUClass *vioc = VFIO_IOMMU_GET_CLASS(bcontainer);
 
     QLIST_REMOVE(group, container_next);
     group->container = NULL;
+    cpr_delete_fd("vfio_container_for_group", group->groupid);
 
     /*
      * Explicitly release the listener first before unset container,
@@ -693,7 +743,7 @@ static void vfio_disconnect_container(VFIOGroup *group)
      * group.
      */
     if (QLIST_EMPTY(&container->group_list)) {
-        memory_listener_unregister(&bcontainer->listener);
+        vfio_listener_unregister(bcontainer);
         if (vioc->release) {
             vioc->release(bcontainer);
         }
@@ -707,16 +757,16 @@ static void vfio_disconnect_container(VFIOGroup *group)
     if (QLIST_EMPTY(&container->group_list)) {
         VFIOAddressSpace *space = bcontainer->space;
 
-        trace_vfio_disconnect_container(container->fd);
-        vfio_cpr_unregister_container(bcontainer);
+        trace_vfio_container_disconnect(container->fd);
+        vfio_legacy_cpr_unregister_container(container);
         close(container->fd);
         object_unref(container);
 
-        vfio_put_address_space(space);
+        vfio_address_space_put(space);
     }
 }
 
-static VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
+static VFIOGroup *vfio_group_get(int groupid, AddressSpace *as, Error **errp)
 {
     ERRP_GUARD();
     VFIOGroup *group;
@@ -726,7 +776,7 @@ static VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
     QLIST_FOREACH(group, &vfio_group_list, next) {
         if (group->groupid == groupid) {
             /* Found it.  Now is it already in the right context? */
-            if (group->container->bcontainer.space->as == as) {
+            if (VFIO_IOMMU(group->container)->space->as == as) {
                 return group;
             } else {
                 error_setg(errp, "group %d used in multiple address spaces",
@@ -739,7 +789,7 @@ static VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
     group = g_malloc0(sizeof(*group));
 
     snprintf(path, sizeof(path), "/dev/vfio/%d", groupid);
-    group->fd = qemu_open(path, O_RDWR, errp);
+    group->fd = cpr_open_fd(path, O_RDWR, "vfio_group", groupid, errp);
     if (group->fd < 0) {
         goto free_group_exit;
     }
@@ -760,7 +810,7 @@ static VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
     group->groupid = groupid;
     QLIST_INIT(&group->device_list);
 
-    if (!vfio_connect_container(group, as, errp)) {
+    if (!vfio_container_connect(group, as, errp)) {
         error_prepend(errp, "failed to setup container for group %d: ",
                       groupid);
         goto close_fd_exit;
@@ -771,6 +821,7 @@ static VFIOGroup *vfio_get_group(int groupid, AddressSpace *as, Error **errp)
     return group;
 
 close_fd_exit:
+    cpr_delete_fd("vfio_group", groupid);
     close(group->fd);
 
 free_group_exit:
@@ -779,7 +830,7 @@ free_group_exit:
     return NULL;
 }
 
-static void vfio_put_group(VFIOGroup *group)
+static void vfio_group_put(VFIOGroup *group)
 {
     if (!group || !QLIST_EMPTY(&group->device_list)) {
         return;
@@ -788,21 +839,22 @@ static void vfio_put_group(VFIOGroup *group)
     if (!group->ram_block_discard_allowed) {
         vfio_ram_block_discard_disable(group->container, false);
     }
-    vfio_kvm_device_del_group(group);
-    vfio_disconnect_container(group);
+    vfio_group_del_kvm_device(group);
+    vfio_container_disconnect(group);
     QLIST_REMOVE(group, next);
-    trace_vfio_put_group(group->fd);
+    trace_vfio_group_put(group->fd);
+    cpr_delete_fd("vfio_group", group->groupid);
     close(group->fd);
     g_free(group);
 }
 
-static bool vfio_get_device(VFIOGroup *group, const char *name,
+static bool vfio_device_get(VFIOGroup *group, const char *name,
                             VFIODevice *vbasedev, Error **errp)
 {
     g_autofree struct vfio_device_info *info = NULL;
     int fd;
 
-    fd = ioctl(group->fd, VFIO_GROUP_GET_DEVICE_FD, name);
+    fd = vfio_cpr_group_get_device_fd(group->fd, name);
     if (fd < 0) {
         error_setg_errno(errp, errno, "error getting device from group %d",
                          group->groupid);
@@ -815,8 +867,7 @@ static bool vfio_get_device(VFIOGroup *group, const char *name,
     info = vfio_get_device_info(fd);
     if (!info) {
         error_setg_errno(errp, errno, "error getting device info");
-        close(fd);
-        return false;
+        goto fail;
     }
 
     /*
@@ -830,8 +881,7 @@ static bool vfio_get_device(VFIOGroup *group, const char *name,
         if (!QLIST_EMPTY(&group->device_list)) {
             error_setg(errp, "Inconsistent setting of support for discarding "
                        "RAM (e.g., balloon) within group");
-            close(fd);
-            return false;
+            goto fail;
         }
 
         if (!group->ram_block_discard_allowed) {
@@ -840,33 +890,35 @@ static bool vfio_get_device(VFIOGroup *group, const char *name,
         }
     }
 
+    vfio_device_prepare(vbasedev, VFIO_IOMMU(group->container), info);
+
     vbasedev->fd = fd;
     vbasedev->group = group;
     QLIST_INSERT_HEAD(&group->device_list, vbasedev, next);
 
-    vbasedev->num_irqs = info->num_irqs;
-    vbasedev->num_regions = info->num_regions;
-    vbasedev->flags = info->flags;
-
-    trace_vfio_get_device(name, info->flags, info->num_regions, info->num_irqs);
-
-    vbasedev->reset_works = !!(info->flags & VFIO_DEVICE_FLAGS_RESET);
+    trace_vfio_device_get(name, info->flags, info->num_regions, info->num_irqs);
 
     return true;
+
+fail:
+    close(fd);
+    cpr_delete_fd(name, 0);
+    return false;
 }
 
-static void vfio_put_base_device(VFIODevice *vbasedev)
+static void vfio_device_put(VFIODevice *vbasedev)
 {
     if (!vbasedev->group) {
         return;
     }
     QLIST_REMOVE(vbasedev, next);
     vbasedev->group = NULL;
-    trace_vfio_put_base_device(vbasedev->fd);
+    trace_vfio_device_put(vbasedev->fd);
+    cpr_delete_fd(vbasedev->name, 0);
     close(vbasedev->fd);
 }
 
-static int vfio_device_groupid(VFIODevice *vbasedev, Error **errp)
+static int vfio_device_get_groupid(VFIODevice *vbasedev, Error **errp)
 {
     char *tmp, group_path[PATH_MAX];
     g_autofree char *group_name = NULL;
@@ -894,29 +946,24 @@ static int vfio_device_groupid(VFIODevice *vbasedev, Error **errp)
 }
 
 /*
- * vfio_attach_device: attach a device to a security context
+ * vfio_device_attach: attach a device to a security context
  * @name and @vbasedev->name are likely to be different depending
  * on the type of the device, hence the need for passing @name
  */
 static bool vfio_legacy_attach_device(const char *name, VFIODevice *vbasedev,
                                       AddressSpace *as, Error **errp)
 {
-    int groupid = vfio_device_groupid(vbasedev, errp);
+    int groupid = vfio_device_get_groupid(vbasedev, errp);
     VFIODevice *vbasedev_iter;
     VFIOGroup *group;
-    VFIOContainerBase *bcontainer;
 
     if (groupid < 0) {
         return false;
     }
 
-    trace_vfio_attach_device(vbasedev->name, groupid);
+    trace_vfio_device_attach(vbasedev->name, groupid);
 
-    if (!vfio_device_hiod_realize(vbasedev, errp)) {
-        return false;
-    }
-
-    group = vfio_get_group(groupid, as, errp);
+    group = vfio_group_get(groupid, as, errp);
     if (!group) {
         return false;
     }
@@ -924,33 +971,51 @@ static bool vfio_legacy_attach_device(const char *name, VFIODevice *vbasedev,
     QLIST_FOREACH(vbasedev_iter, &group->device_list, next) {
         if (strcmp(vbasedev_iter->name, vbasedev->name) == 0) {
             error_setg(errp, "device is already attached");
-            vfio_put_group(group);
-            return false;
+            goto group_put_exit;
         }
     }
-    if (!vfio_get_device(group, name, vbasedev, errp)) {
-        vfio_put_group(group);
-        return false;
+    if (!vfio_device_get(group, name, vbasedev, errp)) {
+        goto group_put_exit;
     }
 
-    bcontainer = &group->container->bcontainer;
-    vbasedev->bcontainer = bcontainer;
-    QLIST_INSERT_HEAD(&bcontainer->device_list, vbasedev, container_next);
-    QLIST_INSERT_HEAD(&vfio_device_list, vbasedev, global_next);
+    if (!vfio_device_hiod_create_and_realize(vbasedev,
+                                             TYPE_HOST_IOMMU_DEVICE_LEGACY_VFIO,
+                                             errp)) {
+        goto device_put_exit;
+    }
+
+    if (vbasedev->mdev) {
+        error_setg(&vbasedev->cpr.mdev_blocker,
+                   "CPR does not support vfio mdev %s", vbasedev->name);
+        if (migrate_add_blocker_modes(&vbasedev->cpr.mdev_blocker, errp,
+                                      MIG_MODE_CPR_TRANSFER, -1) < 0) {
+            goto hiod_unref_exit;
+        }
+    }
 
     return true;
+
+hiod_unref_exit:
+    object_unref(vbasedev->hiod);
+device_put_exit:
+    vfio_device_put(vbasedev);
+group_put_exit:
+    vfio_group_put(group);
+    return false;
 }
 
 static void vfio_legacy_detach_device(VFIODevice *vbasedev)
 {
     VFIOGroup *group = vbasedev->group;
 
-    QLIST_REMOVE(vbasedev, global_next);
-    QLIST_REMOVE(vbasedev, container_next);
-    vbasedev->bcontainer = NULL;
-    trace_vfio_detach_device(vbasedev->name, group->groupid);
-    vfio_put_base_device(vbasedev);
-    vfio_put_group(group);
+    trace_vfio_device_detach(vbasedev->name, group->groupid);
+
+    vfio_device_unprepare(vbasedev);
+
+    migrate_del_blocker(&vbasedev->cpr.mdev_blocker);
+    object_unref(vbasedev->hiod);
+    vfio_device_put(vbasedev);
+    vfio_group_put(group);
 }
 
 static int vfio_legacy_pci_hot_reset(VFIODevice *vbasedev, bool single)
@@ -1017,7 +1082,7 @@ static int vfio_legacy_pci_hot_reset(VFIODevice *vbasedev, bool single)
         /* Prep dependent devices for reset and clear our marker. */
         QLIST_FOREACH(vbasedev_iter, &group->device_list, next) {
             if (!vbasedev_iter->dev->realized ||
-                vbasedev_iter->type != VFIO_DEVICE_TYPE_PCI) {
+                !vfio_pci_from_vfio_device(vbasedev_iter)) {
                 continue;
             }
             tmp = container_of(vbasedev_iter, VFIOPCIDevice, vbasedev);
@@ -1102,7 +1167,7 @@ out:
 
         QLIST_FOREACH(vbasedev_iter, &group->device_list, next) {
             if (!vbasedev_iter->dev->realized ||
-                vbasedev_iter->type != VFIO_DEVICE_TYPE_PCI) {
+                !vfio_pci_from_vfio_device(vbasedev_iter)) {
                 continue;
             }
             tmp = container_of(vbasedev_iter, VFIOPCIDevice, vbasedev);
@@ -1121,11 +1186,9 @@ out_single:
     return ret;
 }
 
-static void vfio_iommu_legacy_class_init(ObjectClass *klass, void *data)
+static void vfio_iommu_legacy_class_init(ObjectClass *klass, const void *data)
 {
     VFIOIOMMUClass *vioc = VFIO_IOMMU_CLASS(klass);
-
-    vioc->hiod_typename = TYPE_HOST_IOMMU_DEVICE_LEGACY_VFIO;
 
     vioc->setup = vfio_legacy_setup;
     vioc->dma_map = vfio_legacy_dma_map;
@@ -1185,7 +1248,7 @@ static void vfio_iommu_legacy_instance_init(Object *obj)
     QLIST_INIT(&container->group_list);
 }
 
-static void hiod_legacy_vfio_class_init(ObjectClass *oc, void *data)
+static void hiod_legacy_vfio_class_init(ObjectClass *oc, const void *data)
 {
     HostIOMMUDeviceClass *hioc = HOST_IOMMU_DEVICE_CLASS(oc);
 

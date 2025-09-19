@@ -21,6 +21,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/datadir.h"
+#include "qemu/log.h"
 #include "qemu/units.h"
 #include "qemu/cutils.h"
 #include "qapi/error.h"
@@ -1191,7 +1192,7 @@ static void pnv_init(MachineState *machine)
      * Since we can not reach the remote BMC machine with LPC memops,
      * map it always for now.
      */
-    memory_region_add_subregion(pnv->chips[0]->fw_mr, PNOR_SPI_OFFSET,
+    memory_region_add_subregion(pnv->chips[0]->fw_mr, pnv->pnor->lpc_address,
                                 &pnv->pnor->mmio);
 
     /*
@@ -1618,7 +1619,7 @@ static uint32_t pnv_chip_power8_xscom_pcba(PnvChip *chip, uint64_t addr)
     return ((addr >> 4) & ~0xfull) | ((addr >> 3) & 0xf);
 }
 
-static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
+static void pnv_chip_power8e_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
@@ -1642,7 +1643,7 @@ static void pnv_chip_power8e_class_init(ObjectClass *klass, void *data)
                                     &k->parent_realize);
 }
 
-static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
+static void pnv_chip_power8_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
@@ -1666,7 +1667,7 @@ static void pnv_chip_power8_class_init(ObjectClass *klass, void *data)
                                     &k->parent_realize);
 }
 
-static void pnv_chip_power8nvl_class_init(ObjectClass *klass, void *data)
+static void pnv_chip_power8nvl_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
@@ -1794,12 +1795,83 @@ static void pnv_chip_power9_pec_realize(PnvChip *chip, Error **errp)
     }
 }
 
+static uint64_t pnv_handle_sprd_load(CPUPPCState *env)
+{
+    PowerPCCPU *cpu = env_archcpu(env);
+    PnvCore *pc = pnv_cpu_state(cpu)->pnv_core;
+    uint64_t sprc = env->spr[SPR_POWER_SPRC];
+
+    if (pc->big_core) {
+        pc = pnv_chip_find_core(pc->chip, CPU_CORE(pc)->core_id & ~0x1);
+    }
+
+    switch (sprc & 0x3e0) {
+    case 0: /* SCRATCH0-3 */
+    case 1: /* SCRATCH4-7 */
+        return pc->scratch[(sprc >> 3) & 0x7];
+
+    case 0x1e0: /* core thread state */
+        if (env->excp_model == POWERPC_EXCP_POWER9) {
+            /*
+             * Only implement for POWER9 because skiboot uses it to check
+             * big-core mode. Other bits are unimplemented so we would
+             * prefer to get unimplemented message on POWER10 if it were
+             * used anywhere.
+             */
+            if (pc->big_core) {
+                return PPC_BIT(63);
+            } else {
+                return 0;
+            }
+        }
+        /* fallthru */
+
+    default:
+        qemu_log_mask(LOG_UNIMP, "mfSPRD: Unimplemented SPRC:0x"
+                                  TARGET_FMT_lx"\n", sprc);
+        break;
+    }
+    return 0;
+}
+
+static void pnv_handle_sprd_store(CPUPPCState *env, uint64_t val)
+{
+    PowerPCCPU *cpu = env_archcpu(env);
+    uint64_t sprc = env->spr[SPR_POWER_SPRC];
+    PnvCore *pc = pnv_cpu_state(cpu)->pnv_core;
+    int nr;
+
+    if (pc->big_core) {
+        pc = pnv_chip_find_core(pc->chip, CPU_CORE(pc)->core_id & ~0x1);
+    }
+
+    switch (sprc & 0x3e0) {
+    case 0: /* SCRATCH0-3 */
+    case 1: /* SCRATCH4-7 */
+        /*
+         * Log stores to SCRATCH, because some firmware uses these for
+         * debugging and logging, but they would normally be read by the BMC,
+         * which is not implemented in QEMU yet. This gives a way to get at the
+         * information. Could also dump these upon checkstop.
+         */
+        nr = (sprc >> 3) & 0x7;
+        pc->scratch[nr] = val;
+        break;
+    default:
+        qemu_log_mask(LOG_UNIMP, "mtSPRD: Unimplemented SPRC:0x"
+                                  TARGET_FMT_lx"\n", sprc);
+        break;
+    }
+}
+
 static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
 {
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(dev);
     Pnv9Chip *chip9 = PNV9_CHIP(dev);
     PnvChip *chip = PNV_CHIP(dev);
     Pnv9Psi *psi9 = &chip9->psi;
+    PowerPCCPU *cpu;
+    PowerPCCPUClass *cpu_class;
     Error *local_err = NULL;
     int i;
 
@@ -1826,6 +1898,12 @@ static void pnv_chip_power9_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
+
+    /* Set handlers for Special registers, such as SPRD */
+    cpu = chip->cores[0]->threads[0];
+    cpu_class = POWERPC_CPU_GET_CLASS(cpu);
+    cpu_class->load_sprd = pnv_handle_sprd_load;
+    cpu_class->store_sprd = pnv_handle_sprd_store;
 
     /* XIVE interrupt controller (POWER9) */
     object_property_set_int(OBJECT(&chip9->xive), "ic-bar",
@@ -1954,7 +2032,7 @@ static uint32_t pnv_chip_power9_xscom_pcba(PnvChip *chip, uint64_t addr)
     return addr >> 3;
 }
 
-static void pnv_chip_power9_class_init(ObjectClass *klass, void *data)
+static void pnv_chip_power9_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
@@ -2078,6 +2156,8 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
     PnvChipClass *pcc = PNV_CHIP_GET_CLASS(dev);
     PnvChip *chip = PNV_CHIP(dev);
     Pnv10Chip *chip10 = PNV10_CHIP(dev);
+    PowerPCCPU *cpu;
+    PowerPCCPUClass *cpu_class;
     Error *local_err = NULL;
     int i;
 
@@ -2104,6 +2184,12 @@ static void pnv_chip_power10_realize(DeviceState *dev, Error **errp)
         error_propagate(errp, local_err);
         return;
     }
+
+    /* Set handlers for Special registers, such as SPRD */
+    cpu = chip->cores[0]->threads[0];
+    cpu_class = POWERPC_CPU_GET_CLASS(cpu);
+    cpu_class->load_sprd = pnv_handle_sprd_load;
+    cpu_class->store_sprd = pnv_handle_sprd_store;
 
     /* XIVE2 interrupt controller (POWER10) */
     object_property_set_int(OBJECT(&chip10->xive), "ic-bar",
@@ -2302,7 +2388,7 @@ static uint32_t pnv_chip_power10_xscom_pcba(PnvChip *chip, uint64_t addr)
     return addr >> 3;
 }
 
-static void pnv_chip_power10_class_init(ObjectClass *klass, void *data)
+static void pnv_chip_power10_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PnvChipClass *k = PNV_CHIP_CLASS(klass);
@@ -2461,7 +2547,7 @@ static const Property pnv_chip_properties[] = {
     DEFINE_PROP_BOOL("lpar-per-core", PnvChip, lpar_per_core, false),
 };
 
-static void pnv_chip_class_init(ObjectClass *klass, void *data)
+static void pnv_chip_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -2608,62 +2694,46 @@ static void pnv_pic_print_info(InterruptStatsProvider *obj, GString *buf)
     }
 }
 
-static int pnv_match_nvt(XiveFabric *xfb, uint8_t format,
-                         uint8_t nvt_blk, uint32_t nvt_idx,
-                         bool crowd, bool cam_ignore, uint8_t priority,
-                         uint32_t logic_serv,
-                         XiveTCTXMatch *match)
+static bool pnv_match_nvt(XiveFabric *xfb, uint8_t format,
+                          uint8_t nvt_blk, uint32_t nvt_idx,
+                          bool crowd, bool cam_ignore, uint8_t priority,
+                          uint32_t logic_serv,
+                          XiveTCTXMatch *match)
 {
     PnvMachineState *pnv = PNV_MACHINE(xfb);
-    int total_count = 0;
     int i;
 
     for (i = 0; i < pnv->num_chips; i++) {
         Pnv9Chip *chip9 = PNV9_CHIP(pnv->chips[i]);
         XivePresenter *xptr = XIVE_PRESENTER(&chip9->xive);
         XivePresenterClass *xpc = XIVE_PRESENTER_GET_CLASS(xptr);
-        int count;
 
-        count = xpc->match_nvt(xptr, format, nvt_blk, nvt_idx, crowd,
-                               cam_ignore, priority, logic_serv, match);
-
-        if (count < 0) {
-            return count;
-        }
-
-        total_count += count;
+        xpc->match_nvt(xptr, format, nvt_blk, nvt_idx, crowd,
+                       cam_ignore, priority, logic_serv, match);
     }
 
-    return total_count;
+    return !!match->count;
 }
 
-static int pnv10_xive_match_nvt(XiveFabric *xfb, uint8_t format,
-                                uint8_t nvt_blk, uint32_t nvt_idx,
-                                bool crowd, bool cam_ignore, uint8_t priority,
-                                uint32_t logic_serv,
-                                XiveTCTXMatch *match)
+static bool pnv10_xive_match_nvt(XiveFabric *xfb, uint8_t format,
+                                 uint8_t nvt_blk, uint32_t nvt_idx,
+                                 bool crowd, bool cam_ignore, uint8_t priority,
+                                 uint32_t logic_serv,
+                                 XiveTCTXMatch *match)
 {
     PnvMachineState *pnv = PNV_MACHINE(xfb);
-    int total_count = 0;
     int i;
 
     for (i = 0; i < pnv->num_chips; i++) {
         Pnv10Chip *chip10 = PNV10_CHIP(pnv->chips[i]);
         XivePresenter *xptr = XIVE_PRESENTER(&chip10->xive);
         XivePresenterClass *xpc = XIVE_PRESENTER_GET_CLASS(xptr);
-        int count;
 
-        count = xpc->match_nvt(xptr, format, nvt_blk, nvt_idx, crowd,
-                               cam_ignore, priority, logic_serv, match);
-
-        if (count < 0) {
-            return count;
-        }
-
-        total_count += count;
+        xpc->match_nvt(xptr, format, nvt_blk, nvt_idx, crowd,
+                       cam_ignore, priority, logic_serv, match);
     }
 
-    return total_count;
+    return !!match->count;
 }
 
 static int pnv10_xive_broadcast(XiveFabric *xfb,
@@ -2724,7 +2794,7 @@ static void pnv_machine_set_hb(Object *obj, bool value, Error **errp)
     }
 }
 
-static void pnv_machine_power8_class_init(ObjectClass *oc, void *data)
+static void pnv_machine_power8_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     XICSFabricClass *xic = XICS_FABRIC_CLASS(oc);
@@ -2753,7 +2823,7 @@ static void pnv_machine_power8_class_init(ObjectClass *oc, void *data)
     machine_class_allow_dynamic_sysbus_dev(mc, TYPE_PNV_PHB);
 }
 
-static void pnv_machine_power9_class_init(ObjectClass *oc, void *data)
+static void pnv_machine_power9_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     XiveFabricClass *xfc = XIVE_FABRIC_CLASS(oc);
@@ -2792,7 +2862,7 @@ static void pnv_machine_power9_class_init(ObjectClass *oc, void *data)
                               "Use 1 LPAR per core mode");
 }
 
-static void pnv_machine_p10_common_class_init(ObjectClass *oc, void *data)
+static void pnv_machine_p10_common_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     PnvMachineClass *pmc = PNV_MACHINE_CLASS(oc);
@@ -2822,7 +2892,7 @@ static void pnv_machine_p10_common_class_init(ObjectClass *oc, void *data)
     machine_class_allow_dynamic_sysbus_dev(mc, TYPE_PNV_PHB);
 }
 
-static void pnv_machine_power10_class_init(ObjectClass *oc, void *data)
+static void pnv_machine_power10_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
@@ -2847,7 +2917,8 @@ static void pnv_machine_power10_class_init(ObjectClass *oc, void *data)
                               "Use 1 LPAR per core mode");
 }
 
-static void pnv_machine_p10_rainier_class_init(ObjectClass *oc, void *data)
+static void pnv_machine_p10_rainier_class_init(ObjectClass *oc,
+                                               const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     PnvMachineClass *pmc = PNV_MACHINE_CLASS(oc);
@@ -2912,7 +2983,7 @@ static void pnv_nmi(NMIState *n, int cpu_index, Error **errp)
     }
 }
 
-static void pnv_machine_class_init(ObjectClass *oc, void *data)
+static void pnv_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     InterruptStatsProviderClass *ispc = INTERRUPT_STATS_PROVIDER_CLASS(oc);
@@ -2972,7 +3043,7 @@ static const TypeInfo types[] = {
         .name          = MACHINE_TYPE_NAME("powernv10"),
         .parent        = TYPE_PNV_MACHINE,
         .class_init    = pnv_machine_power10_class_init,
-        .interfaces = (InterfaceInfo[]) {
+        .interfaces = (const InterfaceInfo[]) {
             { TYPE_XIVE_FABRIC },
             { },
         },
@@ -2981,7 +3052,7 @@ static const TypeInfo types[] = {
         .name          = MACHINE_TYPE_NAME("powernv9"),
         .parent        = TYPE_PNV_MACHINE,
         .class_init    = pnv_machine_power9_class_init,
-        .interfaces = (InterfaceInfo[]) {
+        .interfaces = (const InterfaceInfo[]) {
             { TYPE_XIVE_FABRIC },
             { },
         },
@@ -2990,7 +3061,7 @@ static const TypeInfo types[] = {
         .name          = MACHINE_TYPE_NAME("powernv8"),
         .parent        = TYPE_PNV_MACHINE,
         .class_init    = pnv_machine_power8_class_init,
-        .interfaces = (InterfaceInfo[]) {
+        .interfaces = (const InterfaceInfo[]) {
             { TYPE_XICS_FABRIC },
             { },
         },
@@ -3002,7 +3073,7 @@ static const TypeInfo types[] = {
         .instance_size = sizeof(PnvMachineState),
         .class_init    = pnv_machine_class_init,
         .class_size    = sizeof(PnvMachineClass),
-        .interfaces = (InterfaceInfo[]) {
+        .interfaces = (const InterfaceInfo[]) {
             { TYPE_INTERRUPT_STATS_PROVIDER },
             { TYPE_NMI },
             { },

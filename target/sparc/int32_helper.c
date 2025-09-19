@@ -21,7 +21,7 @@
 #include "qemu/main-loop.h"
 #include "cpu.h"
 #include "trace.h"
-#include "exec/cpu_ldst.h"
+#include "accel/tcg/cpu-ldst.h"
 #include "exec/log.h"
 #include "system/runstate.h"
 
@@ -65,6 +65,7 @@ static const char *excp_name_str(int32_t exception_index)
     return excp_names[exception_index];
 }
 
+#if !defined(CONFIG_USER_ONLY)
 void cpu_check_irqs(CPUSPARCState *env)
 {
     CPUState *cs;
@@ -96,6 +97,7 @@ void cpu_check_irqs(CPUSPARCState *env)
         cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
     }
 }
+#endif
 
 void sparc_cpu_do_interrupt(CPUState *cs)
 {

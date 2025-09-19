@@ -61,6 +61,11 @@ int kvm_arch_irqchip_create(KVMState *s)
     return 0;
 }
 
+int kvm_arch_pre_create_vcpu(CPUState *cpu, Error **errp)
+{
+    return 0;
+}
+
 int kvm_arch_init_vcpu(CPUState *cs)
 {
     CPUMIPSState *env = cpu_env(cs);
@@ -139,7 +144,7 @@ void kvm_arch_pre_run(CPUState *cs, struct kvm_run *run)
 
     bql_lock();
 
-    if ((cs->interrupt_request & CPU_INTERRUPT_HARD) &&
+    if (cpu_test_interrupt(cs, CPU_INTERRUPT_HARD) &&
             cpu_mips_io_interrupts_pending(cpu)) {
         intr.cpu = -1;
         intr.irq = 2;

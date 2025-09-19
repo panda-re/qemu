@@ -19,11 +19,11 @@
 #include "qemu/osdep.h"
 #include "qemu/main-loop.h"
 #include "qemu/log.h"
+#include "system/memory.h"
 #include "system/tcg.h"
 #include "system/system.h"
 #include "system/runstate.h"
 #include "cpu.h"
-#include "exec/exec-all.h"
 #include "internal.h"
 #include "helper_regs.h"
 #include "hw/ppc/ppc.h"
@@ -1950,6 +1950,10 @@ static int ppc_next_unmasked_interrupt(CPUPPCState *env)
     uint32_t pending_interrupts = env->pending_interrupts;
     target_ulong lpcr = env->spr[SPR_LPCR];
     bool async_deliver;
+
+    if (unlikely(env->quiesced)) {
+        return 0;
+    }
 
 #ifdef TARGET_PPC64
     switch (env->excp_model) {

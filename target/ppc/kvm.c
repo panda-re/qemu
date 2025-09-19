@@ -41,7 +41,7 @@
 #include "trace.h"
 #include "gdbstub/enums.h"
 #include "exec/memattrs.h"
-#include "exec/ram_addr.h"
+#include "system/ram_addr.h"
 #include "system/hostmem.h"
 #include "qemu/cutils.h"
 #include "qemu/main-loop.h"
@@ -477,6 +477,11 @@ static void kvmppc_hw_debug_points_init(CPUPPCState *cenv)
         fprintf(stderr, "Error initializing h/w breakpoints\n");
         return;
     }
+}
+
+int kvm_arch_pre_create_vcpu(CPUState *cpu, Error **errp)
+{
+    return 0;
 }
 
 int kvm_arch_init_vcpu(CPUState *cs)
@@ -1332,7 +1337,6 @@ int kvmppc_set_interrupt(PowerPCCPU *cpu, int irq, int level)
 
 void kvm_arch_pre_run(CPUState *cs, struct kvm_run *run)
 {
-    return;
 }
 
 MemTxAttrs kvm_arch_post_run(CPUState *cs, struct kvm_run *run)
@@ -1350,7 +1354,7 @@ static int kvmppc_handle_halt(PowerPCCPU *cpu)
     CPUState *cs = CPU(cpu);
     CPUPPCState *env = &cpu->env;
 
-    if (!(cs->interrupt_request & CPU_INTERRUPT_HARD) &&
+    if (!cpu_test_interrupt(cs, CPU_INTERRUPT_HARD) &&
         FIELD_EX64(env->msr, MSR, EE)) {
         cs->halted = 1;
         cs->exception_index = EXCP_HLT;
@@ -2384,7 +2388,7 @@ static bool kvmppc_cpu_realize(CPUState *cs, Error **errp)
     return true;
 }
 
-static void kvmppc_host_cpu_class_init(ObjectClass *oc, void *data)
+static void kvmppc_host_cpu_class_init(ObjectClass *oc, const void *data)
 {
     PowerPCCPUClass *pcc = POWERPC_CPU_CLASS(oc);
     uint32_t dcache_size = kvmppc_read_int_cpu_dt("d-cache-size");
@@ -2756,11 +2760,11 @@ int kvmppc_save_htab(QEMUFile *f, int fd, size_t bufsize, int64_t max_ns)
 int kvmppc_load_htab_chunk(QEMUFile *f, int fd, uint32_t index,
                            uint16_t n_valid, uint16_t n_invalid, Error **errp)
 {
-    struct kvm_get_htab_header *buf;
-    size_t chunksize = sizeof(*buf) + n_valid * HASH_PTE_SIZE_64;
+    size_t chunksize = sizeof(struct kvm_get_htab_header)
+                       + n_valid * HASH_PTE_SIZE_64;
+    g_autofree struct kvm_get_htab_header *buf = g_malloc(chunksize);
     ssize_t rc;
 
-    buf = alloca(chunksize);
     buf->index = index;
     buf->n_valid = n_valid;
     buf->n_invalid = n_invalid;
@@ -3005,7 +3009,7 @@ void kvm_arch_accel_class_init(ObjectClass *oc)
 {
 }
 
-static void kvm_cpu_accel_class_init(ObjectClass *oc, void *data)
+static void kvm_cpu_accel_class_init(ObjectClass *oc, const void *data)
 {
     AccelCPUClass *acc = ACCEL_CPU_CLASS(oc);
 

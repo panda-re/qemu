@@ -28,6 +28,7 @@
 #include "qemu/datadir.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
+#include "exec/target_page.h"
 #include "hw/ppc/ppc.h"
 #include "hw/qdev-properties.h"
 #include "hw/boards.h"
@@ -153,11 +154,6 @@ static void ppc_heathrow_init(MachineState *machine)
     }
 
     if (machine->kernel_filename) {
-        int bswap_needed = 0;
-
-#ifdef BSWAP_NEEDED
-        bswap_needed = 1;
-#endif
         kernel_base = KERNEL_LOAD_ADDR;
         kernel_size = load_elf(machine->kernel_filename, NULL,
                                translate_kernel_address, NULL, NULL, NULL,
@@ -165,7 +161,7 @@ static void ppc_heathrow_init(MachineState *machine)
         if (kernel_size < 0) {
             kernel_size = load_aout(machine->kernel_filename, kernel_base,
                                     machine->ram_size - kernel_base,
-                                    bswap_needed, TARGET_PAGE_SIZE);
+                                    true, TARGET_PAGE_SIZE);
         }
         if (kernel_size < 0) {
             kernel_size = load_image_targphys(machine->kernel_filename,
@@ -406,7 +402,7 @@ static int heathrow_kvm_type(MachineState *machine, const char *arg)
     return 2;
 }
 
-static void heathrow_class_init(ObjectClass *oc, void *data)
+static void heathrow_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
     FWPathProviderClass *fwc = FW_PATH_PROVIDER_CLASS(oc);
@@ -434,7 +430,7 @@ static const TypeInfo ppc_heathrow_machine_info = {
     .name          = MACHINE_TYPE_NAME("g3beige"),
     .parent        = TYPE_MACHINE,
     .class_init    = heathrow_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_FW_PATH_PROVIDER },
         { }
     },
