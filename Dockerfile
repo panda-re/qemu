@@ -48,7 +48,6 @@ libssh-4
 libcurl3-gnutls
 libssl3
 libldap-2.5-0
-liblber-2.5-0
 libsasl2-2
 libtinfo6
 libncursesw6
