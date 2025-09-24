@@ -1286,3 +1286,8 @@ DEF_HELPER_4(vsm4r_vv, void, ptr, ptr, env, i32)
 DEF_HELPER_4(vsm4r_vs, void, ptr, ptr, env, i32)
 
 #include "panda/callbacks/cb-helper-defs.h"
+
+/* CFI (zicfiss) helpers */
+#ifndef CONFIG_USER_ONLY
+DEF_HELPER_1(ssamoswap_disabled, void, env)
+#endif
