@@ -5,7 +5,7 @@
 #include "qapi/error.h"
 
 #include "hw/sysbus.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 
 #include "hw/intc/armv7m_nvic.h"
 #include "target/arm/cpu.h"

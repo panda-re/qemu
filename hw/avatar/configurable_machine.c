@@ -26,8 +26,8 @@
 /* general imports */
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
-#include "sysemu/sysemu.h"
-#include "exec/address-spaces.h"
+#include "system/system.h"
+#include "system/address-spaces.h"
 #include "hw/hw.h"
 #include "hw/irq.h"
 #include "hw/sysbus.h"
@@ -67,11 +67,11 @@ typedef AVRCPU THISCPU;
 
 /* qapi imports */
 #include "qapi/error.h"
-#include "qapi/qmp/qjson.h"
-#include "qapi/qmp/qobject.h"
-#include "qapi/qmp/qnum.h"
-#include "qapi/qmp/qdict.h"
-#include "qapi/qmp/qlist.h"
+#include "qobject/qjson.h"
+#include "qobject/qobject.h"
+#include "qobject/qnum.h"
+#include "qobject/qdict.h"
+#include "qobject/qlist.h"
 
 
 void avatar_cm_set_entry_point(QDict *conf, THISCPU *cpuu);

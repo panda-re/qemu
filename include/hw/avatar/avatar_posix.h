@@ -4,7 +4,7 @@
 #include <semaphore.h>
 #include <mqueue.h>
 
-#include "sysemu/runstate.h"
+#include "system/runstate.h"
 
 typedef struct {
     sem_t *sem;

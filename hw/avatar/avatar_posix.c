@@ -1,7 +1,7 @@
 #include "time.h"
 
 #include "qemu/osdep.h"
-#include "sysemu/sysemu.h"
+#include "system/system.h"
 
 #include "hw/avatar/avatar_posix.h"
 
