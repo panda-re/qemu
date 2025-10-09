@@ -23,7 +23,11 @@
 
 #include "hw/avatar/arm_helper.h"
 
-static int banked_gdb_set_reg(CPUARMState *env, uint8_t *buf, int reg){
+static int banked_gdb_set_reg(CPUState *cs, uint8_t *buf, int reg)
+{
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+
     switch (reg) {
     case 0:
         env->banked_r13[bank_number(ARM_CPU_MODE_USR)] = ldl_p(buf); return 4;
@@ -73,8 +77,11 @@ static int banked_gdb_set_reg(CPUARMState *env, uint8_t *buf, int reg){
     return 0;
 }
 
-static int banked_gdb_get_reg(CPUARMState *env, GByteArray *buf, int reg)
+static int banked_gdb_get_reg(CPUState *cs, GByteArray *buf, int reg)
 {
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+
     switch(reg){
     case 0:
         stl_p(buf, env->banked_r13[bank_number(ARM_CPU_MODE_USR)]); return 4;
@@ -128,5 +135,5 @@ static int banked_gdb_get_reg(CPUARMState *env, GByteArray *buf, int reg)
 void avatar_add_banked_registers(ARMCPU *cpu){
     CPUState *cs = CPU(cpu);
     gdb_register_coprocessor(cs, banked_gdb_get_reg, banked_gdb_set_reg,
-            22, "arm-banked.xml", 0);
+            gdb_find_static_feature("arm-banked.xml"), 0);
 }
