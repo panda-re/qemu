@@ -51,7 +51,6 @@ typedef  X86CPU THISCPU;
 
 #elif defined(TARGET_MIPS)
 #include "hw/mips/mips.h"
-#include "hw/mips/cpudevs.h"
 #include "target/mips/cpu.h"
 typedef  MIPSCPU THISCPU;
 
