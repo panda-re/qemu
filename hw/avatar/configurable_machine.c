@@ -682,7 +682,7 @@ static void board_init(MachineState * ms)
     }
 }
 
-static void configurable_machine_class_init(ObjectClass *oc, void *data)
+static void configurable_machine_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 
