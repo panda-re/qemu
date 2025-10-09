@@ -139,7 +139,7 @@ static void avatar_rmemory_realize(DeviceState *dev, Error **errp)
 
 }
 
-static void avatar_rmemory_class_init(ObjectClass *oc, void *data)
+static void avatar_rmemory_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
