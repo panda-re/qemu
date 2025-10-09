@@ -91,7 +91,7 @@ static const MemoryRegionOps avatar_rmemory_ops = {
     .endianness = DEVICE_NATIVE_ENDIAN,
 };
 
-static Property avatar_rmemory_properties[] = {
+static const Property avatar_rmemory_properties[] = {
     DEFINE_PROP_UINT64("address", AvatarRMemoryState, address, 0x101f1000),
     DEFINE_PROP_UINT32("size", AvatarRMemoryState, size, 0x100),
     DEFINE_PROP_STRING("rx_queue_name", AvatarRMemoryState, rx_queue_name),
