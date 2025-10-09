@@ -75,11 +75,6 @@ if have_system or have_tools
     'ui',
   ]
 endif
-if have_avatar
-  qapi_all_modules += [
-    'avatar-target',
-  ]
-endif
 
 
 qapi_nonmodule_outputs = [
