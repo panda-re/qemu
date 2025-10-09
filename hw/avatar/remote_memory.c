@@ -96,7 +96,6 @@ static Property avatar_rmemory_properties[] = {
     DEFINE_PROP_UINT32("size", AvatarRMemoryState, size, 0x100),
     DEFINE_PROP_STRING("rx_queue_name", AvatarRMemoryState, rx_queue_name),
     DEFINE_PROP_STRING("tx_queue_name", AvatarRMemoryState, tx_queue_name),
-    DEFINE_PROP_END_OF_LIST(),
 };
 
 //static void avatar_rmemory_init(Object *obj)
