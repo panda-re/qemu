@@ -1,7 +1,7 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/error-report.h"
-#include "qapi/qapi-commands-avatar-target.h"
+// #include "qapi/qapi-commands-avatar-target.h"
 #include "qapi/error.h"
 
 #include "hw/sysbus.h"
@@ -30,13 +30,13 @@ static bool armv7m_exception_handling_enabled = false;
 
 
 
-void qmp_avatar_armv7m_set_vector_table_base(int64_t num_cpu, int64_t base, Error **errp)
-{
-    qemu_log_mask(LOG_AVATAR, "Changing NVIC base to%lx\n", base & 0xffffff80);
-    ARMCPU *armcpu = ARM_CPU(qemu_get_cpu(num_cpu));
-    /* MM: qemu now has multiple vecbases, we may need to fix this */
-    armcpu->env.v7m.vecbase[armcpu->env.v7m.secure] = base & 0xffffff80;
-}
+// void qmp_avatar_armv7m_set_vector_table_base(int64_t num_cpu, int64_t base, Error **errp)
+// {
+//     qemu_log_mask(LOG_AVATAR, "Changing NVIC base to%lx\n", base & 0xffffff80);
+//     ARMCPU *armcpu = ARM_CPU(qemu_get_cpu(num_cpu));
+//     /* MM: qemu now has multiple vecbases, we may need to fix this */
+//     armcpu->env.v7m.vecbase[armcpu->env.v7m.secure] = base & 0xffffff80;
+// }
 
 
 bool avatar_armv7m_nvic_forward_write(uint32_t offset, uint32_t value, unsigned size)
@@ -65,61 +65,61 @@ bool avatar_armv7m_nvic_forward_write(uint32_t offset, uint32_t value, unsigned 
     return resp.value != 0; // 0 -> keep processing this memory operation; 1 -> skip processing this memory operation
 }
 
-void qmp_avatar_armv7m_enable_irq(const char *irq_rx_queue_name,
-                                  const char *irq_tx_queue_name, 
-                                  const char *rmem_rx_queue_name,
-                                  const char *rmem_tx_queue_name, Error **errp)
-{
-    if(irq_rx_queue_ref == NULL){
-        irq_rx_queue_ref = malloc(sizeof(QemuAvatarMessageQueue));
-        qemu_avatar_mq_open_read(irq_rx_queue_ref, irq_rx_queue_name,
-                sizeof(V7MInterruptResp));
-    }
-    if(irq_tx_queue_ref == NULL){
-        irq_tx_queue_ref = malloc(sizeof(QemuAvatarMessageQueue));
-        qemu_avatar_mq_open_write(irq_tx_queue_ref, irq_tx_queue_name,
-                sizeof(V7MInterruptReq));
-    }
+// void qmp_avatar_armv7m_enable_irq(const char *irq_rx_queue_name,
+//                                   const char *irq_tx_queue_name, 
+//                                   const char *rmem_rx_queue_name,
+//                                   const char *rmem_tx_queue_name, Error **errp)
+// {
+//     if(irq_rx_queue_ref == NULL){
+//         irq_rx_queue_ref = malloc(sizeof(QemuAvatarMessageQueue));
+//         qemu_avatar_mq_open_read(irq_rx_queue_ref, irq_rx_queue_name,
+//                 sizeof(V7MInterruptResp));
+//     }
+//     if(irq_tx_queue_ref == NULL){
+//         irq_tx_queue_ref = malloc(sizeof(QemuAvatarMessageQueue));
+//         qemu_avatar_mq_open_write(irq_tx_queue_ref, irq_tx_queue_name,
+//                 sizeof(V7MInterruptReq));
+//     }
 
-    if(rmem_rx_queue_ref == NULL){
-        rmem_rx_queue_ref = malloc(sizeof(QemuAvatarMessageQueue));
-        qemu_avatar_mq_open_read(rmem_rx_queue_ref, rmem_rx_queue_name, sizeof(RemoteMemoryResp));
-    }
-    if(rmem_tx_queue_ref == NULL){
-        rmem_tx_queue_ref = malloc(sizeof(QemuAvatarMessageQueue));
-        qemu_avatar_mq_open_write(rmem_tx_queue_ref, rmem_tx_queue_name, sizeof(MemoryForwardReq));
-    }
+//     if(rmem_rx_queue_ref == NULL){
+//         rmem_rx_queue_ref = malloc(sizeof(QemuAvatarMessageQueue));
+//         qemu_avatar_mq_open_read(rmem_rx_queue_ref, rmem_rx_queue_name, sizeof(RemoteMemoryResp));
+//     }
+//     if(rmem_tx_queue_ref == NULL){
+//         rmem_tx_queue_ref = malloc(sizeof(QemuAvatarMessageQueue));
+//         qemu_avatar_mq_open_write(rmem_tx_queue_ref, rmem_tx_queue_name, sizeof(MemoryForwardReq));
+//     }
 
-    armv7m_exception_handling_enabled = true;
-    qemu_log_mask(LOG_AVATAR, "armv7m interrupt injection enabled\n");
-}
-
-
-void qmp_avatar_armv7m_disable_irq(Error **errp)
-{
-    qemu_log_mask(LOG_AVATAR, "armv7m interrupt injection disabled\n");
-    armv7m_exception_handling_enabled = false;
-}
+//     armv7m_exception_handling_enabled = true;
+//     qemu_log_mask(LOG_AVATAR, "armv7m interrupt injection enabled\n");
+// }
 
 
-void qmp_avatar_armv7m_ignore_irq_return(int64_t num_irq, Error **errp)
-{
-    ignore_irq_return_map[num_irq/8] |= 1 << num_irq % 8;
-}
+// void qmp_avatar_armv7m_disable_irq(Error **errp)
+// {
+//     qemu_log_mask(LOG_AVATAR, "armv7m interrupt injection disabled\n");
+//     armv7m_exception_handling_enabled = false;
+// }
 
-void qmp_avatar_armv7m_unignore_irq_return(int64_t num_irq, Error **errp)
-{
-    ignore_irq_return_map[num_irq/8] &= 0 << num_irq % 8;
-}
 
-void qmp_avatar_armv7m_inject_irq(int64_t num_cpu,int64_t num_irq, Error **errp)
-{
-    qemu_log_mask(LOG_AVATAR, "Injecting exception 0x%lx\n", num_irq);
-    ARMCPU *armcpu = ARM_CPU(qemu_get_cpu(num_cpu));
-    CPUARMState *env = &armcpu->env;
-    /*  MM: for now, we can only inject non-secure irqs */
-    armv7m_nvic_set_pending(env->nvic, num_irq, false);
-}
+// void qmp_avatar_armv7m_ignore_irq_return(int64_t num_irq, Error **errp)
+// {
+//     ignore_irq_return_map[num_irq/8] |= 1 << num_irq % 8;
+// }
+
+// void qmp_avatar_armv7m_unignore_irq_return(int64_t num_irq, Error **errp)
+// {
+//     ignore_irq_return_map[num_irq/8] &= 0 << num_irq % 8;
+// }
+
+// void qmp_avatar_armv7m_inject_irq(int64_t num_cpu,int64_t num_irq, Error **errp)
+// {
+//     qemu_log_mask(LOG_AVATAR, "Injecting exception 0x%lx\n", num_irq);
+//     ARMCPU *armcpu = ARM_CPU(qemu_get_cpu(num_cpu));
+//     CPUARMState *env = &armcpu->env;
+//     /*  MM: for now, we can only inject non-secure irqs */
+//     armv7m_nvic_set_pending(env->nvic, num_irq, false);
+// }
 
 
 void avatar_armv7m_exception_exit(int irq, uint32_t type)
