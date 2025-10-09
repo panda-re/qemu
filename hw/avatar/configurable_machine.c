@@ -563,7 +563,7 @@ static THISCPU *create_cpu(MachineState * ms, QDict *conf)
     cpuu = X86_CPU(cpuobj);
 
     if (cpuu->apic_state) {
-            device_legacy_reset(cpuu->apic_state);
+        device_cold_reset(cpuu->apic_state);
     }
 
     if (!object_property_set_uint(OBJECT(cpuu), "apic-id", 0, &err)) {
