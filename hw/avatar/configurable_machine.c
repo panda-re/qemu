@@ -690,13 +690,13 @@ static void configurable_machine_class_init(ObjectClass *oc, const void *data)
     mc->block_default_type = IF_SCSI;
 
 #ifdef TARGET_ARM
-    mc->default_cpu_type = "arm926";
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("arm926");
 #elif defined(TARGET_AARCH64)
-    mc->default_cpu_type = "cortex-a57";
+    mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a57");
 #elif defined(TARGET_I386)
-    mc->default_cpu_type = "qemu32";
+    mc->default_cpu_type = X86_CPU_TYPE_NAME("qemu32");
 #elif defined(TARGET_MIPS)
-    mc->default_cpu_type = "24Kf";
+    mc->default_cpu_type = MIPS_CPU_TYPE_NAME("24Kf");
     //mc->default_cpu_type = "mips32r6-generic";
 #elif defined(TARGET_PPC)
     mc->default_cpu_type = POWERPC_CPU_TYPE_NAME("e500v2_v30");
