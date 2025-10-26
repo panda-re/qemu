@@ -552,31 +552,19 @@ static THISCPU *create_cpu(MachineState * ms, QDict *conf)
 #endif  /* ! TARGET_AARCH64 */
 
 #elif defined(TARGET_I386)
-    cpu_oc = cpu_class_by_name(TYPE_X86_CPU, cpu_type);
-    if (!cpu_oc) {
-        error_printf("Unable to find CPU definition\n");
-        exit(1);
-    }
 
-    cpuobj = object_new(object_class_get_name(cpu_oc));
+    // Inspired by hw/i386/x86-common.c's x86_cpu_new
+    cpuobj = object_new(cpu_type);
+
+    if (!object_property_set_uint(cpuobj, "apic-id", 0, &err)) {
+        error_report_err(err);
+        object_unref(cpuobj);
+        exit(EXIT_FAILURE);
+    }
+    qdev_realize(DEVICE(cpuobj), NULL, &err);
     cpuu = X86_CPU(cpuobj);
 
-    if (cpuu->apic_state) {
-        device_cold_reset(cpuu->apic_state);
-    }
-
-    if (!object_property_set_uint(OBJECT(cpuu), "apic-id", 0, &err)) {
-        error_report_err(err);
-        object_unref(OBJECT(cpuu));
-        exit(EXIT_FAILURE);
-    }
-
-    if (!qdev_realize(DEVICE(cpuu), NULL, &err)) {
-        error_report_err(err);
-        object_unref(OBJECT(cpuu));
-        exit(EXIT_FAILURE);
-    }
-
+    (void) cpu_oc; // TODO remove
 
 #elif defined(TARGET_MIPS)
     cpuu = MIPS_CPU(cpu_create(cpu_type));
