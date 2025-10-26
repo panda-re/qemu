@@ -595,10 +595,10 @@ static THISCPU *create_cpu(MachineState * ms, QDict *conf)
     }
 
 #elif defined(TARGET_PPC)
-    cpuobj = object_new(cpu_type);
-    cpuu = POWERPC_CPU(cpuobj);
+    cpuu = POWERPC_CPU(cpu_create(cpu_type));
 #endif
 
+    (void) cpuobj; // TODO remove
 
     env = (CPUState *) &(cpuu->env);
     if (!env) {
