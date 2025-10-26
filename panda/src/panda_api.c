@@ -240,7 +240,6 @@ void map_memory(char* name, uint64_t size, uint64_t address) {
     } else {
         memory_region_init_rom(ram, NULL, name, size, &error_fatal);
     }
-    vmstate_register_ram(ram, NULL);
 
     printf("Adding memory region %s (size: 0x%"
            PRIx64 ") at address 0x%" PRIx64 "\n", name, size, address);
