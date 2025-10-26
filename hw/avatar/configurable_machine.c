@@ -689,7 +689,7 @@ static void configurable_machine_class_init(ObjectClass *oc, const void *data)
     mc->init = board_init;
     mc->block_default_type = IF_SCSI;
 
-#ifdef TARGET_ARM
+#if defined(TARGET_ARM) && !defined(TARGET_AARCH64)
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("arm926");
 #elif defined(TARGET_AARCH64)
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("cortex-a57");
