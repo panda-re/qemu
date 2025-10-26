@@ -536,16 +536,8 @@ static THISCPU *create_cpu(MachineState * ms, QDict *conf)
 
     } else {
 #endif  /* ! TARGET_AARCH64 */
-        cpu_oc = cpu_class_by_name(TYPE_ARM_CPU, cpu_type);
-        if (!cpu_oc) {
-            error_printf("Unable to find CPU definition\n");
-            exit(1);
-        }
-
-        cpuobj = object_new(object_class_get_name(cpu_oc));
-
-        object_property_set_bool(cpuobj, "realized", true, &error_fatal);
-        cpuu = ARM_CPU(cpuobj);
+        cpuu = ARM_CPU(cpu_create(cpu_type));
+        (void) cpu_oc; // TODO remove
 
 #if !defined(TARGET_AARCH64)
     }
