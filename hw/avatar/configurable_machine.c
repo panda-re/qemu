@@ -579,20 +579,9 @@ static THISCPU *create_cpu(MachineState * ms, QDict *conf)
 
 
 #elif defined(TARGET_MIPS)
-    cpu_oc = cpu_class_by_name(TYPE_MIPS_CPU, cpu_type);
-    if (!cpu_oc) {
-        error_printf("Unable to find CPU definition\n");
-        exit(1);
-    }
-
-    cpuobj = object_new(object_class_get_name(cpu_oc));
-    cpuu = MIPS_CPU(cpuobj);
-
-    if (!qdev_realize(DEVICE(cpuu), NULL, &err)) {
-        error_report_err(err);
-        object_unref(OBJECT(cpuu));
-        exit(EXIT_FAILURE);
-    }
+    cpuu = MIPS_CPU(cpu_create(cpu_type));
+    (void) err; // TODO remove
+    (void) cpu_oc; // TODO remove
 
 #elif defined(TARGET_PPC)
     cpuu = POWERPC_CPU(cpu_create(cpu_type));
