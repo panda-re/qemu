@@ -10,7 +10,6 @@
 // for map_memory
 #include "qapi/error.h"
 #include "migration/vmstate.h"
-#include "qemu/main-loop.h"
 
 // for panda_{set/get}_library_mode
 #include "qemu/osdep.h"
@@ -230,17 +229,11 @@ void map_memory(char* name, uint64_t size, uint64_t address) {
     ram =  g_new(MemoryRegion, 1);
     g_assert(ram);
 
-    printf("TAKING LOCK...\n");
-    bql_lock();
-    printf("TOOK LOCK\n");
-
     if(!is_rom) {
         memory_region_init_ram(ram, NULL, name, size, &error_fatal);
     } else {
         memory_region_init_rom(ram, NULL, name, size, &error_fatal);
     }
-
-    bql_unlock();
 
     printf("Adding memory region %s (size: 0x%"
            PRIx64 ") at address 0x%" PRIx64 "\n", name, size, address);
