@@ -183,6 +183,7 @@
             'postcopy-paused', 'postcopy-recover-setup',
             'postcopy-recover', 'completed', 'failed', 'colo',
             'pre-switchover', 'device', 'wait-unplug' ] }
+
 ##
 # @VfioStats:
 #
@@ -529,6 +530,7 @@
 # Features:
 #
 # @unstable: Members @x-colo and @x-ignore-shared are experimental.
+#
 # @deprecated: Member @zero-blocks is deprecated as being part of
 #     block migration which was already removed.
 #
@@ -1708,6 +1710,7 @@
 # The migration channel-type request options.
 #
 # @main: Main outbound migration channel.
+#
 # @cpr: Checkpoint and restart state channel.
 #
 # Since: 8.1
