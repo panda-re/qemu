@@ -35,7 +35,6 @@
 #include "cpregs.h"
 #include "target/arm/gtimer.h"
 #include "qemu/plugin.h"
-#include "panda/callbacks/cb-support.h"
 
 /**
  * PANDA IMPORTS
