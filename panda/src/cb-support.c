@@ -218,7 +218,8 @@ void PCB(before_find_fast)(void) {
         }
     }
     if (panda_flush_tb()) {
-        tb_flush(first_cpu);
+        queue_tb_flush(current_cpu);
+        cpu_loop_exit(current_cpu);
     }
 }
 
