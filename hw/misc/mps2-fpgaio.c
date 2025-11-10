@@ -198,7 +198,7 @@ static void mps2_fpgaio_write(void *opaque, hwaddr offset, uint64_t value,
 
             s->led0 = value & MAKE_64BIT_MASK(0, s->num_leds);
             for (i = 0; i < s->num_leds; i++) {
-                led_set_state(s->led[i], value & (1 << i));
+                led_set_state(s->led[i], extract64(value, i, 1));
             }
         }
         break;
@@ -328,7 +328,7 @@ static const Property mps2_fpgaio_properties[] = {
     DEFINE_PROP_BOOL("has-dbgctrl", MPS2FPGAIO, has_dbgctrl, false),
 };
 
-static void mps2_fpgaio_class_init(ObjectClass *klass, void *data)
+static void mps2_fpgaio_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

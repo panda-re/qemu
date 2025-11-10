@@ -22,9 +22,11 @@
 #include "cpu.h"
 #include "exec/cputlb.h"
 #include "exec/translation-block.h"
+#include "exec/target_page.h"
 #include "system/runstate.h"
 #ifndef CONFIG_USER_ONLY
 #include "system/hw_accel.h"
+#include "system/memory.h"
 #include "monitor/monitor.h"
 #include "kvm/kvm_i386.h"
 #endif
@@ -32,6 +34,7 @@
 #ifdef CONFIG_TCG
 #include "tcg/insn-start-words.h"
 #endif
+bool panda_callbacks_asid_changed(CPUState *env, uint64_t oldval, uint64_t newval);
 
 void cpu_sync_avx_hflag(CPUX86State *env)
 {
@@ -108,6 +111,7 @@ int cpu_x86_support_mca_broadcast(CPUX86State *env)
 /* x86 mmu */
 /* XXX: add PGE support */
 
+#ifndef CONFIG_USER_ONLY
 void x86_cpu_set_a20(X86CPU *cpu, int a20_state)
 {
     CPUX86State *env = &cpu->env;
@@ -127,6 +131,7 @@ void x86_cpu_set_a20(X86CPU *cpu, int a20_state)
         env->a20_mask = ~(1 << 20) | (a20_state << 20);
     }
 }
+#endif
 
 void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0)
 {
@@ -172,11 +177,14 @@ void cpu_x86_update_cr0(CPUX86State *env, uint32_t new_cr0)
    the PDPT */
 void cpu_x86_update_cr3(CPUX86State *env, target_ulong new_cr3)
 {
-    env->cr[3] = new_cr3;
-    if (env->cr[0] & CR0_PG_MASK) {
-        qemu_log_mask(CPU_LOG_MMU,
-                        "CR3 update: CR3=" TARGET_FMT_lx "\n", new_cr3);
-        tlb_flush(env_cpu(env));
+        // ret false means *dont* allow cr3 to change
+    if (!panda_callbacks_asid_changed(env_cpu(env), env->cr[3], new_cr3)) {
+        env->cr[3] = new_cr3;
+        if (env->cr[0] & CR0_PG_MASK) {
+            qemu_log_mask(CPU_LOG_MMU,
+                            "CR3 update: CR3=" TARGET_FMT_lx "\n", new_cr3);
+            tlb_flush(env_cpu(env));
+        }
     }
 }
 
@@ -524,7 +532,7 @@ void cpu_x86_inject_mce(Monitor *mon, X86CPU *cpu, int bank,
 static inline target_ulong get_memio_eip(CPUX86State *env)
 {
 #ifdef CONFIG_TCG
-    uint64_t data[TARGET_INSN_START_WORDS];
+    uint64_t data[INSN_START_WORDS];
     CPUState *cs = env_cpu(env);
 
     if (!cpu_unwind_state_data(cs, cs->mem_io_pc, data)) {
@@ -617,6 +625,10 @@ void do_cpu_init(X86CPU *cpu)
 
 void do_cpu_sipi(X86CPU *cpu)
 {
+    CPUX86State *env = &cpu->env;
+    if (env->hflags & HF_SMM_MASK) {
+        return;
+    }
     apic_sipi(cpu->apic_state);
 }
 

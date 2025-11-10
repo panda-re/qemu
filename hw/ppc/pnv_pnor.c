@@ -108,6 +108,8 @@ static void pnv_pnor_realize(DeviceState *dev, Error **errp)
         memset(s->storage, 0xFF, s->size);
     }
 
+    s->lpc_address = PNOR_SPI_OFFSET;
+
     memory_region_init_io(&s->mmio, OBJECT(s), &pnv_pnor_ops, s,
                           TYPE_PNV_PNOR, s->size);
 }
@@ -117,7 +119,7 @@ static const Property pnv_pnor_properties[] = {
     DEFINE_PROP_DRIVE("drive", PnvPnor, blk),
 };
 
-static void pnv_pnor_class_init(ObjectClass *klass, void *data)
+static void pnv_pnor_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
