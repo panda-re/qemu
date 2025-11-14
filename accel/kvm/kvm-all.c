@@ -65,6 +65,7 @@
 # define KVM_HAVE_MCE_INJECTION 1
 #endif
 
+bool panda_callbacks_guest_hypercall(CPUState *cpu);
 
 /* KVM uses PAGE_SIZE in its definition of KVM_COALESCED_MMIO_MAX. We
  * need to use the real host PAGE_SIZE, as that's what KVM will use.
@@ -3327,6 +3328,9 @@ int kvm_cpu_exec(CPUState *cpu)
             break;
         default:
             ret = kvm_arch_handle_exit(cpu, run);
+            if (run->exit_reason == KVM_EXIT_HYPERCALL){
+                panda_callbacks_guest_hypercall(cpu);
+            }
             break;
         }
     } while (ret == 0);
