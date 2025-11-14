@@ -5727,41 +5727,59 @@ static void gen_mfc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         }
         break;
     case CP0_REGISTER_25:
-        switch (sel) {
-        case CP0_REG25__PERFCTL0:
-            gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_Performance0));
-            register_name = "Performance0";
-            break;
-        case CP0_REG25__PERFCNT0:
-            /* gen_helper_mfc0_performance1(arg); */
-            register_name = "Performance1";
-            goto cp0_unimplemented;
-        case CP0_REG25__PERFCTL1:
-            /* gen_helper_mfc0_performance2(arg); */
-            register_name = "Performance2";
-            goto cp0_unimplemented;
-        case CP0_REG25__PERFCNT1:
-            /* gen_helper_mfc0_performance3(arg); */
-            register_name = "Performance3";
-            goto cp0_unimplemented;
-        case CP0_REG25__PERFCTL2:
-            /* gen_helper_mfc0_performance4(arg); */
-            register_name = "Performance4";
-            goto cp0_unimplemented;
-        case CP0_REG25__PERFCNT2:
-            /* gen_helper_mfc0_performance5(arg); */
-            register_name = "Performance5";
-            goto cp0_unimplemented;
-        case CP0_REG25__PERFCTL3:
-            /* gen_helper_mfc0_performance6(arg); */
-            register_name = "Performance6";
-            goto cp0_unimplemented;
-        case CP0_REG25__PERFCNT3:
-            /* gen_helper_mfc0_performance7(arg); */
-            register_name = "Performance7";
-            goto cp0_unimplemented;
-        default:
-            goto cp0_unimplemented;
+        if (ctx->insn_flags & INSN_OCTEON3) {
+            switch (sel) {
+            case CP0_REG25__PERFCTL0:
+            case CP0_REG25__PERFCTL1:
+            case CP0_REG25__PERFCTL2:
+            case CP0_REG25__PERFCTL3:
+            case CP0_REG25__PERFCNT0:
+            case CP0_REG25__PERFCNT1:
+            case CP0_REG25__PERFCNT2:
+            case CP0_REG25__PERFCNT3:
+                tcg_gen_movi_tl(arg, 0);     /* read returns 0 */
+                register_name = "Performance";
+                break;
+            default:
+                goto cp0_unimplemented;
+            }
+        } else {
+            switch (sel) {
+            case CP0_REG25__PERFCTL0:
+                gen_mfc0_load32(arg, offsetof(CPUMIPSState, CP0_Performance0));
+                register_name = "Performance0";
+                break;
+            case CP0_REG25__PERFCNT0:
+                /* gen_helper_mfc0_performance1(arg); */
+                register_name = "Performance1";
+                goto cp0_unimplemented;
+            case CP0_REG25__PERFCTL1:
+                /* gen_helper_mfc0_performance2(arg); */
+                register_name = "Performance2";
+                goto cp0_unimplemented;
+            case CP0_REG25__PERFCNT1:
+                /* gen_helper_mfc0_performance3(arg); */
+                register_name = "Performance3";
+                goto cp0_unimplemented;
+            case CP0_REG25__PERFCTL2:
+                /* gen_helper_mfc0_performance4(arg); */
+                register_name = "Performance4";
+                goto cp0_unimplemented;
+            case CP0_REG25__PERFCNT2:
+                /* gen_helper_mfc0_performance5(arg); */
+                register_name = "Performance5";
+                goto cp0_unimplemented;
+            case CP0_REG25__PERFCTL3:
+                /* gen_helper_mfc0_performance6(arg); */
+                register_name = "Performance6";
+                goto cp0_unimplemented;
+            case CP0_REG25__PERFCNT3:
+                /* gen_helper_mfc0_performance7(arg); */
+                register_name = "Performance7";
+                goto cp0_unimplemented;
+            default:
+                goto cp0_unimplemented;
+            }
         }
         break;
     case CP0_REGISTER_26:
@@ -6474,41 +6492,62 @@ static void gen_mtc0(DisasContext *ctx, TCGv arg, int reg, int sel)
         }
         break;
     case CP0_REGISTER_25:
-        switch (sel) {
-        case CP0_REG25__PERFCTL0:
-            gen_helper_mtc0_performance0(tcg_env, arg);
-            register_name = "Performance0";
-            break;
-        case CP0_REG25__PERFCNT0:
-            /* gen_helper_mtc0_performance1(arg); */
-            register_name = "Performance1";
-            goto cp0_unimplemented;
-        case CP0_REG25__PERFCTL1:
-            /* gen_helper_mtc0_performance2(arg); */
-            register_name = "Performance2";
-            goto cp0_unimplemented;
-        case CP0_REG25__PERFCNT1:
-            /* gen_helper_mtc0_performance3(arg); */
-            register_name = "Performance3";
-            goto cp0_unimplemented;
-        case CP0_REG25__PERFCTL2:
-            /* gen_helper_mtc0_performance4(arg); */
-            register_name = "Performance4";
-            goto cp0_unimplemented;
-        case CP0_REG25__PERFCNT2:
-            /* gen_helper_mtc0_performance5(arg); */
-            register_name = "Performance5";
-            goto cp0_unimplemented;
-        case CP0_REG25__PERFCTL3:
-            /* gen_helper_mtc0_performance6(arg); */
-            register_name = "Performance6";
-            goto cp0_unimplemented;
-        case CP0_REG25__PERFCNT3:
-            /* gen_helper_mtc0_performance7(arg); */
-            register_name = "Performance7";
-            goto cp0_unimplemented;
-        default:
-            goto cp0_unimplemented;
+        if (ctx->insn_flags & INSN_OCTEON3) {
+            switch (sel) {
+            case CP0_REG25__PERFCTL0:
+                gen_helper_mtc0_performance0(tcg_env, arg);
+                register_name = "Performance0";
+                break;
+            case CP0_REG25__PERFCTL1:
+            case CP0_REG25__PERFCTL2:
+            case CP0_REG25__PERFCTL3:
+            case CP0_REG25__PERFCNT0:
+            case CP0_REG25__PERFCNT1:
+            case CP0_REG25__PERFCNT2:
+            case CP0_REG25__PERFCNT3:
+                register_name = "Performance";
+                /* ignore write – no-op */
+                break;
+            default:
+                goto cp0_unimplemented;
+            }
+        } else {
+            switch (sel) {
+            case CP0_REG25__PERFCTL0:
+                gen_helper_mtc0_performance0(tcg_env, arg);
+                register_name = "Performance0";
+                break;
+            case CP0_REG25__PERFCNT0:
+                /* gen_helper_mtc0_performance1(arg); */
+                register_name = "Performance1";
+                goto cp0_unimplemented;
+            case CP0_REG25__PERFCTL1:
+                /* gen_helper_mtc0_performance2(arg); */
+                register_name = "Performance2";
+                goto cp0_unimplemented;
+            case CP0_REG25__PERFCNT1:
+                /* gen_helper_mtc0_performance3(arg); */
+                register_name = "Performance3";
+                goto cp0_unimplemented;
+            case CP0_REG25__PERFCTL2:
+                /* gen_helper_mtc0_performance4(arg); */
+                register_name = "Performance4";
+                goto cp0_unimplemented;
+            case CP0_REG25__PERFCNT2:
+                /* gen_helper_mtc0_performance5(arg); */
+                register_name = "Performance5";
+                goto cp0_unimplemented;
+            case CP0_REG25__PERFCTL3:
+                /* gen_helper_mtc0_performance6(arg); */
+                register_name = "Performance6";
+                goto cp0_unimplemented;
+            case CP0_REG25__PERFCNT3:
+                /* gen_helper_mtc0_performance7(arg); */
+                register_name = "Performance7";
+                goto cp0_unimplemented;
+            default:
+                goto cp0_unimplemented;
+            }
         }
        break;
     case CP0_REGISTER_26:
@@ -15045,6 +15084,9 @@ static void decode_opc(CPUMIPSState *env, DisasContext *ctx)
         return;
     }
     if (cpu_supports_isa(env, INSN_OCTEON) && decode_ext_octeon(ctx, ctx->opcode)) {
+        return;
+    }
+    if (cpu_supports_isa(env, INSN_OCTEON3) && decode_ext_octeon3(ctx, ctx->opcode)) {
         return;
     }
 #endif

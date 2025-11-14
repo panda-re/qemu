@@ -1,0 +1,17 @@
+# Octeon III Architecture Module instruction set
+# This file is used with --static-decode=decode_ext_octeon3
+# R-type:  opcode(6) | rs(5) | rt(5) | rd(5) | shamt(5) | funct(6)
+
+# --- Octeon3 “move to multiply state” (2 operands): rd=0, shamt=0 ---
+# opcode = 011100 (SPECIAL2)
+
+MTM0_V3   011100 rs:5 rt:5 00000 00000 010000
+MTM1_V3   011100 rs:5 rt:5 00000 00000 010001
+MTM2_V3   011100 rs:5 rt:5 00000 00000 010010
+
+MTP0_V3   011100 rs:5 rt:5 00000 00000 010011
+MTP1_V3   011100 rs:5 rt:5 00000 00000 010100
+MTP2_V3   011100 rs:5 rt:5 00000 00000 010101
+
+# --- Octeon3 multiply (3 operands): rd is written, shamt=0 ---
+V3MULU    011100 rs:5 rt:5 rd:5 00000 010110
