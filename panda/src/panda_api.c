@@ -38,6 +38,7 @@ extern char *panda_snap_name;
 // extern bool panda_aborted;
 
 int panda_run(void) {
+    printf("IN PANDA_RUN=====================");
     int status = 0;
     panda_in_main_loop = 1;
     status = qemu_main_loop();
@@ -224,6 +225,7 @@ void panda_setup_signal_handling(void (*f) (int, void*, void *))
 
 // Taken from Avatar2's Configurable Machine - see hw/avatar/configurable_machine.c
 void map_memory(char* name, uint64_t size, uint64_t address) {
+    printf("==========map_memory==========");
     //const char * name; /// XXX const?
     MemoryRegion * ram;
     bool is_rom = false; // For now, only ram
