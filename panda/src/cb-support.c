@@ -244,6 +244,17 @@ bool PCB(after_find_fast)(CPUState *cpu, TranslationBlock *tb,
 int32_t panda_cb_trampoline_before_handle_exception(void* context, CPUState *cpu, int32_t exception_index) {
     return (*(panda_cb*)context).before_handle_exception(cpu, exception_index);
 }
+
+int PCB(insn_exec)(CPUState* cpu, uint64_t pc)
+{
+    panda_cb_list *plist;
+for (plist = panda_cbs[PANDA_CB_INSN_EXEC];
+ plist != NULL; plist = panda_cb_list_next(plist)) {
+if (plist->enabled)
+plist->entry.insn_exec(plist->context, cpu, pc);
+}
+return 0;
+}
     
 int panda_cb_trampoline_insn_exec(void* context, CPUState *env, uint64_t pc) {
     return (*(panda_cb*)context).insn_exec(env, pc);
