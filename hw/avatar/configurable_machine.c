@@ -57,6 +57,7 @@ typedef  MIPSCPU THISCPU;
 #elif defined(TARGET_PPC)
 #include "hw/ppc/ppc.h"
 #include "target/ppc/cpu.h"
+#include "system/reset.h"
 typedef PowerPCCPU THISCPU;
 
 #elif defined(TARGET_AVR)
@@ -71,6 +72,17 @@ typedef AVRCPU THISCPU;
 #include "qobject/qnum.h"
 #include "qobject/qdict.h"
 #include "qobject/qlist.h"
+
+#ifdef TARGET_PPC
+// copied from hw/ppc/prep.c
+static void ppc_prep_reset(void *opaque)
+{
+    PowerPCCPU *cpu = opaque;
+
+    cpu_reset(CPU(cpu));
+    cpu_ppc_tb_reset(&cpu->env);
+}
+#endif
 
 
 void avatar_cm_set_entry_point(QDict *conf, THISCPU *cpuu);
@@ -565,6 +577,10 @@ static THISCPU *create_cpu(MachineState * ms, QDict *conf)
 
 #elif defined(TARGET_PPC)
     cpuu = POWERPC_CPU(cpu_create(cpu_type));
+
+    // from hw/ppc/prep.c's ibm_40p_init
+    cpu_ppc_tb_init(&cpuu->env, 100UL * 1000UL * 1000UL);
+    qemu_register_reset(ppc_prep_reset, cpuu);
 #endif
 
     (void) cpuobj; // TODO remove
