@@ -132,7 +132,7 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
     for (size_t i=0; i<n_insns; i++){
         insn = qemu_plugin_tb_get_insn(tb, i);
         if (unlikely(panda_callbacks_insn_translate(cpu, pc))){
-            qemu_plugin_register_vcpu_insn_exec_cb(insn, insn_exec, QEMU_PLUGIN_CB_NO_REGS, (void*)qemu_plugin_insn_vaddr(insn));
+            qemu_plugin_register_vcpu_insn_exec_cb(insn, insn_exec, QEMU_PLUGIN_CB_RW_REGS, (void*)qemu_plugin_insn_vaddr(insn));
         }
         int memcb_status =  panda_get_memcb_status();
         if (memcb_status){
@@ -145,13 +145,13 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
     // install before_block_exec
     TranslationBlock *real_tb = panda_get_tb(tb);
     qemu_plugin_register_vcpu_tb_exec_cb(tb, start_block_exec_cb,
-                                        QEMU_PLUGIN_CB_NO_REGS,
+                                        QEMU_PLUGIN_CB_RW_REGS,
                                          (void *)real_tb);
     
     // install after_block_exec
     last_instr = qemu_plugin_tb_get_insn(tb, n_insns - 1);
     qemu_plugin_register_vcpu_insn_exec_cb(last_instr, end_block_exec_cb,
-                                QEMU_PLUGIN_CB_NO_REGS, (void *)real_tb);
+                                QEMU_PLUGIN_CB_RW_REGS, (void *)real_tb);
 
     panda_callbacks_block_translate(cpu, tb);
 }
