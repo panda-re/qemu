@@ -35,8 +35,8 @@ static void end_block_exec_cb(unsigned int cpu_index, void *udata)
 
 static void insn_exec(unsigned int cpu_index, void *udata)
 {
-    // CPUState *cpu = panda_cpu_by_index(cpu_index);
-    // panda_callbacks_insn_exec(cpu, (uint64_t) udata);
+    CPUState *cpu = panda_cpu_by_index(cpu_index);
+    panda_callbacks_insn_exec(cpu, (uint64_t) udata);
 }
 
 #ifdef TODO_LATER
