@@ -254,6 +254,15 @@ int panda_cb_trampoline_after_insn_exec(void* context, CPUState *env, uint64_t p
     return (*(panda_cb*)context).after_insn_exec(env, pc);
 }
 
+int PCB(insn_exec)(CPUState* cpu, uint64_t pc) {
+    panda_cb_list* plist;
+    for (plist = panda_cbs[PANDA_CB_INSN_EXEC];
+         plist != NULL; plist = panda_cb_list_next(plist)) {
+        if (plist->enabled)
+            plist->entry.insn_exec(plist->context, cpu, pc);
+    }
+    return 0;
+}
 // this callback allows us to swallow exceptions
 //
 // first callback that returns an exception index that *differs* from
