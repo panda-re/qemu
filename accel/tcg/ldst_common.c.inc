@@ -123,7 +123,7 @@ void helper_st_i128(CPUArchState *env, uint64_t addr, Int128 val, MemOpIdx oi)
  * Load helpers for cpu_ldst.h
  */
 
-static void plugin_load_cb(CPUArchState *env, vaddr addr,
+static void plugin_after_load_cb(CPUArchState *env, vaddr addr,
                            uint64_t value_low,
                            uint64_t value_high,
                            MemOpIdx oi)
@@ -131,7 +131,16 @@ static void plugin_load_cb(CPUArchState *env, vaddr addr,
     if (cpu_plugin_mem_cbs_enabled(env_cpu(env))) {
         qemu_plugin_vcpu_mem_cb(env_cpu(env), addr,
                                 value_low, value_high,
-                                oi, QEMU_PLUGIN_MEM_R);
+                                oi, QEMU_PLUGIN_AFTER_MEM_R);
+    }
+}
+static void plugin_before_load_cb(CPUArchState *env, vaddr addr,
+                           MemOpIdx oi)
+{
+    if (cpu_plugin_mem_cbs_enabled(env_cpu(env))) {
+        qemu_plugin_vcpu_mem_cb(env_cpu(env), addr,
+                                0, 0,
+                                oi, QEMU_PLUGIN_BEFORE_MEM_R);
     }
 }
 
@@ -140,8 +149,9 @@ uint8_t cpu_ldb_mmu(CPUArchState *env, vaddr addr, MemOpIdx oi, uintptr_t ra)
     uint8_t ret;
 
     tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_UB);
+    plugin_before_load_cb(env, addr, oi);
     ret = do_ld1_mmu(env_cpu(env), addr, oi, ra, MMU_DATA_LOAD);
-    plugin_load_cb(env, addr, ret, 0, oi);
+    plugin_after_load_cb(env, addr, ret, 0, oi);
     return ret;
 }
 
@@ -151,8 +161,9 @@ uint16_t cpu_ldw_mmu(CPUArchState *env, vaddr addr,
     uint16_t ret;
 
     tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_16);
+    plugin_before_load_cb(env, addr, oi);
     ret = do_ld2_mmu(env_cpu(env), addr, oi, ra, MMU_DATA_LOAD);
-    plugin_load_cb(env, addr, ret, 0, oi);
+    plugin_after_load_cb(env, addr, ret, 0, oi);
     return ret;
 }
 
@@ -162,8 +173,9 @@ uint32_t cpu_ldl_mmu(CPUArchState *env, vaddr addr,
     uint32_t ret;
 
     tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_32);
+    plugin_before_load_cb(env, addr, oi);
     ret = do_ld4_mmu(env_cpu(env), addr, oi, ra, MMU_DATA_LOAD);
-    plugin_load_cb(env, addr, ret, 0, oi);
+    plugin_after_load_cb(env, addr, ret, 0, oi);
     return ret;
 }
 
@@ -173,8 +185,9 @@ uint64_t cpu_ldq_mmu(CPUArchState *env, vaddr addr,
     uint64_t ret;
 
     tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_64);
+    plugin_before_load_cb(env, addr, oi);
     ret = do_ld8_mmu(env_cpu(env), addr, oi, ra, MMU_DATA_LOAD);
-    plugin_load_cb(env, addr, ret, 0, oi);
+    plugin_after_load_cb(env, addr, ret, 0, oi);
     return ret;
 }
 
@@ -184,8 +197,9 @@ Int128 cpu_ld16_mmu(CPUArchState *env, vaddr addr,
     Int128 ret;
 
     tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_128);
+    plugin_before_load_cb(env, addr, oi);
     ret = do_ld16_mmu(env_cpu(env), addr, oi, ra);
-    plugin_load_cb(env, addr, int128_getlo(ret), int128_gethi(ret), oi);
+    plugin_after_load_cb(env, addr, int128_getlo(ret), int128_gethi(ret), oi);
     return ret;
 }
 
@@ -193,7 +207,7 @@ Int128 cpu_ld16_mmu(CPUArchState *env, vaddr addr,
  * Store helpers for cpu_ldst.h
  */
 
-static void plugin_store_cb(CPUArchState *env, vaddr addr,
+static void plugin_after_store_cb(CPUArchState *env, vaddr addr,
                             uint64_t value_low,
                             uint64_t value_high,
                             MemOpIdx oi)
@@ -201,45 +215,61 @@ static void plugin_store_cb(CPUArchState *env, vaddr addr,
     if (cpu_plugin_mem_cbs_enabled(env_cpu(env))) {
         qemu_plugin_vcpu_mem_cb(env_cpu(env), addr,
                                 value_low, value_high,
-                                oi, QEMU_PLUGIN_MEM_W);
+                                oi, QEMU_PLUGIN_AFTER_MEM_W);
+    }
+}
+static void plugin_before_store_cb(CPUArchState *env, vaddr addr,
+                            uint64_t value_low,
+                            uint64_t value_high,
+                            MemOpIdx oi)
+{
+    if (cpu_plugin_mem_cbs_enabled(env_cpu(env))) {
+        qemu_plugin_vcpu_mem_cb(env_cpu(env), addr,
+                                value_low, value_high,
+                                oi, QEMU_PLUGIN_BEFORE_MEM_W);
     }
 }
 
 void cpu_stb_mmu(CPUArchState *env, vaddr addr, uint8_t val,
                  MemOpIdx oi, uintptr_t retaddr)
 {
+    plugin_before_store_cb(env, addr, val, 0, oi);
     helper_stb_mmu(env, addr, val, oi, retaddr);
-    plugin_store_cb(env, addr, val, 0, oi);
+    plugin_after_store_cb(env, addr, val, 0, oi);
 }
 
 void cpu_stw_mmu(CPUArchState *env, vaddr addr, uint16_t val,
                  MemOpIdx oi, uintptr_t retaddr)
 {
     tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_16);
+    plugin_before_store_cb(env, addr, val, 0, oi);
     do_st2_mmu(env_cpu(env), addr, val, oi, retaddr);
-    plugin_store_cb(env, addr, val, 0, oi);
+    plugin_after_store_cb(env, addr, val, 0, oi);
 }
 
 void cpu_stl_mmu(CPUArchState *env, vaddr addr, uint32_t val,
                     MemOpIdx oi, uintptr_t retaddr)
 {
     tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_32);
+    plugin_before_store_cb(env, addr, val, 0, oi);
     do_st4_mmu(env_cpu(env), addr, val, oi, retaddr);
-    plugin_store_cb(env, addr, val, 0, oi);
+    plugin_after_store_cb(env, addr, val, 0, oi);
 }
 
 void cpu_stq_mmu(CPUArchState *env, vaddr addr, uint64_t val,
                  MemOpIdx oi, uintptr_t retaddr)
 {
     tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_64);
+    plugin_before_store_cb(env, addr, val, 0, oi);
     do_st8_mmu(env_cpu(env), addr, val, oi, retaddr);
-    plugin_store_cb(env, addr, val, 0, oi);
+    plugin_after_store_cb(env, addr, val, 0, oi);
 }
 
 void cpu_st16_mmu(CPUArchState *env, vaddr addr, Int128 val,
                   MemOpIdx oi, uintptr_t retaddr)
 {
     tcg_debug_assert((get_memop(oi) & MO_SIZE) == MO_128);
+    plugin_before_store_cb(env, addr, val, 0, oi);
     do_st16_mmu(env_cpu(env), addr, val, oi, retaddr);
-    plugin_store_cb(env, addr, int128_getlo(val), int128_gethi(val), oi);
+    plugin_after_store_cb(env, addr, int128_getlo(val), int128_gethi(val), oi);
 }
