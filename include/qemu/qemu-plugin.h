@@ -330,8 +330,14 @@ enum qemu_plugin_cb_flags {
 
 enum qemu_plugin_mem_rw {
     QEMU_PLUGIN_MEM_R = 1,
-    QEMU_PLUGIN_MEM_W,
-    QEMU_PLUGIN_MEM_RW,
+    QEMU_PLUGIN_MEM_W = 2,
+    QEMU_PLUGIN_MEM_RW = 3,
+    QEMU_PLUGIN_BEFORE_MEM_R  = 0x10 | QEMU_PLUGIN_MEM_R,
+    QEMU_PLUGIN_BEFORE_MEM_W  = 0x10 | QEMU_PLUGIN_MEM_W,
+    QEMU_PLUGIN_BEFORE_MEM_RW = 0x10 | QEMU_PLUGIN_MEM_RW,
+    QEMU_PLUGIN_AFTER_MEM_R = QEMU_PLUGIN_MEM_R,
+    QEMU_PLUGIN_AFTER_MEM_W = QEMU_PLUGIN_MEM_W,
+    QEMU_PLUGIN_AFTER_MEM_RW = QEMU_PLUGIN_MEM_RW,
 };
 
 enum qemu_plugin_mem_value_type {
@@ -666,6 +672,17 @@ bool qemu_plugin_mem_is_big_endian(qemu_plugin_meminfo_t info);
  */
 QEMU_PLUGIN_API
 bool qemu_plugin_mem_is_store(qemu_plugin_meminfo_t info);
+
+/**
+ * qemu_plugin_mem_get_raw_value() - return last value loaded/stored
+ * @info: opaque memory transaction handle
+ * @out_low: output parameter for raw low part of memory value
+ * @out_high: output parameter for raw high part of memory value
+ *
+ * Returns: bit width of right
+ */
+QEMU_PLUGIN_API
+size_t qemu_plugin_mem_get_raw_value(qemu_plugin_meminfo_t info, uint64_t* out_low, uint64_t* out_high);
 
 /**
  * qemu_plugin_mem_get_value() - return last value loaded/stored

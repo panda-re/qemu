@@ -65,10 +65,15 @@ struct qemu_plugin_tb {};
 #endif
 
 /* shared helpers for virtual/physical memory callbacks */
-void panda_callbacks_mem_before_read(CPUState *env, uint64_t pc, uint64_t addr, size_t data_size, void *ram_ptr);
-void panda_callbacks_mem_after_read(CPUState *env, uint64_t pc, uint64_t addr, size_t data_size, uint64_t result, void *ram_ptr);
-void panda_callbacks_mem_before_write(CPUState *env, uint64_t pc, uint64_t addr, size_t data_size, uint64_t val, void *ram_ptr);
-void panda_callbacks_mem_after_write(CPUState *env, uint64_t pc, uint64_t addr, size_t data_size, uint64_t val, void *ram_ptr);
+void panda_callbacks_virt_mem_before_read(CPUState *env, uint64_t pc, uint64_t addr, size_t data_size, void *ram_ptr);
+void panda_callbacks_virt_mem_after_read(CPUState *env, uint64_t pc, uint64_t addr, size_t data_size, uint64_t result, void *ram_ptr);
+void panda_callbacks_virt_mem_before_write(CPUState *env, uint64_t pc, uint64_t addr, size_t data_size, uint64_t val, void *ram_ptr);
+void panda_callbacks_virt_mem_after_write(CPUState *env, uint64_t pc, uint64_t addr, size_t data_size, uint64_t val, void *ram_ptr);
+
+void panda_callbacks_phys_mem_before_read(CPUState *env, uint64_t pc, uint64_t paddr, size_t data_size, void *ram_ptr);
+void panda_callbacks_phys_mem_after_read(CPUState *env, uint64_t pc, uint64_t paddr, size_t data_size, uint64_t result, void *ram_ptr);
+void panda_callbacks_phys_mem_before_write(CPUState *env, uint64_t pc, uint64_t paddr, size_t data_size, uint64_t val, void *ram_ptr);
+void panda_callbacks_phys_mem_after_write(CPUState *env, uint64_t pc, uint64_t paddr, size_t data_size, uint64_t val, void *ram_ptr);
 
 /* invoked from cpu-exec.c */
 void panda_callbacks_before_find_fast(void);

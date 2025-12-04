@@ -23,10 +23,25 @@ static void atomic_trace_rmw_post(CPUArchState *env, uint64_t addr,
     if (cpu_plugin_mem_cbs_enabled(env_cpu(env))) {
         qemu_plugin_vcpu_mem_cb(env_cpu(env), addr,
                                 read_value_low, read_value_high,
-                                oi, QEMU_PLUGIN_MEM_R);
+                                oi, QEMU_PLUGIN_AFTER_MEM_R);
         qemu_plugin_vcpu_mem_cb(env_cpu(env), addr,
                                 write_value_low, write_value_high,
-                                oi, QEMU_PLUGIN_MEM_W);
+                                oi, QEMU_PLUGIN_AFTER_MEM_W);
+    }
+}
+
+static void atomic_trace_rmw_pre(CPUArchState *env, uint64_t addr,
+                                  MemOpIdx oi)
+{
+    if (cpu_plugin_mem_cbs_enabled(env_cpu(env))) {
+        qemu_plugin_vcpu_mem_cb(env_cpu(env), addr,
+                             /* PANDA...               AtomicOp */
+                                0x2e2e2e41444e4150ull, 0x704f63696d6f7441ull,
+                                oi, QEMU_PLUGIN_BEFORE_MEM_R);
+        qemu_plugin_vcpu_mem_cb(env_cpu(env), addr,
+                             /* PANDA...               AtomicOp */
+                                0x2e2e2e41444e4150ull, 0x704f63696d6f7441ull,
+                                oi, QEMU_PLUGIN_BEFORE_MEM_W);
     }
 }
 

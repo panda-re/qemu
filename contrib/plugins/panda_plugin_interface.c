@@ -19,6 +19,8 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
 QEMU_PLUGIN_EXPORT int (*external_plugin_install)(qemu_plugin_id_t id, const qemu_info_t *info,int argc, char **argv);
 
 
+extern target_ulong panda_current_pc(CPUState *cpu);
+
 static void start_block_exec_cb(unsigned int cpu_index, void *udata)
 {
     // printf("start_block_exec  %d %p\n", cpu_index, udata);
@@ -39,16 +41,18 @@ static void insn_exec(unsigned int cpu_index, void *udata)
     panda_callbacks_insn_exec(cpu, (uint64_t) udata);
 }
 
-#ifdef TODO_LATER
 static void vcpu_mem(unsigned int cpu_index, qemu_plugin_meminfo_t info,
                      uint64_t vaddr, void *udata){
     CPUState *cpu = panda_cpu_by_index(cpu_index);
+    uint64_t pc = panda_current_pc(cpu);
     struct qemu_plugin_hwaddr* hwaddr_info = qemu_plugin_get_hwaddr(info, vaddr);
-    uint64_t hwaddr;
+    uint64_t hwaddr = -1;
+    // fprintf(stderr, "vcpu_mem: cpu_index = %u info = %#" PRIx64 " vaddr = %#" PRIx64 " udata = %p\n", cpu_index, (uint64_t)info, vaddr, udata);
     if (hwaddr_info){
         hwaddr = qemu_plugin_hwaddr_phys_addr(hwaddr_info);
     }
-    bool is_store = qemu_plugin_mem_is_store(info);
+    // enum qemu_plugin_mem_rw tag = get_plugin_meminfo_rw(info);
+    unsigned tag = (info >> 16) & 0xff;
     qemu_plugin_mem_value m = qemu_plugin_mem_get_value(info);
     size_t size;
     void *data;
@@ -78,21 +82,40 @@ static void vcpu_mem(unsigned int cpu_index, qemu_plugin_meminfo_t info,
             assert(false);
     }
 
+    uint64_t mem_val_low  = 0;
+    uint64_t mem_val_high = 0;
+    qemu_plugin_mem_get_raw_value(info, &mem_val_low, &mem_val_high);
+
     if (hwaddr_info && qemu_plugin_hwaddr_is_io(hwaddr_info)){
         // panda_callbacks_mmio_after_read(cpu, hwaddr, vaddr, size, data);
     }
 
-    if (is_store){
-        if (hwaddr_info)
-            panda_callbacks_phys_mem_after_write(cpu, hwaddr, size, data);
-        panda_callbacks_virt_mem_after_write(cpu, vaddr, size, data);
-    }else{
-        if (hwaddr_info)
-            panda_callbacks_phys_mem_after_read(cpu, hwaddr, size, data);
-        panda_callbacks_virt_mem_after_read(cpu, vaddr, size, data);
+    if ((unsigned)tag & 0x10) {
+        /* before */
+        if (tag & QEMU_PLUGIN_MEM_R) {
+            if (hwaddr_info)
+                panda_callbacks_phys_mem_before_read(cpu, pc, hwaddr, size, data);
+            panda_callbacks_virt_mem_before_read(cpu, pc, vaddr, size, data);
+        }
+        if (tag & QEMU_PLUGIN_MEM_W) {
+            if (hwaddr_info)
+                panda_callbacks_phys_mem_before_write(cpu, pc, hwaddr, size, mem_val_low, data);
+            panda_callbacks_virt_mem_before_write(cpu, pc, vaddr, size, mem_val_low, data);
+        }
+    }
+    else {
+        if (tag & QEMU_PLUGIN_MEM_R) {
+            if (hwaddr_info)
+                panda_callbacks_phys_mem_after_read(cpu, pc, hwaddr, size, mem_val_low, data);
+            panda_callbacks_virt_mem_after_read(cpu, pc, vaddr, size, mem_val_low, data);
+        }
+        if (tag & QEMU_PLUGIN_MEM_W) {
+            if (hwaddr_info)
+                panda_callbacks_phys_mem_after_write(cpu, pc, hwaddr, size, mem_val_low, data);
+            panda_callbacks_virt_mem_after_write(cpu, pc, vaddr, size, mem_val_low, data);
+        }
     }
 }
-#endif
 
 
 static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
@@ -111,14 +134,12 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
         if (unlikely(panda_callbacks_insn_translate(cpu, pc))){
             qemu_plugin_register_vcpu_insn_exec_cb(insn, insn_exec, QEMU_PLUGIN_CB_NO_REGS, (void*)qemu_plugin_insn_vaddr(insn));
         }
-#ifdef TODO_LATER
         int memcb_status =  panda_get_memcb_status();
         if (memcb_status){
             qemu_plugin_register_vcpu_mem_cb(insn, vcpu_mem,
                                              QEMU_PLUGIN_CB_NO_REGS,
-                                             (enum qemu_plugin_mem_rw) memcb_status, NULL);
+                                             (enum qemu_plugin_mem_rw) memcb_status | 0x10, NULL);
         }
-#endif
     }
 
     // install before_block_exec
