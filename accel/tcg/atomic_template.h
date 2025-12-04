@@ -85,6 +85,7 @@ ABI_TYPE ATOMIC_NAME(cmpxchg)(CPUArchState *env, vaddr addr,
                                          DATA_SIZE, retaddr);
     DATA_TYPE ret;
 
+    atomic_trace_rmw_pre(env, addr, oi);
 #if DATA_SIZE == 16
     ret = atomic16_cmpxchg(haddr, cmpv, newv);
 #else
@@ -106,7 +107,7 @@ ABI_TYPE ATOMIC_NAME(xchg)(CPUArchState *env, vaddr addr, ABI_TYPE val,
     DATA_TYPE *haddr = atomic_mmu_lookup(env_cpu(env), addr, oi,
                                          DATA_SIZE, retaddr);
     DATA_TYPE ret;
-
+    atomic_trace_rmw_pre(env, addr, oi);
 #if DATA_SIZE == 16
     ret = atomic16_xchg(haddr, val);
 #else
@@ -128,6 +129,7 @@ ABI_TYPE ATOMIC_NAME(fetch_and)(CPUArchState *env, vaddr addr, ABI_TYPE val,
 {
     DATA_TYPE *haddr = atomic_mmu_lookup(env_cpu(env), addr, oi,
                                          DATA_SIZE, retaddr);
+    atomic_trace_rmw_pre(env, addr, oi);
     DATA_TYPE ret = atomic16_fetch_and(haddr, val);
     ATOMIC_MMU_CLEANUP;
     atomic_trace_rmw_post(env, addr,
@@ -144,6 +146,7 @@ ABI_TYPE ATOMIC_NAME(fetch_or)(CPUArchState *env, vaddr addr, ABI_TYPE val,
 {
     DATA_TYPE *haddr = atomic_mmu_lookup(env_cpu(env), addr, oi,
                                          DATA_SIZE, retaddr);
+    atomic_trace_rmw_pre(env, addr, oi);
     DATA_TYPE ret = atomic16_fetch_or(haddr, val);
     ATOMIC_MMU_CLEANUP;
     atomic_trace_rmw_post(env, addr,
@@ -161,6 +164,7 @@ ABI_TYPE ATOMIC_NAME(X)(CPUArchState *env, vaddr addr,              \
 {                                                                   \
     DATA_TYPE *haddr, ret;                                          \
     haddr = atomic_mmu_lookup(env_cpu(env), addr, oi, DATA_SIZE, retaddr);   \
+    atomic_trace_rmw_pre(env, addr, oi);                            \
     ret = qatomic_##X(haddr, val);                                  \
     ATOMIC_MMU_CLEANUP;                                             \
     atomic_trace_rmw_post(env, addr,                                \
@@ -197,6 +201,7 @@ ABI_TYPE ATOMIC_NAME(X)(CPUArchState *env, vaddr addr,              \
 {                                                                   \
     XDATA_TYPE *haddr, cmp, old, new, val = xval;                   \
     haddr = atomic_mmu_lookup(env_cpu(env), addr, oi, DATA_SIZE, retaddr);   \
+    atomic_trace_rmw_pre(env, addr, oi);                            \
     smp_mb();                                                       \
     cmp = qatomic_read__nocheck(haddr);                             \
     do {                                                            \
@@ -246,6 +251,7 @@ ABI_TYPE ATOMIC_NAME(cmpxchg)(CPUArchState *env, vaddr addr,
                                          DATA_SIZE, retaddr);
     DATA_TYPE ret;
 
+    atomic_trace_rmw_pre(env, addr, oi);
 #if DATA_SIZE == 16
     ret = atomic16_cmpxchg(haddr, BSWAP(cmpv), BSWAP(newv));
 #else
@@ -268,6 +274,7 @@ ABI_TYPE ATOMIC_NAME(xchg)(CPUArchState *env, vaddr addr, ABI_TYPE val,
                                          DATA_SIZE, retaddr);
     ABI_TYPE ret;
 
+    atomic_trace_rmw_pre(env, addr, oi);
 #if DATA_SIZE == 16
     ret = atomic16_xchg(haddr, BSWAP(val));
 #else
@@ -289,6 +296,7 @@ ABI_TYPE ATOMIC_NAME(fetch_and)(CPUArchState *env, vaddr addr, ABI_TYPE val,
 {
     DATA_TYPE *haddr = atomic_mmu_lookup(env_cpu(env), addr, oi,
                                          DATA_SIZE, retaddr);
+    atomic_trace_rmw_pre(env, addr, oi);
     DATA_TYPE ret = atomic16_fetch_and(haddr, BSWAP(val));
     ATOMIC_MMU_CLEANUP;
     atomic_trace_rmw_post(env, addr,
@@ -305,6 +313,7 @@ ABI_TYPE ATOMIC_NAME(fetch_or)(CPUArchState *env, vaddr addr, ABI_TYPE val,
 {
     DATA_TYPE *haddr = atomic_mmu_lookup(env_cpu(env), addr, oi,
                                          DATA_SIZE, retaddr);
+    atomic_trace_rmw_pre(env, addr, oi);
     DATA_TYPE ret = atomic16_fetch_or(haddr, BSWAP(val));
     ATOMIC_MMU_CLEANUP;
     atomic_trace_rmw_post(env, addr,
@@ -322,6 +331,7 @@ ABI_TYPE ATOMIC_NAME(X)(CPUArchState *env, vaddr addr,              \
 {                                                                   \
     DATA_TYPE *haddr, ret;                                          \
     haddr = atomic_mmu_lookup(env_cpu(env), addr, oi, DATA_SIZE, retaddr);   \
+    atomic_trace_rmw_pre(env, addr, oi);                            \
     ret = qatomic_##X(haddr, BSWAP(val));                           \
     ATOMIC_MMU_CLEANUP;                                             \
     atomic_trace_rmw_post(env, addr,                                \
@@ -355,6 +365,7 @@ ABI_TYPE ATOMIC_NAME(X)(CPUArchState *env, vaddr addr,              \
 {                                                                   \
     XDATA_TYPE *haddr, ldo, ldn, old, new, val = xval;              \
     haddr = atomic_mmu_lookup(env_cpu(env), addr, oi, DATA_SIZE, retaddr);   \
+    atomic_trace_rmw_pre(env, addr, oi);                            \
     smp_mb();                                                       \
     ldn = qatomic_read__nocheck(haddr);                             \
     do {                                                            \

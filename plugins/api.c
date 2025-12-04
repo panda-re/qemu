@@ -363,6 +363,32 @@ bool qemu_plugin_mem_is_store(qemu_plugin_meminfo_t info)
     return get_plugin_meminfo_rw(info) & QEMU_PLUGIN_MEM_W;
 }
 
+size_t qemu_plugin_mem_get_raw_value(qemu_plugin_meminfo_t info, uint64_t* out_low, uint64_t* out_high)
+{
+    uint64_t low = current_cpu->neg.plugin_mem_value_low;
+    uint64_t high = current_cpu->neg.plugin_mem_value_high;
+
+    if (out_low)
+        *out_low = low;
+    if (out_high)
+        *out_high = high;
+
+    switch (qemu_plugin_mem_size_shift(info)) {
+    case 0:
+        return 8;
+    case 1:
+        return 16;
+    case 2:
+        return 32;
+    case 3:
+        return 64;
+    case 4:
+        return 128;
+    default:
+        g_assert_not_reached();
+    }
+}
+
 qemu_plugin_mem_value qemu_plugin_mem_get_value(qemu_plugin_meminfo_t info)
 {
     uint64_t low = current_cpu->neg.plugin_mem_value_low;
