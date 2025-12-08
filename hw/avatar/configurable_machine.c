@@ -38,6 +38,7 @@
 #ifdef TARGET_ARM
 #include "target/arm/cpu.h"
 #include "hw/avatar/arm_helper.h"
+#include "hw/arm/machines-qom.h"
 
 #if !defined(TARGET_AARCH64)
 #include "hw/arm/armv7m.h"
@@ -694,6 +695,9 @@ static const TypeInfo configurable_machine_type = {
     .name       = MACHINE_TYPE_NAME("configurable"),
     .parent     = TYPE_MACHINE,
     .class_init = configurable_machine_class_init,
+#ifdef TARGET_ARM
+    .interfaces = arm_machine_interfaces,
+#endif
 };
 
 static void configurable_machine_init(void)
