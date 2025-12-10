@@ -120,6 +120,14 @@ void helper_eret(CPUMIPSState *env)
     exception_return(env);
     env->CP0_LLAddr = 1;
     env->lladdr = 1;
+
+    // addition start
+    if ((env->hflags & MIPS_HFLAG_UM) &&
+        (env->insn_flags & INSN_OCTEON_TLS)) {
+        /* emulate old Octeon ABI: k0 holds TLS base in user mode */
+        env->active_tc.gpr[26] = env->active_tc.CP0_UserLocal;
+    }
+    // addition end
 }
 
 void helper_eretnc(CPUMIPSState *env)
