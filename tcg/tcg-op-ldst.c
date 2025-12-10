@@ -183,7 +183,7 @@ plugin_gen_before_mem_read_callbacks(TCGv_i64 copy_addr, TCGTemp *orig_addr, Mem
                          enum qemu_plugin_mem_rw rw)
 {
     if (tcg_ctx->plugin_insn != NULL) {
-        qemu_plugin_meminfo_t info = make_plugin_meminfo(oi, 0x10 | rw);
+        qemu_plugin_meminfo_t info = make_plugin_meminfo(oi, rw);
 
         if (tcg_ctx->addr_type == TCG_TYPE_I32) {
             if (!copy_addr) {
@@ -207,7 +207,7 @@ plugin_gen_before_mem_write_callbacks(TCGv_i64 copy_addr, TCGTemp *orig_addr, Me
                          enum qemu_plugin_mem_rw rw)
 {
     if (tcg_ctx->plugin_insn != NULL) {
-        qemu_plugin_meminfo_t info = make_plugin_meminfo(oi, 0x10 | rw);
+        qemu_plugin_meminfo_t info = make_plugin_meminfo(oi, rw);
 
         if (tcg_ctx->addr_type == TCG_TYPE_I32) {
             if (!copy_addr) {
