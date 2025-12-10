@@ -28,29 +28,26 @@ static bool panda_has_callback_registered(panda_cb_type type){
 }
 
 int panda_get_memcb_status(void){
-    bool read = false;
-    bool write = false;
+    int rv = 0;
     if (panda_has_callback_registered(PANDA_CB_PHYS_MEM_BEFORE_READ) 
-    || panda_has_callback_registered(PANDA_CB_VIRT_MEM_BEFORE_READ)
-    || panda_has_callback_registered(PANDA_CB_PHYS_MEM_AFTER_READ)
+    || panda_has_callback_registered(PANDA_CB_VIRT_MEM_BEFORE_READ))
+    {
+        rv |= QEMU_PLUGIN_BEFORE_MEM_R;
+    }
+    if (panda_has_callback_registered(PANDA_CB_PHYS_MEM_AFTER_READ)
     || panda_has_callback_registered(PANDA_CB_VIRT_MEM_AFTER_READ))
     {
-        read = true;
+        rv |= QEMU_PLUGIN_AFTER_MEM_R;
     }
     if (panda_has_callback_registered(PANDA_CB_PHYS_MEM_BEFORE_WRITE) 
-    || panda_has_callback_registered(PANDA_CB_VIRT_MEM_BEFORE_WRITE)
-    || panda_has_callback_registered(PANDA_CB_PHYS_MEM_AFTER_WRITE)
+    || panda_has_callback_registered(PANDA_CB_VIRT_MEM_BEFORE_WRITE))
+    {
+        rv |= QEMU_PLUGIN_BEFORE_MEM_W;
+    }
+    if (panda_has_callback_registered(PANDA_CB_PHYS_MEM_AFTER_WRITE)
     || panda_has_callback_registered(PANDA_CB_VIRT_MEM_AFTER_WRITE))
     {
-        write = true;
+        rv |= QEMU_PLUGIN_AFTER_MEM_W;
     }
-    if (read && write){
-        return QEMU_PLUGIN_MEM_RW;
-    }else if (read){
-        return QEMU_PLUGIN_MEM_R;
-    }else if (write){
-        return QEMU_PLUGIN_MEM_W;
-    }else{
-        return 0;
-    }
+	return rv;
 }
