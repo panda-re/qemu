@@ -1,13 +1,16 @@
-name: Build and Publish Docker Container and Pypanda Docs # Only for main panda-re repo, not forks
+name: Build and Publish Docker Container and Pypanda Docs
 
 on:
   push:
     branches:
       - main
+    tags:
+      - 'dev_*'
 
 jobs:
   build_release_assets:
-    if: github.repository  == 'panda-re/qemu' && github.ref == 'refs/heads/main'
+    # Run on main branch OR if the tag starts with dev_
+    if: github.repository  == 'panda-re/qemu' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/dev_'))
     runs-on: panda-arc
     steps:
       - name: Install git
@@ -19,12 +22,23 @@ jobs:
           fetch-depth: 0
       
       - name: Get next version
+        # Only calculate auto-increment version on main branch
+        if: github.ref == 'refs/heads/main'
         uses: reecetech/version-increment@2024.10.1
         id: version
         with:
           tag_prefix: panda
           release_branch: main
           use_api: true
+
+      - name: Set Release Version
+        id: version_logic
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "tag=${{ steps.version.outputs.prefixed-v-version }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          fi
 
       - name: Trust Harbor's self-signed certificate
         run: |
@@ -50,6 +64,8 @@ jobs:
               http = true
       
       - name: 'Login to Docker Registry'
+        # Only login to DockerHub on main (production releases)
+        if: github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
         with:
           username: pandare
@@ -66,14 +82,15 @@ jobs:
         uses: docker/build-push-action@v6.18.0
         with:
           context: ${{ github.workspace }}
-          push: true
+          # Only push to DockerHub if on main
+          push: ${{ github.ref == 'refs/heads/main' }}
           cache-from: |
             type=registry,ref=${{secrets.PANDA_ARC_REGISTRY}}/pandare/qemu:cache,mode=max
           cache-to: |
             type=registry,ref=${{secrets.PANDA_ARC_REGISTRY}}/pandare/qemu:cache,mode=max
           tags: |
             pandare/qemu:${{ github.sha }}
-            pandare/qemu:${{ steps.version.outputs.prefixed-v-version }}
+            pandare/qemu:${{ steps.version_logic.outputs.tag }}
             pandare/qemu:latest
           load: true
           build-args: |
@@ -107,7 +124,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.version.outputs.prefixed-v-version }}
+          # Use the unified version logic (either 'panda-vX.Y.Z' or 'dev_X')
+          tag_name: ${{ steps.version_logic.outputs.tag }}
           files: |
             panda/debian/pandare*.deb
             panda/debian/libpanda-ng.tar.gz
