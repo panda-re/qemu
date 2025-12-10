@@ -30,7 +30,7 @@ typedef QTAILQ_HEAD(, qemu_plugin_desc) QemuPluginList;
 static inline qemu_plugin_meminfo_t
 make_plugin_meminfo(MemOpIdx oi, enum qemu_plugin_mem_rw rw)
 {
-    return oi | (rw << 16);
+    return (oi & 0xffff) | (rw << 16);
 }
 
 /*
