@@ -44,7 +44,7 @@ static void insn_exec(unsigned int cpu_index, void *udata)
 static void vcpu_mem(unsigned int cpu_index, qemu_plugin_meminfo_t info,
                      uint64_t vaddr, void *udata){
     CPUState *cpu = panda_cpu_by_index(cpu_index);
-    uint64_t pc = panda_current_pc(cpu);
+    uint64_t pc = (uint64_t)(uintptr_t)udata;
     struct qemu_plugin_hwaddr* hwaddr_info = qemu_plugin_get_hwaddr(info, vaddr);
     uint64_t hwaddr = -1;
     // fprintf(stderr, "vcpu_mem: cpu_index = %u info = %#" PRIx64 " vaddr = %#" PRIx64 " udata = %p\n", cpu_index, (uint64_t)info, vaddr, udata);
@@ -138,7 +138,7 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
         if (memcb_status){
             qemu_plugin_register_vcpu_mem_cb(insn, vcpu_mem,
                                              QEMU_PLUGIN_CB_NO_REGS,
-                                             (enum qemu_plugin_mem_rw) memcb_status | 0x10, NULL);
+                                             (enum qemu_plugin_mem_rw) memcb_status | 0x10, (void*)qemu_plugin_insn_vaddr(insn));
         }
     }
 
