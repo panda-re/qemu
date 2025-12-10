@@ -17,6 +17,8 @@ meson_options_help() {
   printf "%s\n" '                           use idef-parser to automatically generate TCG'
   printf "%s\n" '                           code for the Hexagon frontend'
   printf "%s\n" '  --disable-install-blobs  install provided firmware blobs'
+  printf "%s\n" '  --disable-panda-dynamic-record'
+  printf "%s\n" '                           Support dynamic record start/stop.'
   printf "%s\n" '  --disable-qom-cast-debug cast debugging support'
   printf "%s\n" '  --disable-relocatable    toggle relocatable install'
   printf "%s\n" '  --docdir=VALUE           Base directory for documentation installation'
@@ -429,6 +431,8 @@ _meson_option_parse() {
     --disable-oss) printf "%s" -Doss=disabled ;;
     --enable-pa) printf "%s" -Dpa=enabled ;;
     --disable-pa) printf "%s" -Dpa=disabled ;;
+    --enable-panda-dynamic-record) printf "%s" -Dpanda_dynamic_record=true ;;
+    --disable-panda-dynamic-record) printf "%s" -Dpanda_dynamic_record=false ;;
     --enable-parallels) printf "%s" -Dparallels=enabled ;;
     --disable-parallels) printf "%s" -Dparallels=disabled ;;
     --enable-passt) printf "%s" -Dpasst=enabled ;;
