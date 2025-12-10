@@ -90,8 +90,7 @@ static void vcpu_mem(unsigned int cpu_index, qemu_plugin_meminfo_t info,
         // panda_callbacks_mmio_after_read(cpu, hwaddr, vaddr, size, data);
     }
 
-    if ((unsigned)tag & 0x10) {
-        /* before */
+    if (tag & QEMU_PLUGIN_BEFORE_MEM) {
         if (tag & QEMU_PLUGIN_MEM_R) {
             if (hwaddr_info)
                 panda_callbacks_phys_mem_before_read(cpu, pc, hwaddr, size, data);
@@ -103,7 +102,7 @@ static void vcpu_mem(unsigned int cpu_index, qemu_plugin_meminfo_t info,
             panda_callbacks_virt_mem_before_write(cpu, pc, vaddr, size, mem_val_low, data);
         }
     }
-    else {
+    else if (tag & QEMU_PLUGIN_AFTER_MEM) {
         if (tag & QEMU_PLUGIN_MEM_R) {
             if (hwaddr_info)
                 panda_callbacks_phys_mem_after_read(cpu, pc, hwaddr, size, mem_val_low, data);
@@ -114,6 +113,9 @@ static void vcpu_mem(unsigned int cpu_index, qemu_plugin_meminfo_t info,
                 panda_callbacks_phys_mem_after_write(cpu, pc, hwaddr, size, mem_val_low, data);
             panda_callbacks_virt_mem_after_write(cpu, pc, vaddr, size, mem_val_low, data);
         }
+    }
+    else {
+        fprintf(stderr, "illegal tag to vcpu_mem: %#" PRIx64 "\n", (uint64_t)tag);
     }
 }
 
@@ -138,7 +140,7 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
         if (memcb_status){
             qemu_plugin_register_vcpu_mem_cb(insn, vcpu_mem,
                                              QEMU_PLUGIN_CB_RW_REGS,
-                                             (enum qemu_plugin_mem_rw) memcb_status | 0x10, (void*)qemu_plugin_insn_vaddr(insn));
+                                             (enum qemu_plugin_mem_rw) memcb_status, (void*)qemu_plugin_insn_vaddr(insn));
         }
     }
 
