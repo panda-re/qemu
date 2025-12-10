@@ -126,7 +126,7 @@
 #
 # Begin a dynamic recording.
 #
-# @snapshot: Name of the snapshot to create at the start of this recording.
+# @snapshot: Name of the snapshot to create.
 # @logfile: name of the record/replay log file.
 #
 # Since: 9.2.50
