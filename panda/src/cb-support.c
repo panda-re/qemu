@@ -342,10 +342,10 @@ MEM_CB_TRAMPOLINES(phys)
 void PCB(virt_mem_before_read)(CPUState *env, uint64_t pc, uint64_t addr,
                           size_t data_size, void *ram_ptr) {
     panda_cb_list *plist;
-    fprintf(stderr, "virt_mem_before_read: cpu = %p pc = %#" PRIx64 " addr = %#" PRIx64 " data_size = %zu ram_ptr = %p\n", env, pc, addr, data_size, ram_ptr);
+    // fprintf(stderr, "virt_mem_before_read: cpu = %p pc = %#" PRIx64 " addr = %#" PRIx64 " data_size = %zu ram_ptr = %p\n", env, pc, addr, data_size, ram_ptr);
     for(plist = panda_cbs[PANDA_CB_VIRT_MEM_BEFORE_READ]; plist != NULL;
         plist = panda_cb_list_next(plist)) {
-        if (plist->enabled) plist->entry.virt_mem_before_read(plist->context, env, panda_current_pc(env), addr,
+        if (plist->enabled) plist->entry.virt_mem_before_read(plist->context, env, pc, addr,
                                                               data_size);
     }
 }
@@ -354,11 +354,11 @@ void PCB(virt_mem_before_read)(CPUState *env, uint64_t pc, uint64_t addr,
 void PCB(virt_mem_after_read)(CPUState *env, uint64_t pc, uint64_t addr,
                          size_t data_size, uint64_t result, void *ram_ptr) {
     panda_cb_list *plist;
-    fprintf(stderr, "virt_mem_after_read: cpu = %p pc = %#" PRIx64 " addr = %#" PRIx64 " data_size = %zu result = %#" PRIx64 " ram_ptr = %p\n", env, pc, addr, data_size, result, ram_ptr);
+    // fprintf(stderr, "virt_mem_after_read: cpu = %p pc = %#" PRIx64 " addr = %#" PRIx64 " data_size = %zu result = %#" PRIx64 " ram_ptr = %p\n", env, pc, addr, data_size, result, ram_ptr);
     for(plist = panda_cbs[PANDA_CB_VIRT_MEM_AFTER_READ]; plist != NULL;
         plist = panda_cb_list_next(plist)) {
         /* mstamat: Passing &result as the last cb arg doesn't make much sense. */
-        if (plist->enabled) plist->entry.virt_mem_after_read(plist->context, env, panda_current_pc(env), addr,
+        if (plist->enabled) plist->entry.virt_mem_after_read(plist->context, env, pc, addr,
                                          data_size, (uint8_t *)&result);
     }
 }
@@ -367,10 +367,11 @@ void PCB(virt_mem_after_read)(CPUState *env, uint64_t pc, uint64_t addr,
 void PCB(virt_mem_before_write)(CPUState *env, uint64_t pc, uint64_t addr,
                            size_t data_size, uint64_t val, void *ram_ptr) {
     panda_cb_list *plist;
+    // fprintf(stderr, "virt_mem_before_write: cpu = %p pc = %#" PRIx64 " addr = %#" PRIx64 " data_size = %zu value = %#" PRIx64 " ram_ptr = %p\n", env, pc, addr, data_size, val, ram_ptr);
     for(plist = panda_cbs[PANDA_CB_VIRT_MEM_BEFORE_WRITE]; plist != NULL;
         plist = panda_cb_list_next(plist)) {
         /* mstamat: Passing &val as the last arg doesn't make much sense. */
-        if (plist->enabled) plist->entry.virt_mem_before_write(plist->context, env, panda_current_pc(env), addr,
+        if (plist->enabled) plist->entry.virt_mem_before_write(plist->context, env, pc, addr,
                                            data_size, (uint8_t *)&val);
     }
 }
@@ -379,10 +380,11 @@ void PCB(virt_mem_before_write)(CPUState *env, uint64_t pc, uint64_t addr,
 void PCB(virt_mem_after_write)(CPUState *env, uint64_t pc, uint64_t addr,
                           size_t data_size, uint64_t val, void *ram_ptr) {
     panda_cb_list *plist;
+    // fprintf(stderr, "virt_mem_after_write: cpu = %p pc = %#" PRIx64 " addr = %#" PRIx64 " data_size = %zu value = %#" PRIx64 " ram_ptr = %p\n", env, pc, addr, data_size, val, ram_ptr);
     for (plist = panda_cbs[PANDA_CB_VIRT_MEM_AFTER_WRITE]; plist != NULL;
          plist = panda_cb_list_next(plist)) {
         /* mstamat: Passing &val as the last cb arg doesn't make much sense. */
-        if (plist->enabled) plist->entry.virt_mem_after_write(plist->context, env, panda_current_pc(env), addr,
+        if (plist->enabled) plist->entry.virt_mem_after_write(plist->context, env, pc, addr,
                                           data_size, (uint8_t *)&val);
     }
 }
@@ -394,7 +396,7 @@ void PCB(phys_mem_before_read)(CPUState *env, uint64_t pc, uint64_t paddr,
     if (panda_cbs[PANDA_CB_PHYS_MEM_BEFORE_READ]) {
         for(plist = panda_cbs[PANDA_CB_PHYS_MEM_BEFORE_READ]; plist != NULL;
             plist = panda_cb_list_next(plist)) {
-            if (plist->enabled) plist->entry.phys_mem_before_read(plist->context, env, panda_current_pc(env),
+            if (plist->enabled) plist->entry.phys_mem_before_read(plist->context, env, pc,
                                                                   paddr, data_size);
         }
     }
@@ -408,7 +410,7 @@ void PCB(phys_mem_after_read)(CPUState *env, uint64_t pc, uint64_t paddr,
         for(plist = panda_cbs[PANDA_CB_PHYS_MEM_AFTER_READ]; plist != NULL;
             plist = panda_cb_list_next(plist)) {
             /* mstamat: Passing &result as the last cb arg doesn't make much sense. */
-            if (plist->enabled) plist->entry.phys_mem_after_read(plist->context, env, panda_current_pc(env), paddr,
+            if (plist->enabled) plist->entry.phys_mem_after_read(plist->context, env, pc, paddr,
                                              data_size, (uint8_t *)&result);
         }
     }
@@ -422,7 +424,7 @@ void PCB(phys_mem_before_write)(CPUState *env, uint64_t pc, uint64_t paddr,
         for(plist = panda_cbs[PANDA_CB_PHYS_MEM_BEFORE_WRITE]; plist != NULL;
             plist = panda_cb_list_next(plist)) {
             /* mstamat: Passing &val as the last cb arg doesn't make much sense. */
-            if (plist->enabled) plist->entry.phys_mem_before_write(plist->context, env, panda_current_pc(env), paddr,
+            if (plist->enabled) plist->entry.phys_mem_before_write(plist->context, env, pc, paddr,
                                                data_size, (uint8_t *)&val);
         }
     }
@@ -436,7 +438,7 @@ void PCB(phys_mem_after_write)(CPUState *env, uint64_t pc, uint64_t paddr,
         for (plist = panda_cbs[PANDA_CB_PHYS_MEM_AFTER_WRITE]; plist != NULL;
              plist = panda_cb_list_next(plist)) {
             /* mstamat: Passing &val as the last cb arg doesn't make much sense. */
-            if (plist->enabled) plist->entry.phys_mem_after_write(plist->context, env, panda_current_pc(env), paddr,
+            if (plist->enabled) plist->entry.phys_mem_after_write(plist->context, env, pc, paddr,
                                               data_size, (uint8_t *)&val);
         }
     }
