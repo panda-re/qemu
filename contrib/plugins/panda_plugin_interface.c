@@ -137,7 +137,7 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
         int memcb_status =  panda_get_memcb_status();
         if (memcb_status){
             qemu_plugin_register_vcpu_mem_cb(insn, vcpu_mem,
-                                             QEMU_PLUGIN_CB_NO_REGS,
+                                             QEMU_PLUGIN_CB_RW_REGS,
                                              (enum qemu_plugin_mem_rw) memcb_status | 0x10, (void*)qemu_plugin_insn_vaddr(insn));
         }
     }
