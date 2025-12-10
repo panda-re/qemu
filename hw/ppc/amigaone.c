@@ -63,7 +63,7 @@ static const char dummy_fw[] = {
 #define NVRAM_ADDR 0xfd0e0000
 #define NVRAM_SIZE (4 * KiB)
 
-static char default_env[] =
+static const char default_env[] =
     "baudrate=115200\0"
     "stdout=vga\0"
     "stdin=ps2kbd\0"
@@ -108,8 +108,8 @@ static void nvram_write(void *opaque, hwaddr addr, uint64_t val,
     uint8_t *p = memory_region_get_ram_ptr(&s->mr);
 
     p[addr] = val;
-    if (s->blk) {
-        blk_pwrite(s->blk, addr, 1, &val, 0);
+    if (s->blk && blk_pwrite(s->blk, addr, 1, &val, 0) < 0) {
+        error_report("%s: could not write %s", __func__, blk_name(s->blk));
     }
 }
 
@@ -151,15 +151,17 @@ static void nvram_realize(DeviceState *dev, Error **errp)
         *c = cpu_to_be32(CRC32_DEFAULT_ENV);
         /* Also copies terminating \0 as env is terminated by \0\0 */
         memcpy(p + 4, default_env, sizeof(default_env));
-        if (s->blk) {
-            blk_pwrite(s->blk, 0, sizeof(crc) + sizeof(default_env), p, 0);
+        if (s->blk &&
+            blk_pwrite(s->blk, 0, sizeof(crc) + sizeof(default_env), p, 0) < 0
+           ) {
+            error_report("%s: could not write %s", __func__, blk_name(s->blk));
         }
         return;
     }
     if (*c == 0) {
         *c = cpu_to_be32(crc32(0, p + 4, NVRAM_SIZE - 4));
-        if (s->blk) {
-            blk_pwrite(s->blk, 0, 4, p, 0);
+        if (s->blk && blk_pwrite(s->blk, 0, 4, p, 0) < 0) {
+            error_report("%s: could not write %s", __func__, blk_name(s->blk));
         }
     }
     if (be32_to_cpu(*c) != crc) {
@@ -171,7 +173,7 @@ static const Property nvram_properties[] = {
     DEFINE_PROP_DRIVE("drive", A1NVRAMState, blk),
 };
 
-static void nvram_class_init(ObjectClass *oc, void *data)
+static void nvram_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
@@ -219,7 +221,7 @@ struct bd_info {
 
 static void create_bd_info(hwaddr addr, ram_addr_t ram_size)
 {
-    struct bd_info *bd = g_new0(struct bd_info, 1);
+    g_autofree struct bd_info *bd = g_new0(struct bd_info, 1);
 
     bd->bi_memsize =    cpu_to_be32(ram_size);
     bd->bi_flashstart = cpu_to_be32(PROM_ADDR);
@@ -322,11 +324,7 @@ static void amigaone_init(MachineState *machine)
             error_report("Could not find firmware '%s'", machine->firmware);
             exit(1);
         }
-        sz = load_image_targphys(filename, PROM_ADDR, PROM_SIZE);
-        if (sz <= 0 || sz > PROM_SIZE) {
-            error_report("Could not load firmware '%s'", filename);
-            exit(1);
-        }
+        sz = load_image_targphys(filename, PROM_ADDR, PROM_SIZE, &error_fatal);
     }
 
     /* Articia S */
@@ -411,12 +409,7 @@ static void amigaone_init(MachineState *machine)
         loadaddr = ROUND_UP(loadaddr + 4 * MiB, 4 * KiB);
         loadaddr = MAX(loadaddr, INITRD_MIN_ADDR);
         sz = load_image_targphys(machine->initrd_filename, loadaddr,
-                                 bi->bd_info - loadaddr);
-        if (sz <= 0) {
-            error_report("Could not load initrd '%s'",
-                         machine->initrd_filename);
-            exit(1);
-        }
+                                 bi->bd_info - loadaddr, &error_fatal);
         bi->initrd_start = loadaddr;
         bi->initrd_end = loadaddr + sz;
     }
