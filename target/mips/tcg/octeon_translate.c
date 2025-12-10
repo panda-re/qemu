@@ -183,6 +183,9 @@ static bool trans_lx(DisasContext *ctx, arg_lx *a, MemOp mop)
 }
 
 TRANS(LBUX, trans_lx, MO_UB);
+TRANS(LBX,  trans_lx, MO_SB);
+TRANS(LHUX, trans_lx, MO_UW);
 TRANS(LHX,  trans_lx, MO_SW);
+TRANS(LWUX, trans_lx, MO_UL);
 TRANS(LWX,  trans_lx, MO_SL);
 TRANS(LDX,  trans_lx, MO_UQ);
