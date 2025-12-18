@@ -62,6 +62,9 @@ have_user = have_linux_user or have_bsd_user
 have_tools = 'CONFIG_TOOLS' in config_host
 have_block = have_system or have_tools
 have_avatar = 'CONFIG_AVATAR' in config_host
+if have_avatar and host_os not in ['darwin', 'linux']
+  error('AVATAR support requires MacOS or Linux host')
+endif
 
 python = import('python').find_installation()
 
@@ -4451,7 +4454,7 @@ foreach target : target_dirs
       exe_name += '-unsigned'
     endif
 
-    if have_avatar
+    if have_avatar and host_os == 'linux'
       # To link the configurable machine with mqueue.h
       link_args += ['-lrt']
     endif

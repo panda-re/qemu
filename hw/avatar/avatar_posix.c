@@ -13,7 +13,7 @@ static void error_exit(int err, const char *msg)
 
 void qemu_avatar_sem_open(QemuAvatarSemaphore *sem, const char *name)
 {
-#if defined(__APPLE__) || defined(__NetBSD__)
+#if defined(__NetBSD__)
 #else
     sem_unlink(name);
     sem_t *rc = sem_open(name, O_CREAT, S_IRUSR | S_IWUSR, 1);
@@ -28,7 +28,7 @@ void qemu_avatar_sem_open(QemuAvatarSemaphore *sem, const char *name)
 
 void qemu_avatar_sem_wait(QemuAvatarSemaphore *sem)
 {
-#if defined(__APPLE__) || defined(__NetBSD__)
+#if defined(__NetBSD__)
 #else
     int rc = sem_wait(sem->sem);
     if (rc < 0) {
@@ -39,7 +39,7 @@ void qemu_avatar_sem_wait(QemuAvatarSemaphore *sem)
 
 void qemu_avatar_sem_post(QemuAvatarSemaphore *sem)
 {
-#if defined(__APPLE__) || defined(__NetBSD__)
+#if defined(__NetBSD__)
 #else
     int rc = sem_post(sem->sem);
     if (rc < 0) {
@@ -50,7 +50,7 @@ void qemu_avatar_sem_post(QemuAvatarSemaphore *sem)
 
 void qemu_avatar_mq_open_read(QemuAvatarMessageQueue *mq, const char *name, size_t msg_size)
 {
-#if defined(__APPLE__) || defined(__NetBSD__)
+#if defined(__NetBSD__)
 #else
     mq_unlink(name);
 
@@ -62,7 +62,7 @@ void qemu_avatar_mq_open_read(QemuAvatarMessageQueue *mq, const char *name, size
 
     mqd_t m = mq_open(name, O_CREAT | O_EXCL | O_RDONLY, 0600, &attr);
 
-    if(m == -1)
+    if(m == (mqd_t)-1)
     {
         error_exit(errno, __func__);
     }
@@ -73,7 +73,7 @@ void qemu_avatar_mq_open_read(QemuAvatarMessageQueue *mq, const char *name, size
 
 void qemu_avatar_mq_open_write(QemuAvatarMessageQueue *mq, const char *name, size_t msg_size)
 {
-#if defined(__APPLE__) || defined(__NetBSD__)
+#if defined(__NetBSD__)
 #else
     mq_unlink(name);
 
@@ -84,7 +84,7 @@ void qemu_avatar_mq_open_write(QemuAvatarMessageQueue *mq, const char *name, siz
 
     mqd_t m = mq_open(name, O_CREAT | O_EXCL | O_WRONLY, 0600, &attr);
  
-    if(m == -1)
+    if(m == (mqd_t)-1)
     {
         error_exit(errno, __func__);
     }
@@ -95,7 +95,7 @@ void qemu_avatar_mq_open_write(QemuAvatarMessageQueue *mq, const char *name, siz
 
 void qemu_avatar_mq_send(QemuAvatarMessageQueue *mq, void *msg, size_t len)
 {
-#if defined(__APPLE__) || defined(__NetBSD__)
+#if defined(__NetBSD__)
 #else
     int rc = mq_send(mq->mq, msg, len, 0);
 
@@ -108,7 +108,7 @@ void qemu_avatar_mq_send(QemuAvatarMessageQueue *mq, void *msg, size_t len)
 
 int qemu_avatar_mq_receive(QemuAvatarMessageQueue *mq, void *buffer, size_t len)
 {
-#if defined(__APPLE__) || defined(__NetBSD__)
+#if defined(__NetBSD__)
 #else
     struct timespec tm;
     int rc = -1;
@@ -141,7 +141,10 @@ int qemu_avatar_mq_receive(QemuAvatarMessageQueue *mq, void *buffer, size_t len)
 #endif
 }
 
+#if defined(__APPLE__) || defined(__NetBSD__)
+#else
 int qemu_avatar_mq_get_fd(QemuAvatarMessageQueue *mq)
 {
     return mq->mq;
 }
+#endif
