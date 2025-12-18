@@ -724,6 +724,8 @@ void hvf_simulate_wrmsr(CPUState *cs)
 static int hvf_handle_vmexit(CPUState *cpu)
 {
     X86CPU *x86_cpu = env_archcpu(cpu_env(cpu));
+    CPUX86State *env = &x86_cpu->env;
+    uint64_t rip = 0;
     uint64_t exit_reason = rvmcs(cpu->accel->fd, VMCS_EXIT_REASON);
     uint64_t exit_qual = rvmcs(cpu->accel->fd, VMCS_EXIT_QUALIFICATION);
     uint32_t ins_len = (uint32_t)rvmcs(cpu->accel->fd,
@@ -966,10 +968,7 @@ static int hvf_handle_vmexit(CPUState *cpu)
 
 int hvf_arch_vcpu_exec(CPUState *cpu)
 {
-    X86CPU *x86_cpu = X86_CPU(cpu);
-    CPUX86State *env = &x86_cpu->env;
     int ret = 0;
-    uint64_t rip = 0;
 
     if (hvf_process_events(cpu)) {
         return EXCP_HLT;
