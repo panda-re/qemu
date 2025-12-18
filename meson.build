@@ -4467,6 +4467,52 @@ foreach target : target_dirs
                link_depends: [block_syms, qemu_syms],
                link_args: link_args,
                win_subsystem: exe['win_subsystem'])
+
+    # TODO: PANDA must mark every symbol it needs exported and add to this list
+    #       for now, we will just suppress this linker arg for libpanda
+    libpanda_link_args = []
+    link_args
+    if not enable_modules
+      if host_os == 'darwin'
+        # emulator_link_args += ['-Wl,-exported_symbols_list,plugins/qemu-plugins-ld64.symbols']
+        foreach arg: link_args
+          if not arg.startswith('-Wl,-exported_symbols_list,')
+            libpanda_link_args += arg
+          endif
+        endforeach
+      elif host_os == 'windows' and meson.get_compiler('c').get_id() == 'clang'
+        libpanda_link_args = link_args
+      else
+        # emulator_link_args += ['-Xlinker', '--dynamic-list=' + qemu_plugin_symbols.full_path()]
+        found_xlinker = false # XXX: how to do proper for loops in meson...
+        foreach arg: link_args
+          if arg == '-Xlinker'
+            if found_xlinker
+              libpanda_link_args += '-Xlinker'
+            endif
+            found_xlinker = true
+          else
+            if found_xlinker
+              if not arg.startswith('--dynamic-list=')
+                libpanda_link_args += ['-Xlinker', arg]
+              endif
+              found_xlinker = false
+            else
+              libpanda_link_args += arg
+            endif
+          endif
+        endforeach
+      endif
+    endif
+    message('old link_args: ')
+    foreach arg: link_args
+      message('  ' + arg)
+    endforeach
+    message('new libpanda_link_args: ')
+    foreach arg: libpanda_link_args
+      message('  ' + arg)
+    endforeach
+
     
     emulator = shared_library('panda-' + target, exe['sources'],
                install: true,
@@ -4474,7 +4520,7 @@ foreach target : target_dirs
                dependencies: arch_deps + exe['dependencies'],
                objects: lib.extract_all_objects(recursive: true),
                link_depends: [block_syms, qemu_syms],
-               link_args: link_args)
+               link_args: libpanda_link_args)
 
     if host_os == 'darwin'
       icon = 'pc-bios/qemu.rsrc'
