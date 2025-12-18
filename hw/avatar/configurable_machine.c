@@ -386,7 +386,7 @@ static void init_memory_area(QDict *mapping, const char *kernel_filename)
           g_assert(qobject_type(qdict_get(mapping, "file_bytes")) == QTYPE_QNUM);
           file_bytes = qdict_get_int(mapping, "file_bytes");
           data_size = file_bytes;
-          printf("File bytes: 0x%lx\n",data_size);
+          printf("File bytes: 0x%" PRIx64 "\n",data_size);
 
         }
 
@@ -481,7 +481,7 @@ void avatar_cm_set_entry_point(QDict *conf, THISCPU *cpuu)
 
 #elif defined(TARGET_PPC)
     //Not implemented yet
-    printf("Not yet implemented- can't start execution at 0x%x\n", entry);
+    printf("Not yet implemented- can't start execution at 0x%" PRIx32 "\n", entry);
 
 #elif defined(TARGET_AVR)
 
