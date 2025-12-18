@@ -30,3 +30,8 @@ specific_ss.add(when: ['CONFIG_AVATAR', 'TARGET_AVR'], if_true: files(
   'avatar_posix.c',
   'remote_memory.c',
 ))
+if host_os == 'darwin'
+specific_ss.add(when: ['CONFIG_AVATAR'], if_true: files(
+  'macos_mqueue.c'
+))
+endif
