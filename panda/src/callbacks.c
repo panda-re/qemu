@@ -33,7 +33,6 @@ PANDAENDCOMMENT */
 
 #define SOFTMMU_DIR "/" TARGET_NAME "-softmmu"
 #define LIBRARY_NAME "/libpanda-" TARGET_NAME ".so"
-#define PLUGIN_DIR "/" TARGET_NAME "-softmmu/panda/plugins/"
 
 #define INSTALL_PLUGIN_DIR "/usr/local/lib/panda/"
 #define INSTALL_BIN_DIR "/usr/local/bin/" // libpanda-arch.so and panda-system-arch in here
@@ -339,16 +338,14 @@ char* resolve_file_from_plugin_directory(const char* file_name_fmt, const char* 
     // makes "taint2" -> "panda_taint2"
     name_formatted = g_strdup_printf(file_name_fmt, name);
     // First try relative to PANDA_PLUGIN_DIR
-#ifdef PLUGIN_DIR
-    if (g_getenv("PANDA_DIR") != NULL) {
+    if (g_getenv("PANDA_PLUGIN_DIR") != NULL) {
         plugin_path = attempt_normalize_path(g_strdup_printf(
-            "%s/%s/%s" , g_getenv("PANDA_DIR"), PLUGIN_DIR, name_formatted));
+            "%s/%s" , g_getenv("PANDA_PLUGIN_DIR"), name_formatted));
         if (TRUE == g_file_test(plugin_path, G_FILE_TEST_EXISTS)) {
             return plugin_path;
         }
         g_free(plugin_path);
     }
-#endif
 
     // Note qemu_file is set in the first call to main_aux
     // so if this is called (likely via load_plugin) qemu_file must be set directly

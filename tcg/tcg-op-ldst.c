@@ -155,7 +155,7 @@ static TCGv_i64 plugin_maybe_preserve_addr(TCGTemp *addr)
 
 #ifdef CONFIG_PLUGIN
 static void
-plugin_gen_mem_callbacks(TCGv_i64 copy_addr, TCGTemp *orig_addr, MemOpIdx oi,
+plugin_gen_after_mem_callbacks(TCGv_i64 copy_addr, TCGTemp *orig_addr, MemOpIdx oi,
                          enum qemu_plugin_mem_rw rw)
 {
     if (tcg_ctx->plugin_insn != NULL) {
@@ -178,10 +178,60 @@ plugin_gen_mem_callbacks(TCGv_i64 copy_addr, TCGTemp *orig_addr, MemOpIdx oi,
         }
     }
 }
+static void
+plugin_gen_before_mem_read_callbacks(TCGv_i64 copy_addr, TCGTemp *orig_addr, MemOpIdx oi,
+                         enum qemu_plugin_mem_rw rw)
+{
+    if (tcg_ctx->plugin_insn != NULL) {
+        qemu_plugin_meminfo_t info = make_plugin_meminfo(oi, rw);
+
+        if (tcg_ctx->addr_type == TCG_TYPE_I32) {
+            if (!copy_addr) {
+                copy_addr = tcg_temp_ebb_new_i64();
+                tcg_gen_extu_i32_i64(copy_addr, temp_tcgv_i32(orig_addr));
+                tcg_gen_plugin_mem_cb(copy_addr, info);
+                tcg_temp_free_i64(copy_addr);
+            }
+            else
+                tcg_gen_plugin_mem_cb(copy_addr, info);
+        } else {
+            if (copy_addr) {
+                tcg_gen_plugin_mem_cb(copy_addr, info);
+            } else {
+                tcg_gen_plugin_mem_cb(temp_tcgv_i64(orig_addr), info);
+            }
+        }
+    }
+}
+static void
+plugin_gen_before_mem_write_callbacks(TCGv_i64 copy_addr, TCGTemp *orig_addr, MemOpIdx oi,
+                         enum qemu_plugin_mem_rw rw)
+{
+    if (tcg_ctx->plugin_insn != NULL) {
+        qemu_plugin_meminfo_t info = make_plugin_meminfo(oi, rw);
+
+        if (tcg_ctx->addr_type == TCG_TYPE_I32) {
+            if (!copy_addr) {
+                copy_addr = tcg_temp_ebb_new_i64();
+                tcg_gen_extu_i32_i64(copy_addr, temp_tcgv_i32(orig_addr));
+                tcg_gen_plugin_mem_cb(copy_addr, info);
+                tcg_temp_free_i64(copy_addr);
+            }
+            else
+                tcg_gen_plugin_mem_cb(copy_addr, info);
+        } else {
+            if (copy_addr) {
+                tcg_gen_plugin_mem_cb(copy_addr, info);
+            } else {
+                tcg_gen_plugin_mem_cb(temp_tcgv_i64(orig_addr), info);
+            }
+        }
+    }
+}
 #endif
 
 static void
-plugin_gen_mem_callbacks_i32(TCGv_i32 val,
+plugin_gen_after_mem_callbacks_i32(TCGv_i32 val,
                              TCGv_i64 copy_addr, TCGTemp *orig_addr,
                              MemOpIdx oi, enum qemu_plugin_mem_rw rw)
 {
@@ -190,13 +240,38 @@ plugin_gen_mem_callbacks_i32(TCGv_i32 val,
         tcg_gen_st_i32(val, tcg_env,
                        offsetof(CPUState, neg.plugin_mem_value_low) -
                        sizeof(CPUState) + (HOST_BIG_ENDIAN * 4));
-        plugin_gen_mem_callbacks(copy_addr, orig_addr, oi, rw);
+        plugin_gen_after_mem_callbacks(copy_addr, orig_addr, oi, rw);
+    }
+#endif
+}
+static void
+plugin_gen_before_mem_read_callbacks_i32(
+                             TCGv_i64 copy_addr, TCGTemp *orig_addr,
+                             MemOpIdx oi, enum qemu_plugin_mem_rw rw)
+{
+#ifdef CONFIG_PLUGIN
+    if (tcg_ctx->plugin_insn != NULL) {
+        plugin_gen_before_mem_read_callbacks(copy_addr, orig_addr, oi, rw);
+    }
+#endif
+}
+static void
+plugin_gen_before_mem_write_callbacks_i32(TCGv_i32 val,
+                             TCGv_i64 copy_addr, TCGTemp *orig_addr,
+                             MemOpIdx oi, enum qemu_plugin_mem_rw rw)
+{
+#ifdef CONFIG_PLUGIN
+    if (tcg_ctx->plugin_insn != NULL) {
+        tcg_gen_st_i32(val, tcg_env,
+                       offsetof(CPUState, neg.plugin_mem_value_low) -
+                       sizeof(CPUState) + (HOST_BIG_ENDIAN * 4));
+        plugin_gen_before_mem_write_callbacks(copy_addr, orig_addr, oi, rw);
     }
 #endif
 }
 
 static void
-plugin_gen_mem_callbacks_i64(TCGv_i64 val,
+plugin_gen_after_mem_callbacks_i64(TCGv_i64 val,
                              TCGv_i64 copy_addr, TCGTemp *orig_addr,
                              MemOpIdx oi, enum qemu_plugin_mem_rw rw)
 {
@@ -205,13 +280,38 @@ plugin_gen_mem_callbacks_i64(TCGv_i64 val,
         tcg_gen_st_i64(val, tcg_env,
                        offsetof(CPUState, neg.plugin_mem_value_low) -
                        sizeof(CPUState));
-        plugin_gen_mem_callbacks(copy_addr, orig_addr, oi, rw);
+        plugin_gen_after_mem_callbacks(copy_addr, orig_addr, oi, rw);
+    }
+#endif
+}
+static void
+plugin_gen_before_mem_read_callbacks_i64(
+                             TCGv_i64 copy_addr, TCGTemp *orig_addr,
+                             MemOpIdx oi, enum qemu_plugin_mem_rw rw)
+{
+#ifdef CONFIG_PLUGIN
+    if (tcg_ctx->plugin_insn != NULL) {
+        plugin_gen_before_mem_read_callbacks(copy_addr, orig_addr, oi, rw);
+    }
+#endif
+}
+static void
+plugin_gen_before_mem_write_callbacks_i64(TCGv_i64 val,
+                             TCGv_i64 copy_addr, TCGTemp *orig_addr,
+                             MemOpIdx oi, enum qemu_plugin_mem_rw rw)
+{
+#ifdef CONFIG_PLUGIN
+    if (tcg_ctx->plugin_insn != NULL) {
+        tcg_gen_st_i64(val, tcg_env,
+                       offsetof(CPUState, neg.plugin_mem_value_low) -
+                       sizeof(CPUState));
+        plugin_gen_before_mem_write_callbacks(copy_addr, orig_addr, oi, rw);
     }
 #endif
 }
 
 static void
-plugin_gen_mem_callbacks_i128(TCGv_i128 val,
+plugin_gen_after_mem_callbacks_i128(TCGv_i128 val,
                              TCGv_i64 copy_addr, TCGTemp *orig_addr,
                              MemOpIdx oi, enum qemu_plugin_mem_rw rw)
 {
@@ -223,7 +323,37 @@ plugin_gen_mem_callbacks_i128(TCGv_i128 val,
         tcg_gen_st_i64(TCGV128_HIGH(val), tcg_env,
                        offsetof(CPUState, neg.plugin_mem_value_high) -
                        sizeof(CPUState));
-        plugin_gen_mem_callbacks(copy_addr, orig_addr, oi, rw);
+        plugin_gen_after_mem_callbacks(copy_addr, orig_addr, oi, rw);
+    }
+#endif
+}
+static void
+__attribute__((unused))
+plugin_gen_before_mem_read_callbacks_i128(
+                             TCGv_i64 copy_addr, TCGTemp *orig_addr,
+                             MemOpIdx oi, enum qemu_plugin_mem_rw rw)
+{
+#ifdef CONFIG_PLUGIN
+    if (tcg_ctx->plugin_insn != NULL) {
+        plugin_gen_before_mem_read_callbacks(copy_addr, orig_addr, oi, rw);
+    }
+#endif
+}
+static void
+__attribute__((unused))
+plugin_gen_before_mem_write_callbacks_i128(TCGv_i128 val,
+                             TCGv_i64 copy_addr, TCGTemp *orig_addr,
+                             MemOpIdx oi, enum qemu_plugin_mem_rw rw)
+{
+#ifdef CONFIG_PLUGIN
+    if (tcg_ctx->plugin_insn != NULL) {
+        tcg_gen_st_i64(TCGV128_LOW(val), tcg_env,
+                       offsetof(CPUState, neg.plugin_mem_value_low) -
+                       sizeof(CPUState));
+        tcg_gen_st_i64(TCGV128_HIGH(val), tcg_env,
+                       offsetof(CPUState, neg.plugin_mem_value_high) -
+                       sizeof(CPUState));
+        plugin_gen_before_mem_write_callbacks(copy_addr, orig_addr, oi, rw);
     }
 #endif
 }
@@ -249,9 +379,11 @@ static void tcg_gen_qemu_ld_i32_int(TCGv_i32 val, TCGTemp *addr,
     }
 
     copy_addr = plugin_maybe_preserve_addr(addr);
+    plugin_gen_before_mem_read_callbacks_i32(copy_addr, addr, orig_oi,
+                                 QEMU_PLUGIN_BEFORE_MEM_R);
     gen_ldst1(INDEX_op_qemu_ld, TCG_TYPE_I32, tcgv_i32_temp(val), addr, oi);
-    plugin_gen_mem_callbacks_i32(val, copy_addr, addr, orig_oi,
-                                 QEMU_PLUGIN_MEM_R);
+    plugin_gen_after_mem_callbacks_i32(val, copy_addr, addr, orig_oi,
+                                 QEMU_PLUGIN_AFTER_MEM_R);
 
     if ((orig_memop ^ memop) & MO_BSWAP) {
         switch (orig_memop & MO_SIZE) {
@@ -304,8 +436,9 @@ static void tcg_gen_qemu_st_i32_int(TCGv_i32 val, TCGTemp *addr,
         oi = make_memop_idx(memop, idx);
     }
 
+    plugin_gen_before_mem_write_callbacks_i32(val, NULL, addr, orig_oi, QEMU_PLUGIN_BEFORE_MEM_W);
     gen_ldst1(INDEX_op_qemu_st, TCG_TYPE_I32, tcgv_i32_temp(val), addr, oi);
-    plugin_gen_mem_callbacks_i32(val, NULL, addr, orig_oi, QEMU_PLUGIN_MEM_W);
+    plugin_gen_after_mem_callbacks_i32(val, NULL, addr, orig_oi, QEMU_PLUGIN_AFTER_MEM_W);
 
     if (swap) {
         tcg_temp_free_i32(swap);
@@ -351,9 +484,11 @@ static void tcg_gen_qemu_ld_i64_int(TCGv_i64 val, TCGTemp *addr,
     }
 
     copy_addr = plugin_maybe_preserve_addr(addr);
+    plugin_gen_before_mem_read_callbacks_i64(copy_addr, addr, orig_oi,
+                                 QEMU_PLUGIN_BEFORE_MEM_R);
     gen_ld_i64(val, addr, oi);
-    plugin_gen_mem_callbacks_i64(val, copy_addr, addr, orig_oi,
-                                 QEMU_PLUGIN_MEM_R);
+    plugin_gen_after_mem_callbacks_i64(val, copy_addr, addr, orig_oi,
+                                 QEMU_PLUGIN_AFTER_MEM_R);
 
     if ((orig_memop ^ memop) & MO_BSWAP) {
         int flags = (orig_memop & MO_SIGN
@@ -418,8 +553,9 @@ static void tcg_gen_qemu_st_i64_int(TCGv_i64 val, TCGTemp *addr,
         oi = make_memop_idx(memop, idx);
     }
 
+    plugin_gen_before_mem_write_callbacks_i64(val, NULL, addr, orig_oi, QEMU_PLUGIN_BEFORE_MEM_W);
     gen_st_i64(val, addr, oi);
-    plugin_gen_mem_callbacks_i64(val, NULL, addr, orig_oi, QEMU_PLUGIN_MEM_W);
+    plugin_gen_after_mem_callbacks_i64(val, NULL, addr, orig_oi, QEMU_PLUGIN_AFTER_MEM_W);
 
     if (swap) {
         tcg_temp_free_i64(swap);
@@ -618,8 +754,8 @@ static void tcg_gen_qemu_ld_i128_int(TCGv_i128 val, TCGTemp *addr,
                            tcg_constant_i32(orig_oi));
     }
 
-    plugin_gen_mem_callbacks_i128(val, ext_addr, addr, orig_oi,
-                                  QEMU_PLUGIN_MEM_R);
+    plugin_gen_after_mem_callbacks_i128(val, ext_addr, addr, orig_oi,
+                                  QEMU_PLUGIN_AFTER_MEM_R);
 }
 
 void tcg_gen_qemu_ld_i128_chk(TCGv_i128 val, TCGTemp *addr, TCGArg idx,
@@ -724,8 +860,8 @@ static void tcg_gen_qemu_st_i128_int(TCGv_i128 val, TCGTemp *addr,
                            tcg_constant_i32(orig_oi));
     }
 
-    plugin_gen_mem_callbacks_i128(val, ext_addr, addr, orig_oi,
-                                  QEMU_PLUGIN_MEM_W);
+    plugin_gen_after_mem_callbacks_i128(val, ext_addr, addr, orig_oi,
+                                  QEMU_PLUGIN_AFTER_MEM_W);
 }
 
 void tcg_gen_qemu_st_i128_chk(TCGv_i128 val, TCGTemp *addr, TCGArg idx,

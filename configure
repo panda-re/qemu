@@ -195,6 +195,9 @@ EXTRA_LDFLAGS=""
 # is impossible without a --enable-foo that exits if a feature is not found.
 default_feature=""
 
+avatar="yes"
+panda_dynamic_record="yes"
+
 for opt do
   optarg=$(expr "x$opt" : 'x[^=]*=\(.*\)')
   case "$opt" in
@@ -774,6 +777,14 @@ for opt do
   --enable-rust) rust=enabled
   ;;
   --disable-rust) rust=disabled
+  ;;
+  --enable-avatar) avatar=yes
+  ;;
+  --disable-avatar) avatar=no
+  ;;
+  --enable-panda-dynamic-record) panda_dynamic_record="yes"
+  ;;
+  --disable-panda-dynamic-record) panda_dynamic_record="no"
   ;;
   # everything else has the same name in configure and meson
   --*) meson_option_parse "$opt" "$optarg"
@@ -1860,6 +1871,10 @@ if test "$tcg" = "enabled"; then
     echo "TCG_TESTS_TARGETS=$tcg_tests_targets" >> $config_host_mak
 fi
 
+if test "$avatar" = "yes"; then
+    echo "CONFIG_AVATAR=y" >> $config_host_mak
+fi
+
 if test "$skip_meson" = no; then
   cross="config-meson.cross.new"
   meson_quote() {
@@ -1989,6 +2004,7 @@ if test "$skip_meson" = no; then
   test "$plugins" = yes && meson_option_add "-Dplugins=true"
   test "$tcg" != enabled && meson_option_add "-Dtcg=$tcg"
   test -n "$gdb_bin" && meson_option_add "-Dgdb=$gdb_bin"
+  test "$panda_dynamic_record" = yes && meson_option_add "-Dpanda_dynamic_record=true"
 
   run_meson() {
     NINJA=$ninja $meson setup "$@" "$PWD" "$source_path"

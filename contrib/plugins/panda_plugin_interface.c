@@ -19,6 +19,8 @@ QEMU_PLUGIN_EXPORT int qemu_plugin_version = QEMU_PLUGIN_VERSION;
 QEMU_PLUGIN_EXPORT int (*external_plugin_install)(qemu_plugin_id_t id, const qemu_info_t *info,int argc, char **argv);
 
 
+extern target_ulong panda_current_pc(CPUState *cpu);
+
 static void start_block_exec_cb(unsigned int cpu_index, void *udata)
 {
     // printf("start_block_exec  %d %p\n", cpu_index, udata);
@@ -35,20 +37,22 @@ static void end_block_exec_cb(unsigned int cpu_index, void *udata)
 
 static void insn_exec(unsigned int cpu_index, void *udata)
 {
-    // CPUState *cpu = panda_cpu_by_index(cpu_index);
-    // panda_callbacks_insn_exec(cpu, (uint64_t) udata);
+    CPUState *cpu = panda_cpu_by_index(cpu_index);
+    panda_callbacks_insn_exec(cpu, (uint64_t) udata);
 }
 
-#ifdef TODO_LATER
 static void vcpu_mem(unsigned int cpu_index, qemu_plugin_meminfo_t info,
                      uint64_t vaddr, void *udata){
     CPUState *cpu = panda_cpu_by_index(cpu_index);
+    uint64_t pc = (uint64_t)(uintptr_t)udata;
     struct qemu_plugin_hwaddr* hwaddr_info = qemu_plugin_get_hwaddr(info, vaddr);
-    uint64_t hwaddr;
+    uint64_t hwaddr = -1;
+    // fprintf(stderr, "vcpu_mem: cpu_index = %u info = %#" PRIx64 " vaddr = %#" PRIx64 " udata = %p\n", cpu_index, (uint64_t)info, vaddr, udata);
     if (hwaddr_info){
         hwaddr = qemu_plugin_hwaddr_phys_addr(hwaddr_info);
     }
-    bool is_store = qemu_plugin_mem_is_store(info);
+    // enum qemu_plugin_mem_rw tag = get_plugin_meminfo_rw(info);
+    unsigned tag = (info >> 16) & 0xff;
     qemu_plugin_mem_value m = qemu_plugin_mem_get_value(info);
     size_t size;
     void *data;
@@ -78,21 +82,42 @@ static void vcpu_mem(unsigned int cpu_index, qemu_plugin_meminfo_t info,
             assert(false);
     }
 
+    uint64_t mem_val_low  = 0;
+    uint64_t mem_val_high = 0;
+    qemu_plugin_mem_get_raw_value(info, &mem_val_low, &mem_val_high);
+
     if (hwaddr_info && qemu_plugin_hwaddr_is_io(hwaddr_info)){
         // panda_callbacks_mmio_after_read(cpu, hwaddr, vaddr, size, data);
     }
 
-    if (is_store){
-        if (hwaddr_info)
-            panda_callbacks_phys_mem_after_write(cpu, hwaddr, size, data);
-        panda_callbacks_virt_mem_after_write(cpu, vaddr, size, data);
-    }else{
-        if (hwaddr_info)
-            panda_callbacks_phys_mem_after_read(cpu, hwaddr, size, data);
-        panda_callbacks_virt_mem_after_read(cpu, vaddr, size, data);
+    if (tag & QEMU_PLUGIN_BEFORE_MEM) {
+        if (tag & QEMU_PLUGIN_MEM_R) {
+            if (hwaddr_info)
+                panda_callbacks_phys_mem_before_read(cpu, pc, hwaddr, size, data);
+            panda_callbacks_virt_mem_before_read(cpu, pc, vaddr, size, data);
+        }
+        if (tag & QEMU_PLUGIN_MEM_W) {
+            if (hwaddr_info)
+                panda_callbacks_phys_mem_before_write(cpu, pc, hwaddr, size, mem_val_low, data);
+            panda_callbacks_virt_mem_before_write(cpu, pc, vaddr, size, mem_val_low, data);
+        }
+    }
+    else if (tag & QEMU_PLUGIN_AFTER_MEM) {
+        if (tag & QEMU_PLUGIN_MEM_R) {
+            if (hwaddr_info)
+                panda_callbacks_phys_mem_after_read(cpu, pc, hwaddr, size, mem_val_low, data);
+            panda_callbacks_virt_mem_after_read(cpu, pc, vaddr, size, mem_val_low, data);
+        }
+        if (tag & QEMU_PLUGIN_MEM_W) {
+            if (hwaddr_info)
+                panda_callbacks_phys_mem_after_write(cpu, pc, hwaddr, size, mem_val_low, data);
+            panda_callbacks_virt_mem_after_write(cpu, pc, vaddr, size, mem_val_low, data);
+        }
+    }
+    else {
+        fprintf(stderr, "illegal tag to vcpu_mem: %#" PRIx64 "\n", (uint64_t)tag);
     }
 }
-#endif
 
 
 static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
@@ -109,28 +134,26 @@ static void vcpu_tb_trans(qemu_plugin_id_t id, struct qemu_plugin_tb *tb)
     for (size_t i=0; i<n_insns; i++){
         insn = qemu_plugin_tb_get_insn(tb, i);
         if (unlikely(panda_callbacks_insn_translate(cpu, pc))){
-            qemu_plugin_register_vcpu_insn_exec_cb(insn, insn_exec, QEMU_PLUGIN_CB_NO_REGS, (void*)qemu_plugin_insn_vaddr(insn));
+            qemu_plugin_register_vcpu_insn_exec_cb(insn, insn_exec, QEMU_PLUGIN_CB_RW_REGS, (void*)qemu_plugin_insn_vaddr(insn));
         }
-#ifdef TODO_LATER
         int memcb_status =  panda_get_memcb_status();
         if (memcb_status){
             qemu_plugin_register_vcpu_mem_cb(insn, vcpu_mem,
-                                             QEMU_PLUGIN_CB_NO_REGS,
-                                             (enum qemu_plugin_mem_rw) memcb_status, NULL);
+                                             QEMU_PLUGIN_CB_RW_REGS,
+                                             (enum qemu_plugin_mem_rw) memcb_status, (void*)qemu_plugin_insn_vaddr(insn));
         }
-#endif
     }
 
     // install before_block_exec
     TranslationBlock *real_tb = panda_get_tb(tb);
     qemu_plugin_register_vcpu_tb_exec_cb(tb, start_block_exec_cb,
-                                        QEMU_PLUGIN_CB_NO_REGS,
+                                        QEMU_PLUGIN_CB_RW_REGS,
                                          (void *)real_tb);
     
     // install after_block_exec
     last_instr = qemu_plugin_tb_get_insn(tb, n_insns - 1);
     qemu_plugin_register_vcpu_insn_exec_cb(last_instr, end_block_exec_cb,
-                                QEMU_PLUGIN_CB_NO_REGS, (void *)real_tb);
+                                QEMU_PLUGIN_CB_RW_REGS, (void *)real_tb);
 
     panda_callbacks_block_translate(cpu, tb);
 }

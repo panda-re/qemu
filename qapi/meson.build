@@ -77,6 +77,7 @@ if have_system or have_tools
   ]
 endif
 
+
 qapi_nonmodule_outputs = [
   'qapi-introspect.c', 'qapi-introspect.h',
   'qapi-types.c', 'qapi-types.h',

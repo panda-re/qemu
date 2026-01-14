@@ -38,6 +38,7 @@ extern char *panda_snap_name;
 // extern bool panda_aborted;
 
 int panda_run(void) {
+    printf("IN PANDA_RUN=====================");
     int status = 0;
     panda_in_main_loop = 1;
     status = qemu_main_loop();
@@ -223,31 +224,31 @@ void panda_setup_signal_handling(void (*f) (int, void*, void *))
 }
 
 // Taken from Avatar2's Configurable Machine - see hw/avatar/configurable_machine.c
-// void map_memory(char* name, uint64_t size, uint64_t address) {
-//     //const char * name; /// XXX const?
-//     MemoryRegion * ram;
-//     bool is_rom = false; // For now, only ram
+void map_memory(char* name, uint64_t size, uint64_t address) {
+    printf("==========map_memory==========");
+    //const char * name; /// XXX const?
+    MemoryRegion * ram;
+    bool is_rom = false; // For now, only ram
 
-//     // Get memory from system. XXX may be unsafe to run too early (before machine_init)
-//     MemoryRegion *sysmem = get_system_memory();
+    // Get memory from system. XXX may be unsafe to run too early (before machine_init)
+    MemoryRegion *sysmem = get_system_memory();
 
-//     // Make memory region and initialize
-//     ram =  g_new(MemoryRegion, 1);
-//     g_assert(ram);
+    // Make memory region and initialize
+    ram =  g_new(MemoryRegion, 1);
+    g_assert(ram);
 
-//     if(!is_rom) {
-//         memory_region_init_ram(ram, NULL, name, size, &error_fatal);
-//     } else {
-//         memory_region_init_rom(ram, NULL, name, size, &error_fatal);
-//     }
-//     vmstate_register_ram(ram, NULL);
+    if(!is_rom) {
+        memory_region_init_ram(ram, NULL, name, size, &error_fatal);
+    } else {
+        memory_region_init_rom(ram, NULL, name, size, &error_fatal);
+    }
 
-//     printf("Adding memory region %s (size: 0x%"
-//            PRIx64 ") at address 0x%" PRIx64 "\n", name, size, address);
+    printf("Adding memory region %s (size: 0x%"
+           PRIx64 ") at address 0x%" PRIx64 "\n", name, size, address);
 
-//     // Add memory region to sysmem
-//     memory_region_add_subregion(sysmem, address, ram);
-// }
+    // Add memory region to sysmem
+    memory_region_add_subregion(sysmem, address, ram);
+}
 
 CPUState* get_cpu(void) {
   return current_cpu;

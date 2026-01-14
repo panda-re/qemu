@@ -35,5 +35,4 @@ struct QemuSemaphore {
 struct QemuThread {
     pthread_t thread;
 };
-
 #endif

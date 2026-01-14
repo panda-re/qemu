@@ -1,12 +1,14 @@
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <threads.h>
 
 #include "panda/debug.h"
 #include "panda/plugin.h"
 #include "panda/common.h"
 // #include "panda/plog-cc-bridge.h"
+
+#define PANDA_MAX_VCPUS 16
+#define PANDA_VCPU_LOCAL(var, vcpu) (*({ assert((vcpu)->cpu_index < PANDA_MAX_VCPUS); &vcpu_local_ ## var[(vcpu)->cpu_index]; }))
 
 #if defined(TARGET_ARM) && defined(CONFIG_SOFTMMU) && defined(TARGET_LATER)
 #include "target/arm/internals.h"
@@ -279,6 +281,7 @@ MemoryRegion* panda_find_ram(void) {
 
     return ram;
 }
+#endif
 
 /**
  * panda_find_max_ram_address() - Get max guest ram address.
@@ -314,15 +317,14 @@ Int128 panda_find_max_ram_address(void) {
 
   return curr_max;
 }
-#endif
 
 #if defined(TARGET_ARM)
 #define CPSR_M (0x1fU)
 #define ARM_CPU_MODE_SVC 0x13
-thread_local int saved_cpsr = -1;
-thread_local int saved_r13 = -1;
-thread_local bool in_fake_priv = false;
-thread_local int saved_pstate = -1;
+static int vcpu_local_saved_cpsr[PANDA_MAX_VCPUS] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+static int vcpu_local_saved_r13[PANDA_MAX_VCPUS] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+static bool vcpu_local_in_fake_priv[PANDA_MAX_VCPUS] = { false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false };
+static int vcpu_local_saved_pstate[PANDA_MAX_VCPUS] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
 
 // Force the guest into supervisor mode by directly modifying its cpsr and r13
 // See https://developer.arm.com/docs/ddi0595/b/aarch32-system-registers/cpsr
@@ -330,63 +332,63 @@ bool enter_priv(CPUState* cpu) {
     CPUARMState* env = (CPUARMState*) cpu_env(cpu);
 
     if (env->aarch64) {
-        saved_pstate = env->pstate;
+        PANDA_VCPU_LOCAL(saved_pstate, cpu) = env->pstate;
         env->pstate |= 1<<2; // Set bits 2-4 to 1 - EL1
-        if (saved_pstate == env->pstate) {
+        if (PANDA_VCPU_LOCAL(saved_pstate, cpu) == env->pstate) {
             return false;
         }
     }else{
-        saved_cpsr = env->uncached_cpsr;
+        PANDA_VCPU_LOCAL(saved_cpsr, cpu) = env->uncached_cpsr;
         env->uncached_cpsr = (env->uncached_cpsr) | (ARM_CPU_MODE_SVC & CPSR_M);
-        if (env->uncached_cpsr == saved_cpsr) {
+        if (env->uncached_cpsr == PANDA_VCPU_LOCAL(saved_cpsr, cpu)) {
             // No change was made
             return false;
         }
     }
 
-    assert(!in_fake_priv && "enter_priv called when already entered");
+    assert(!PANDA_VCPU_LOCAL(in_fake_priv, cpu) && "enter_priv called when already entered");
 
     if (!env->aarch64) {
         // arm32: save r13 for osi - Should we also restore other banked regs like r_14? Seems unnecessary?
-        saved_r13 = env->regs[13];
+        PANDA_VCPU_LOCAL(saved_r13, cpu) = env->regs[13];
         // If we're not already in SVC mode, load the saved SVC r13 from the SVC mode's banked_r13
         if ((((CPUARMState*)cpu_env(cpu))->uncached_cpsr & CPSR_M) != ARM_CPU_MODE_SVC) {
             env->regs[13] = env->banked_r13[ /*SVC_MODE=>*/ 1 ];
         }
     }
-    in_fake_priv = true;
+    PANDA_VCPU_LOCAL(in_fake_priv, cpu) = true;
     return true;
 }
 
 // return to whatever mode we were in previously (might be a NO-OP if we were in svc)
 // Assumes you've called enter_svc first
 void exit_priv(CPUState* cpu) {
-    //printf("RESTORING CSPR TO 0x%x\n", saved_cpsr);
-    assert(in_fake_priv && "exit called when not faked");
+    //printf("RESTORING CSPR TO 0x%x\n", PANDA_VCPU_LOCAL(saved_cpsr, cpu));
+    assert(PANDA_VCPU_LOCAL(in_fake_priv, cpu) && "exit called when not faked");
 
     CPUARMState* env = ((CPUARMState*)cpu_env(cpu));
 
     if (env->aarch64) {
-        assert(saved_pstate != -1 && "Must call enter_svc before reverting with exit_svc");
-        env->pstate = saved_pstate;
+        assert(PANDA_VCPU_LOCAL(saved_pstate, cpu) != -1 && "Must call enter_svc before reverting with exit_svc");
+        env->pstate = PANDA_VCPU_LOCAL(saved_pstate, cpu);
     }else{
-        assert(saved_cpsr != -1 && "Must call enter_svc before reverting with exit_svc");
-        env->uncached_cpsr = saved_cpsr;
-        env->regs[13] = saved_r13;
+        assert(PANDA_VCPU_LOCAL(saved_cpsr, cpu) != -1 && "Must call enter_svc before reverting with exit_svc");
+        env->uncached_cpsr = PANDA_VCPU_LOCAL(saved_cpsr, cpu);
+        env->regs[13] = PANDA_VCPU_LOCAL(saved_r13, cpu);
     }
-    in_fake_priv = false;
+    PANDA_VCPU_LOCAL(in_fake_priv, cpu) = false;
 }
 
 
 #elif defined(TARGET_MIPS)
 // MIPS
-thread_local int saved_hflags = -1;
-thread_local bool in_fake_priv = false;
+static int vcpu_local_saved_hflags[PANDA_MAX_VCPUS] = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+static bool vcpu_local_in_fake_priv[PANDA_MAX_VCPUS] = { false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false };
 
 // Force the guest into supervisor mode by modifying env->hflags
 // save old hflags and restore after the read
 bool enter_priv(CPUState* cpu) {
-    saved_hflags = ((CPUMIPSState*)cpu_env(cpu))->hflags;
+    PANDA_VCPU_LOCAL(saved_hflags, cpu) = ((CPUMIPSState*)cpu_env(cpu))->hflags;
     CPUMIPSState *env =  (CPUMIPSState*)cpu_env(cpu);
 
     // Already in kernel mode?
@@ -399,37 +401,37 @@ bool enter_priv(CPUState* cpu) {
     ((CPUMIPSState*)cpu_env(cpu))->hflags = ((CPUMIPSState*)cpu_env(cpu))->hflags & ~MIPS_HFLAG_UM;
     ((CPUMIPSState*)cpu_env(cpu))->hflags = ((CPUMIPSState*)cpu_env(cpu))->hflags & ~MIPS_HFLAG_SM;
 
-    in_fake_priv = true;
+    PANDA_VCPU_LOCAL(in_fake_priv, cpu) = true;
 
     return true;
 }
 
 void exit_priv(CPUState* cpu) {
-    assert(in_fake_priv && "exit called when not faked");
-    ((CPUMIPSState*)cpu_env(cpu))->hflags = saved_hflags;
-    in_fake_priv = false;
+    assert(PANDA_VCPU_LOCAL(in_fake_priv, cpu) && "exit called when not faked");
+    ((CPUMIPSState*)cpu_env(cpu))->hflags = PANDA_VCPU_LOCAL(saved_hflags, cpu);
+    PANDA_VCPU_LOCAL(in_fake_priv, cpu) = false;
 }
 
 #elif defined(TARGET_I386)
 
-thread_local uint32_t saved_hflags = 0;
-thread_local bool in_fake_priv = false;
+static uint32_t vcpu_local_saved_hflags[PANDA_MAX_VCPUS] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+static bool vcpu_local_in_fake_priv[PANDA_MAX_VCPUS] = { false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false };
 bool enter_priv(CPUState *cpu){
     if (panda_in_kernel_mode(cpu)){
         return false;
     }
     CPUX86State *env = (CPUX86State *)cpu_env(cpu);
-    saved_hflags = env->hflags;
-    in_fake_priv = true;
+    PANDA_VCPU_LOCAL(saved_hflags, cpu) = env->hflags;
+    PANDA_VCPU_LOCAL(in_fake_priv, cpu) = true;
     env->hflags = env->hflags | HF_CPL_MASK;
     return true;
 }
 
 void exit_priv(CPUState *cpu){
-    assert(in_fake_priv && "exit called when not faked");
+    assert(PANDA_VCPU_LOCAL(in_fake_priv, cpu) && "exit called when not faked");
     CPUX86State *env = (CPUX86State *)cpu_env(cpu);
-    env->hflags = saved_hflags;
-    in_fake_priv = false;
+    env->hflags = PANDA_VCPU_LOCAL(saved_hflags, cpu);
+    PANDA_VCPU_LOCAL(in_fake_priv, cpu) = false;
 }
 
 #else
