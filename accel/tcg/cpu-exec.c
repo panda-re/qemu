@@ -47,6 +47,18 @@
 #include "tb-internal.h"
 #include "internal-common.h"
 
+/**
+ * PANDA IMPORTS
+ */
+void panda_callbacks_before_block_exec(CPUState *env, TranslationBlock *tb);
+void panda_callbacks_after_block_exec(CPUState *env, TranslationBlock *tb, uint8_t exitCode);
+void panda_callbacks_before_block_translate(CPUState *env, uint64_t pc);
+void panda_callbacks_after_block_translate(CPUState *env, TranslationBlock *tb);
+void panda_callbacks_block_translate(CPUState *env, struct qemu_plugin_tb *tb);
+int32_t panda_callbacks_before_handle_exception(CPUState *cpu, int32_t exception_index);
+/**
+ * END PANDA IMPORTS
+ */
 /* -icount align implementation. */
 
 typedef struct SyncClocks {
@@ -363,6 +375,23 @@ static inline bool check_for_breakpoints(CPUState *cpu, vaddr pc,
         check_for_breakpoints_slow(cpu, pc, cflags);
 }
 
+TranslationBlock *panda_lookup_tb(CPUState *cpu, uint64_t pc);
+TranslationBlock *panda_lookup_tb(CPUState *cpu, uint64_t pc)
+{
+    TCGTBCPUState s = cpu->cc->tcg_ops->get_tb_cpu_state(cpu);
+    TranslationBlock *tb;
+
+    s.cflags = curr_cflags(cpu);
+    s.pc = pc;
+
+    tb = tb_lookup(cpu, s);
+    if (tb == NULL) {
+        return NULL;
+    }
+
+    return tb;
+}
+
 /**
  * helper_lookup_tb_ptr: quick check for next tb
  * @env: current cpu state
@@ -434,6 +463,8 @@ cpu_tb_exec(CPUState *cpu, TranslationBlock *itb, int *tb_exit)
     if (qemu_loglevel_mask(CPU_LOG_TB_CPU | CPU_LOG_EXEC)) {
         log_cpu_exec(log_pc(cpu, itb), cpu, itb);
     }
+    
+    panda_callbacks_before_block_exec(cpu, itb);
 
     qemu_thread_jit_execute();
     ret = tcg_qemu_tb_exec(cpu_env(cpu), tb_ptr);
@@ -450,6 +481,7 @@ cpu_tb_exec(CPUState *cpu, TranslationBlock *itb, int *tb_exit)
     last_tb = tcg_splitwx_to_rw((void *)(ret & ~TB_EXIT_MASK));
     *tb_exit = ret & TB_EXIT_MASK;
 
+    panda_callbacks_after_block_exec(cpu, itb, *tb_exit);
     trace_exec_tb_exit(last_tb, *tb_exit);
 
     if (*tb_exit > TB_EXIT_IDX1) {
@@ -574,7 +606,9 @@ void cpu_exec_step_atomic(CPUState *cpu)
         tb = tb_lookup(cpu, s);
         if (tb == NULL) {
             mmap_lock();
+            panda_callbacks_before_block_translate(cpu, s.pc);
             tb = tb_gen_code(cpu, s);
+            panda_callbacks_after_block_translate(cpu, tb);
             mmap_unlock();
         }
 
@@ -706,6 +740,13 @@ static inline bool cpu_handle_exception(CPUState *cpu, int *ret)
         }
         cpu->exception_index = -1;
         return true;
+    }
+    int32_t exception = cpu->exception_index;
+
+    cpu->exception_index = panda_callbacks_before_handle_exception(cpu, cpu->exception_index);
+
+    if (exception != cpu->exception_index){
+        return cpu_handle_exception(cpu, ret);
     }
 
 #if defined(CONFIG_USER_ONLY)
@@ -967,7 +1008,9 @@ cpu_exec_loop(CPUState *cpu, SyncClocks *sc)
                 uint32_t h;
 
                 mmap_lock();
+                panda_callbacks_before_block_translate(cpu, s.pc);
                 tb = tb_gen_code(cpu, s);
+                panda_callbacks_after_block_translate(cpu, tb);
                 mmap_unlock();
 
                 /*
