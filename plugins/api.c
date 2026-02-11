@@ -236,6 +236,18 @@ size_t qemu_plugin_tb_n_insns(const struct qemu_plugin_tb *tb)
     return tb->n;
 }
 
+size_t qemu_plugin_tb_size(const struct qemu_plugin_tb *tb){
+    struct qemu_plugin_insn *insn;
+    size_t size = 0;
+    for (size_t i = 0; i < tb->n; i++) {
+        insn = qemu_plugin_tb_get_insn(tb, i);
+        if (insn != NULL){
+            size += qemu_plugin_insn_size(insn);
+        }
+    }
+    return size;
+}
+
 uint64_t qemu_plugin_tb_vaddr(const struct qemu_plugin_tb *tb)
 {
     const DisasContextBase *db = tcg_ctx->plugin_db;
@@ -249,6 +261,19 @@ qemu_plugin_tb_get_insn(const struct qemu_plugin_tb *tb, size_t idx)
         return NULL;
     }
     return g_ptr_array_index(tb->insns, idx);
+}
+
+struct qemu_plugin_insn *
+qemu_plugin_tb_get_insn_by_vaddr(const struct qemu_plugin_tb *tb, uint64_t vaddr)
+{
+    struct qemu_plugin_insn *insn;
+    for (size_t i = 0; i < tb->n; i++){
+        insn = qemu_plugin_tb_get_insn(tb, i);
+        if (insn != NULL && insn->vaddr == vaddr){
+            return insn;
+        }
+    }
+    return NULL;
 }
 
 /*
