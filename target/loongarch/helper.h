@@ -4,3 +4,4 @@
  */
 
 #include "tcg/helper.h"
+#include "panda/callbacks/cb-helper-defs.h"
