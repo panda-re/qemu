@@ -29,6 +29,7 @@
 #include "exec/helper-proto.h"
 #include "exec/cputlb.h"
 #include "exec/target_page.h"
+bool panda_callbacks_asid_changed(CPUState *env, uint64_t oldval, uint64_t newval);
 
 
 /* SMP helpers.  */
@@ -1089,7 +1090,15 @@ void helper_mtc0_entryhi(CPUMIPSState *env, target_ulong arg1)
 #endif
     old = env->CP0_EntryHi;
     val = (arg1 & mask) | (old & ~mask);
-    env->CP0_EntryHi = val;
+    if ((env->CP0_EntryHi & env->CP0_EntryHi_ASID_mask) != (val & env->CP0_EntryHi_ASID_mask)) {
+      // Actually an asid change, trigger CB
+      if (!panda_callbacks_asid_changed(env_cpu(env), env->CP0_EntryHi, val)){
+          env->CP0_EntryHi = val;
+      }
+    }else{
+      // not an asid change, no cb
+      env->CP0_EntryHi = val;
+    }
     if (ase_mt_available(env)) {
         sync_c0_entryhi(env, env->current_tc);
     }
@@ -1105,7 +1114,9 @@ void helper_mttc0_entryhi(CPUMIPSState *env, target_ulong arg1)
     int other_tc = env->CP0_VPEControl & (0xff << CP0VPECo_TargTC);
     CPUMIPSState *other = mips_cpu_map_tc(env, &other_tc);
 
-    other->CP0_EntryHi = arg1;
+    if (!panda_callbacks_asid_changed(env_cpu(env), env->CP0_EntryHi, arg1)){
+          other->CP0_EntryHi = arg1;
+    }
     sync_c0_entryhi(other, other_tc);
 }
 
