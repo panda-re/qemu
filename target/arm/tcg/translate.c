@@ -33,6 +33,8 @@
 #include "exec/helper-info.c.inc"
 #undef  HELPER_H
 
+#include "panda/callbacks/cb-helper-impl.h"
+
 #define ENABLE_ARCH_4T    arm_dc_feature(s, ARM_FEATURE_V4T)
 #define ENABLE_ARCH_5     arm_dc_feature(s, ARM_FEATURE_V5)
 /* currently all emulated v5 cores are also v5TE, so don't bother */
@@ -2343,6 +2345,11 @@ static bool valid_cp(DisasContext *s, int cp)
 
 static bool trans_MCR(DisasContext *s, arg_MCR *a)
 {
+    if (a->cp == 7 && a->opc1 == 0 && a->rt == 0 && a->crn == 0 && a->crm == 0 &&
+        a->opc2 == 0) {
+        gen_helper_panda_guest_hypercall();
+        return true;
+    }
     if (!valid_cp(s, a->cp)) {
         return false;
     }
