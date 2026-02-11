@@ -2819,7 +2819,6 @@ static void vmsa_tcr_ttbr_el2_write(CPUARMState *env, const ARMCPRegInfo *ri,
             tlb_flush_by_mmuidx(env_cpu(env), alle2_tlbmask());
         }
         raw_write(env, ri, value);
->>>>>>> d5bc20b86d (add arm support for on_asid_changed)
     }
 }
 
