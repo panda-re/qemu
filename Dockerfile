@@ -189,7 +189,7 @@ RUN mkdir /panda/build && cd /panda/build && \
      python3 -m pip install setuptools_scm && \
      /panda/configure \
          --target-list="${TARGET_LIST}" \
-         --enable-plugins
+         --enable-plugins --disable-docs
 
 
 RUN ninja -C /panda/build -j "$(nproc)"
