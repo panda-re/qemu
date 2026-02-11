@@ -16,7 +16,7 @@
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "hw/pci/pcie_port.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 
 static void rp_aer_vector_update(PCIDevice *d)
 {
@@ -167,7 +167,7 @@ static void rp_instance_post_init(Object *obj)
     }
 }
 
-static void rp_class_init(ObjectClass *klass, void *data)
+static void rp_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -188,7 +188,7 @@ static const TypeInfo rp_info = {
     .class_init    = rp_class_init,
     .abstract      = true,
     .class_size = sizeof(PCIERootPortClass),
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_PCIE_DEVICE },
         { }
     },

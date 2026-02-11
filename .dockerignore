@@ -1,0 +1,8 @@
+build
+venv
+local
+Dockerfile
+.*sw*
+.dockerignore
+.github
+.git/FETCH_HEAD

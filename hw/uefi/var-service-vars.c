@@ -12,7 +12,7 @@
 #include "hw/uefi/var-service-api.h"
 #include "hw/uefi/var-service-edk2.h"
 
-#include "trace/trace-hw_uefi.h"
+#include "trace.h"
 
 #define EFI_VARIABLE_ATTRIBUTE_SUPPORTED                                \
     (EFI_VARIABLE_NON_VOLATILE |                                        \
@@ -357,6 +357,9 @@ uefi_vars_mm_get_next_variable(uefi_vars_state *uv, mm_header *mhdr,
     if (uefi_strlen(name, nv->name_size) == 0) {
         /* empty string -> first */
         var = QTAILQ_FIRST(&uv->variables);
+        while (var && !check_access(uv, var)) {
+            var = QTAILQ_NEXT(var, next);
+        }
         if (!var) {
             return uefi_vars_mm_error(mhdr, mvar, EFI_NOT_FOUND);
         }
@@ -472,7 +475,8 @@ static size_t uefi_vars_mm_set_variable(uefi_vars_state *uv, mm_header *mhdr,
                 goto rollback;
             }
             if (old_var && new_var) {
-                if (uefi_time_compare(&old_var->time, &new_var->time) > 0) {
+                if ((va->attributes & EFI_VARIABLE_APPEND_WRITE) == 0 &&
+                    uefi_time_compare(&old_var->time, &new_var->time) > 0) {
                     trace_uefi_vars_security_violation("time check failed");
                     mvar->status = EFI_SECURITY_VIOLATION;
                     goto rollback;
@@ -589,7 +593,7 @@ uefi_vars_mm_get_payload_size(uefi_vars_state *uv, mm_header *mhdr,
         return uefi_vars_mm_error(mhdr, mvar, EFI_BAD_BUFFER_SIZE);
     }
 
-    ps->payload_size = uv->buf_size;
+    ps->payload_size = uv->buf_size - sizeof(*mhdr) - sizeof(*mvar);
     mvar->status = EFI_SUCCESS;
     return length;
 }
@@ -702,12 +706,14 @@ uint32_t uefi_vars_mm_vars_proto(uefi_vars_state *uv)
     case SMM_VARIABLE_FUNCTION_READY_TO_BOOT:
         trace_uefi_event("ready-to-boot");
         uv->ready_to_boot = true;
+        mvar->status = EFI_SUCCESS;
         length = 0;
         break;
 
     case SMM_VARIABLE_FUNCTION_EXIT_BOOT_SERVICE:
         trace_uefi_event("exit-boot-service");
         uv->exit_boot_service = true;
+        mvar->status = EFI_SUCCESS;
         length = 0;
         break;
 

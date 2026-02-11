@@ -18,13 +18,14 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/arm/boot.h"
+#include "hw/arm/machines-qom.h"
 #include "net/net.h"
 #include "system/system.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/block/flash.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/adc/zynq-xadc.h"
 #include "hw/ssi/ssi.h"
 #include "hw/usb/chipidea.h"
@@ -33,7 +34,7 @@
 #include "hw/char/cadence_uart.h"
 #include "hw/net/cadence_gem.h"
 #include "hw/cpu/a9mpcore.h"
-#include "hw/qdev-clock.h"
+#include "hw/core/qdev-clock.h"
 #include "hw/misc/unimp.h"
 #include "system/reset.h"
 #include "qom/object.h"
@@ -453,7 +454,7 @@ static void zynq_init(MachineState *machine)
     arm_load_kernel(zynq_machine->cpu[0], machine, &zynq_binfo);
 }
 
-static void zynq_machine_class_init(ObjectClass *oc, void *data)
+static void zynq_machine_class_init(ObjectClass *oc, const void *data)
 {
     static const char * const valid_cpu_types[] = {
         ARM_CPU_TYPE_NAME("cortex-a9"),
@@ -480,6 +481,7 @@ static const TypeInfo zynq_machine_type = {
     .parent = TYPE_MACHINE,
     .class_init = zynq_machine_class_init,
     .instance_size = sizeof(ZynqMachineState),
+    .interfaces = arm_machine_interfaces,
 };
 
 static void zynq_machine_register_types(void)

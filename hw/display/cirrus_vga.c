@@ -40,7 +40,7 @@
 #include "qapi/error.h"
 #include "trace.h"
 #include "hw/pci/pci_device.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "ui/pixel_ops.h"
 #include "vga_regs.h"
@@ -2991,7 +2991,7 @@ static const Property pci_vga_cirrus_properties[] = {
                      cirrus_vga.vga.global_vmstate, false),
 };
 
-static void cirrus_vga_class_init(ObjectClass *klass, void *data)
+static void cirrus_vga_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     PCIDeviceClass *k = PCI_DEVICE_CLASS(klass);
@@ -3013,7 +3013,7 @@ static const TypeInfo cirrus_vga_info = {
     .parent        = TYPE_PCI_DEVICE,
     .instance_size = sizeof(PCICirrusVGAState),
     .class_init    = cirrus_vga_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CONVENTIONAL_PCI_DEVICE },
         { },
     },

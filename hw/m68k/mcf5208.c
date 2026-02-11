@@ -21,17 +21,17 @@
 #include "qapi/error.h"
 #include "qemu/datadir.h"
 #include "cpu.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/m68k/mcf.h"
 #include "hw/m68k/mcf_fec.h"
 #include "qemu/timer.h"
-#include "hw/ptimer.h"
+#include "hw/core/ptimer.h"
 #include "system/system.h"
 #include "system/qtest.h"
 #include "net/net.h"
-#include "hw/boards.h"
-#include "hw/loader.h"
-#include "hw/sysbus.h"
+#include "hw/core/boards.h"
+#include "hw/core/loader.h"
+#include "hw/core/sysbus.h"
 #include "elf.h"
 
 #define SYS_FREQ 166666666
@@ -351,7 +351,7 @@ static void mcf5208evb_init(MachineState *machine)
             error_report("Could not find ROM image '%s'", machine->firmware);
             exit(1);
         }
-        if (load_image_targphys(fn, 0x0, ROM_SIZE) < 8) {
+        if (load_image_targphys(fn, 0x0, ROM_SIZE, NULL) < 8) {
             error_report("Could not load ROM image '%s'", machine->firmware);
             exit(1);
         }
@@ -380,7 +380,7 @@ static void mcf5208evb_init(MachineState *machine)
     }
     if (kernel_size < 0) {
         kernel_size = load_image_targphys(kernel_filename, 0x40000000,
-                                          ram_size);
+                                          ram_size, NULL);
         entry = 0x40000000;
     }
     if (kernel_size < 0) {

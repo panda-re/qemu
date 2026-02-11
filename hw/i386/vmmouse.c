@@ -27,7 +27,7 @@
 #include "ui/console.h"
 #include "hw/i386/vmport.h"
 #include "hw/input/i8042.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "cpu.h"
 #include "qom/object.h"
@@ -321,7 +321,7 @@ static const Property vmmouse_properties[] = {
     DEFINE_PROP_LINK("i8042", VMMouseState, i8042, TYPE_I8042, ISAKBDState *),
 };
 
-static void vmmouse_class_initfn(ObjectClass *klass, void *data)
+static void vmmouse_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -10,15 +10,17 @@
 #include "qemu/osdep.h"
 #include "qemu/error-report.h"
 #include "qemu/main-loop.h"
+#include "exec/target_page.h"
 #include "qapi/error.h"
 #include "migration/vmstate.h"
-#include "hw/qdev-properties.h"
-#include "hw/qdev-properties-system.h"
+#include "hw/core/qdev-properties.h"
+#include "hw/core/qdev-properties-system.h"
 #include "hw/hyperv/hyperv.h"
 #include "hw/hyperv/vmbus.h"
 #include "hw/hyperv/vmbus-bridge.h"
-#include "hw/sysbus.h"
-#include "cpu.h"
+#include "hw/core/sysbus.h"
+#include "exec/cpu-common.h"
+#include "exec/target_page.h"
 #include "trace.h"
 
 enum {
@@ -2073,7 +2075,6 @@ static void send_unload(VMBus *vmbus)
     qemu_mutex_unlock(&vmbus->rx_queue_lock);
 
     post_msg(vmbus, &msg, sizeof(msg));
-    return;
 }
 
 static bool complete_unload(VMBus *vmbus)
@@ -2351,7 +2352,7 @@ static const Property vmbus_dev_props[] = {
 };
 
 
-static void vmbus_dev_class_init(ObjectClass *klass, void *data)
+static void vmbus_dev_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *kdev = DEVICE_CLASS(klass);
     device_class_set_props(kdev, vmbus_dev_props);
@@ -2469,7 +2470,7 @@ static char *vmbus_get_fw_dev_path(DeviceState *dev)
     return g_strdup_printf("%s@%s", qdev_fw_name(dev), uuid);
 }
 
-static void vmbus_class_init(ObjectClass *klass, void *data)
+static void vmbus_class_init(ObjectClass *klass, const void *data)
 {
     BusClass *k = BUS_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);
@@ -2656,7 +2657,7 @@ static const Property vmbus_bridge_props[] = {
     DEFINE_PROP_UINT8("irq", VMBusBridge, irq, 7),
 };
 
-static void vmbus_bridge_class_init(ObjectClass *klass, void *data)
+static void vmbus_bridge_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *k = DEVICE_CLASS(klass);
     SysBusDeviceClass *sk = SYS_BUS_DEVICE_CLASS(klass);

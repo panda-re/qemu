@@ -20,8 +20,8 @@
 #ifndef PPC_PNV_OCC_H
 #define PPC_PNV_OCC_H
 
-#include "exec/memory.h"
-#include "hw/qdev-core.h"
+#include "system/memory.h"
+#include "hw/core/qdev.h"
 
 #define TYPE_PNV_OCC "pnv-occ"
 OBJECT_DECLARE_TYPE(PnvOCC, PnvOCCClass,

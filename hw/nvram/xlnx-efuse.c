@@ -27,12 +27,13 @@
 #include "qemu/osdep.h"
 #include "hw/nvram/xlnx-efuse.h"
 
+#include "qemu/bswap.h"
 #include "qemu/error-report.h"
 #include "qemu/log.h"
 #include "qapi/error.h"
 #include "system/blockdev.h"
-#include "hw/qdev-properties.h"
-#include "hw/qdev-properties-system.h"
+#include "hw/core/qdev-properties.h"
+#include "hw/core/qdev-properties-system.h"
 
 #define TBIT0_OFFSET     28
 #define TBIT1_OFFSET     29
@@ -274,12 +275,14 @@ static const Property efuse_properties[] = {
                       qdev_prop_uint32, uint32_t),
 };
 
-static void efuse_class_init(ObjectClass *klass, void *data)
+static void efuse_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
     dc->realize = efuse_realize;
     device_class_set_props(dc, efuse_properties);
+    /* Reason: Part of Xilinx SoC */
+    dc->user_creatable = false;
 }
 
 static const TypeInfo efuse_info = {

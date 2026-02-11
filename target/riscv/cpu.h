@@ -21,9 +21,11 @@
 #define RISCV_CPU_H
 
 #include "hw/core/cpu.h"
-#include "hw/registerfields.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/registerfields.h"
+#include "hw/core/qdev-properties.h"
+#include "exec/cpu-common.h"
 #include "exec/cpu-defs.h"
+#include "exec/cpu-interrupt.h"
 #include "exec/gdbstub.h"
 #include "qemu/cpu-float.h"
 #include "qom/object.h"
@@ -44,17 +46,11 @@ typedef struct CPUArchState CPURISCVState;
 #endif
 
 /*
- * RISC-V-specific extra insn start words:
- * 1: Original instruction opcode
- * 2: more information about instruction
- */
-#define TARGET_INSN_START_EXTRA_WORDS 2
-/*
  * b0: Whether a instruction always raise a store AMO or not.
  */
 #define RISCV_UW2_ALWAYS_STORE_AMO 1
 
-#define RV(x) ((target_ulong)1 << (x - 'A'))
+#define RV(x) BIT(x - 'A')
 
 /*
  * Update misa_bits[], misa_ext_info_arr[] and misa_ext_cfgs[]
@@ -79,13 +75,29 @@ const char *riscv_get_misa_ext_name(uint32_t bit);
 const char *riscv_get_misa_ext_description(uint32_t bit);
 
 #define CPU_CFG_OFFSET(_prop) offsetof(struct RISCVCPUConfig, _prop)
+#define ENV_CSR_OFFSET(_csr) offsetof(CPURISCVState, _csr)
 
 typedef struct riscv_cpu_profile {
     struct riscv_cpu_profile *u_parent;
     struct riscv_cpu_profile *s_parent;
     const char *name;
     uint32_t misa_ext;
+    /*
+     * The profile is enabled/disabled via command line or
+     * via cpu_init(). Enabling a profile will add all its
+     * mandatory extensions in the CPU during init().
+     */
     bool enabled;
+    /*
+     * The profile is present in the CPU, i.e. the current set of
+     * CPU extensions complies with it. A profile can be enabled
+     * and not present (e.g. the user disabled a mandatory extension)
+     * and the other way around (e.g. all mandatory extensions are
+     * present in a non-profile CPU).
+     *
+     * QMP uses this flag.
+     */
+    bool present;
     bool user_set;
     int priv_spec;
     int satp_mode;
@@ -162,7 +174,9 @@ extern RISCVCPUImpliedExtsRule *riscv_multi_ext_implied_rules[];
 
 #define MMU_USER_IDX 3
 
-#define MAX_RISCV_PMPS (16)
+#define MAX_RISCV_PMPS (64)
+#define OLD_MAX_RISCV_PMPS (16)
+#define MIN_RISCV_PMP_GRANULARITY 4
 
 #if !defined(CONFIG_USER_ONLY)
 #include "pmp.h"
@@ -182,13 +196,9 @@ FIELD(VTYPE, RESERVED, 10, sizeof(target_ulong) * 8 - 11)
 
 typedef struct PMUCTRState {
     /* Current value of a counter */
-    target_ulong mhpmcounter_val;
-    /* Current value of a counter in RV32 */
-    target_ulong mhpmcounterh_val;
-    /* Snapshot values of counter */
-    target_ulong mhpmcounter_prev;
-    /* Snapshort value of a counter in RV32 */
-    target_ulong mhpmcounterh_prev;
+    uint64_t mhpmcounter_val;
+    /* Snapshot value of a counter */
+    uint64_t mhpmcounter_prev;
     /* Value beyond UINT32_MAX/UINT64_MAX before overflow interrupt trigger */
     target_ulong irq_overflow_left;
 } PMUCTRState;
@@ -241,7 +251,7 @@ struct CPUArchState {
     /* 128-bit helpers upper part return value */
     target_ulong retxh;
 
-    target_ulong jvt;
+    uint64_t jvt;
 
     /* elp state for zicfilp extension */
     bool      elp;
@@ -258,7 +268,7 @@ struct CPUArchState {
     target_ulong priv;
     /* CSRs for execution environment configuration */
     uint64_t menvcfg;
-    target_ulong senvcfg;
+    uint64_t senvcfg;
 
 #ifndef CONFIG_USER_ONLY
     /* This contains QEMU specific information about the virt state. */
@@ -266,7 +276,7 @@ struct CPUArchState {
     target_ulong geilen;
     uint64_t resetvec;
 
-    target_ulong mhartid;
+    uint64_t mhartid;
     /*
      * For RV32 this is 32-bit mstatus and 32-bit mstatush.
      * For RV64 this is a 64-bit mstatus.
@@ -300,18 +310,18 @@ struct CPUArchState {
      */
     uint64_t vsie;
 
-    target_ulong satp;   /* since: priv-1.10.0 */
-    target_ulong stval;
-    target_ulong medeleg;
+    uint64_t satp;   /* since: priv-1.10.0 */
+    uint64_t stval;
+    uint64_t medeleg;
 
-    target_ulong stvec;
-    target_ulong sepc;
-    target_ulong scause;
+    uint64_t stvec;
+    uint64_t sepc;
+    uint64_t scause;
 
-    target_ulong mtvec;
-    target_ulong mepc;
-    target_ulong mcause;
-    target_ulong mtval;  /* since: priv-1.10.0 */
+    uint64_t mtvec;
+    uint64_t mepc;
+    uint64_t mcause;
+    uint64_t mtval;  /* since: priv-1.10.0 */
 
     uint64_t mctrctl;
     uint32_t sctrdepth;
@@ -333,13 +343,13 @@ struct CPUArchState {
     uint64_t mvip;
 
     /* Hypervisor CSRs */
-    target_ulong hstatus;
-    target_ulong hedeleg;
+    uint64_t hstatus;
+    uint64_t hedeleg;
     uint64_t hideleg;
     uint32_t hcounteren;
-    target_ulong htval;
-    target_ulong htinst;
-    target_ulong hgatp;
+    uint64_t htval;
+    uint64_t htinst;
+    uint64_t hgatp;
     target_ulong hgeie;
     target_ulong hgeip;
     uint64_t htimedelta;
@@ -353,7 +363,7 @@ struct CPUArchState {
     uint64_t hvip;
 
     /* Hypervisor controlled virtual interrupt priorities */
-    target_ulong hvictl;
+    uint32_t hvictl;
     uint8_t hviprio[64];
 
     /* Upper 64-bits of 128-bit CSRs */
@@ -366,26 +376,26 @@ struct CPUArchState {
      * For RV64 this is a 64-bit vsstatus.
      */
     uint64_t vsstatus;
-    target_ulong vstvec;
-    target_ulong vsscratch;
-    target_ulong vsepc;
-    target_ulong vscause;
-    target_ulong vstval;
-    target_ulong vsatp;
+    uint64_t vstvec;
+    uint64_t vsscratch;
+    uint64_t vsepc;
+    uint64_t vscause;
+    uint64_t vstval;
+    uint64_t vsatp;
 
     /* AIA VS-mode CSRs */
     target_ulong vsiselect;
 
-    target_ulong mtval2;
-    target_ulong mtinst;
+    uint64_t mtval2;
+    uint64_t mtinst;
 
     /* HS Backup CSRs */
-    target_ulong stvec_hs;
-    target_ulong sscratch_hs;
-    target_ulong sepc_hs;
-    target_ulong scause_hs;
-    target_ulong stval_hs;
-    target_ulong satp_hs;
+    uint64_t stvec_hs;
+    uint64_t sscratch_hs;
+    uint64_t sepc_hs;
+    uint64_t scause_hs;
+    uint64_t stval_hs;
+    uint64_t satp_hs;
     uint64_t mstatus_hs;
 
     /*
@@ -406,24 +416,22 @@ struct CPUArchState {
     uint32_t mcountinhibit;
 
     /* PMU cycle & instret privilege mode filtering */
-    target_ulong mcyclecfg;
-    target_ulong mcyclecfgh;
-    target_ulong minstretcfg;
-    target_ulong minstretcfgh;
+    uint64_t mcyclecfg;
+    uint64_t minstretcfg;
 
     /* PMU counter state */
     PMUCTRState pmu_ctrs[RV_MAX_MHPMCOUNTERS];
 
-    /* PMU event selector configured values. First three are unused */
-    target_ulong mhpmevent_val[RV_MAX_MHPMEVENTS];
-
-    /* PMU event selector configured values for RV32 */
-    target_ulong mhpmeventh_val[RV_MAX_MHPMEVENTS];
+    /*
+     * PMU event selector configured values. First three are unused.
+     * For RV32 top 32 bits are accessed via the mhpmeventh CSR.
+     */
+    uint64_t mhpmevent_val[RV_MAX_MHPMEVENTS];
 
     PMUFixedCtrState pmu_fixed_ctrs[2];
 
-    target_ulong sscratch;
-    target_ulong mscratch;
+    uint64_t sscratch;
+    uint64_t mscratch;
 
     /* Sstc CSRs */
     uint64_t stimecmp;
@@ -493,14 +501,27 @@ struct CPUArchState {
 #endif /* CONFIG_KVM */
 
     /* RNMI */
-    target_ulong mnscratch;
-    target_ulong mnepc;
-    target_ulong mncause; /* mncause without bit XLEN-1 set to 1 */
-    target_ulong mnstatus;
-    target_ulong rnmip;
+    uint64_t mnscratch;
+    uint64_t mnepc;
+    uint64_t mncause; /* mncause without bit XLEN-1 set to 1 */
+    uint64_t mnstatus;
+    uint64_t rnmip;
     uint64_t rnmi_irqvec;
     uint64_t rnmi_excpvec;
 };
+
+/*
+ * map is a 16-bit bitmap: the most significant set bit in map is the maximum
+ * satp mode that is supported. It may be chosen by the user and must respect
+ * what qemu implements (valid_1_10_32/64) and what the hw is capable of
+ * (supported bitmap below).
+ *
+ * init is a 16-bit bitmap used to make sure the user selected a correct
+ * configuration as per the specification.
+ */
+typedef struct {
+    uint16_t map, init;
+} RISCVSATPModes;
 
 /*
  * RISCVCPU:
@@ -518,6 +539,7 @@ struct ArchCPU {
 
     /* Configuration Settings */
     RISCVCPUConfig cfg;
+    RISCVSATPModes satp_modes;
 
     QEMUTimer *pmu_timer;
     /* A bitmask of Available programmable counters */
@@ -526,6 +548,19 @@ struct ArchCPU {
     GHashTable *pmu_event_ctr_map;
     const GPtrArray *decoders;
 };
+
+typedef struct RISCVCSR RISCVCSR;
+
+typedef struct RISCVCPUDef {
+    RISCVMXL misa_mxl_max;  /* max mxl for this cpu */
+    RISCVCPUProfile *profile;
+    uint32_t misa_ext;
+    int priv_spec;
+    int32_t vext_spec;
+    RISCVCPUConfig cfg;
+    bool bare;
+    const RISCVCSR *custom_csrs;
+} RISCVCPUDef;
 
 /**
  * RISCVCPUClass:
@@ -539,10 +574,10 @@ struct RISCVCPUClass {
 
     DeviceRealize parent_realize;
     ResettablePhases parent_phases;
-    RISCVMXL misa_mxl_max;  /* max mxl for this cpu */
+    RISCVCPUDef *def;
 };
 
-static inline int riscv_has_ext(CPURISCVState *env, target_ulong ext)
+static inline int riscv_has_ext(CPURISCVState *env, uint32_t ext)
 {
     return (env->misa_ext & ext) != 0;
 }
@@ -552,6 +587,7 @@ static inline int riscv_has_ext(CPURISCVState *env, target_ulong ext)
 extern const char * const riscv_int_regnames[];
 extern const char * const riscv_int_regnamesh[];
 extern const char * const riscv_fpr_regnames[];
+extern const char * const riscv_rvv_regnames[];
 
 const char *riscv_cpu_get_trap_name(target_ulong cause, bool async);
 int riscv_cpu_write_elf64_note(WriteCoreDumpFunction f, CPUState *cs,
@@ -632,7 +668,9 @@ G_NORETURN void riscv_raise_exception(CPURISCVState *env,
 target_ulong riscv_cpu_get_fflags(CPURISCVState *env);
 void riscv_cpu_set_fflags(CPURISCVState *env, target_ulong);
 
-#include "exec/cpu-all.h"
+#ifndef CONFIG_USER_ONLY
+void cpu_set_exception_base(int vp_index, target_ulong address);
+#endif
 
 FIELD(TB_FLAGS, MEM_IDX, 0, 3)
 FIELD(TB_FLAGS, FS, 3, 2)
@@ -765,6 +803,18 @@ static inline RISCVMXL riscv_cpu_sxl(CPURISCVState *env)
 }
 #endif
 
+static inline bool riscv_cpu_allow_16bit_insn(const RISCVCPUConfig *cfg,
+                                              target_long priv_ver,
+                                              uint32_t misa_ext)
+{
+    /* In priv spec version 1.12 or newer, C always implies Zca */
+    if (priv_ver >= PRIV_VERSION_1_12_0) {
+        return cfg->ext_zca;
+    } else {
+        return misa_ext & RVC;
+    }
+}
+
 /*
  * Encode LMUL to lmul as follows:
  *     LMUL    vlmul    lmul
@@ -796,9 +846,6 @@ static inline uint32_t vext_get_vlmax(uint32_t vlenb, uint32_t vsew,
     return vlen >> (vsew + 3 - lmul);
 }
 
-void cpu_get_tb_cpu_state(CPURISCVState *env, vaddr *pc,
-                          uint64_t *cs_base, uint32_t *pflags);
-
 bool riscv_cpu_is_32bit(RISCVCPU *cpu);
 
 bool riscv_cpu_virt_mem_enabled(CPURISCVState *env);
@@ -810,8 +857,8 @@ RISCVException riscv_csrr(CPURISCVState *env, int csrno,
                           target_ulong *ret_value);
 
 RISCVException riscv_csrrw(CPURISCVState *env, int csrno,
-                           target_ulong *ret_value,
-                           target_ulong new_value, target_ulong write_mask);
+                           target_ulong *ret_value, target_ulong new_value,
+                           target_ulong write_mask, uintptr_t ra);
 RISCVException riscv_csrrw_debug(CPURISCVState *env, int csrno,
                                  target_ulong *ret_value,
                                  target_ulong new_value,
@@ -820,13 +867,13 @@ RISCVException riscv_csrrw_debug(CPURISCVState *env, int csrno,
 static inline void riscv_csr_write(CPURISCVState *env, int csrno,
                                    target_ulong val)
 {
-    riscv_csrrw(env, csrno, NULL, val, MAKE_64BIT_MASK(0, TARGET_LONG_BITS));
+    riscv_csrrw(env, csrno, NULL, val, MAKE_64BIT_MASK(0, TARGET_LONG_BITS), 0);
 }
 
 static inline target_ulong riscv_csr_read(CPURISCVState *env, int csrno)
 {
     target_ulong val = 0;
-    riscv_csrrw(env, csrno, &val, 0, 0);
+    riscv_csrr(env, csrno, &val);
     return val;
 }
 
@@ -835,7 +882,8 @@ typedef RISCVException (*riscv_csr_predicate_fn)(CPURISCVState *env,
 typedef RISCVException (*riscv_csr_read_fn)(CPURISCVState *env, int csrno,
                                             target_ulong *ret_value);
 typedef RISCVException (*riscv_csr_write_fn)(CPURISCVState *env, int csrno,
-                                             target_ulong new_value);
+                                             target_ulong new_value,
+                                             uintptr_t ra);
 typedef RISCVException (*riscv_csr_op_fn)(CPURISCVState *env, int csrno,
                                           target_ulong *ret_value,
                                           target_ulong new_value,
@@ -844,8 +892,8 @@ typedef RISCVException (*riscv_csr_op_fn)(CPURISCVState *env, int csrno,
 RISCVException riscv_csrr_i128(CPURISCVState *env, int csrno,
                                Int128 *ret_value);
 RISCVException riscv_csrrw_i128(CPURISCVState *env, int csrno,
-                                Int128 *ret_value,
-                                Int128 new_value, Int128 write_mask);
+                                Int128 *ret_value, Int128 new_value,
+                                Int128 write_mask, uintptr_t ra);
 
 typedef RISCVException (*riscv_csr_read128_fn)(CPURISCVState *env, int csrno,
                                                Int128 *ret_value);
@@ -863,6 +911,12 @@ typedef struct {
     /* The default priv spec version should be PRIV_VERSION_1_10_0 (i.e 0) */
     uint32_t min_priv_ver;
 } riscv_csr_operations;
+
+struct RISCVCSR {
+    int csrno;
+    bool (*insertion_test)(RISCVCPU *cpu);
+    riscv_csr_operations csr_ops;
+};
 
 /* CSR function table constants */
 enum {
@@ -898,7 +952,6 @@ extern const RISCVCPUMultiExtConfig riscv_cpu_extensions[];
 extern const RISCVCPUMultiExtConfig riscv_cpu_vendor_exts[];
 extern const RISCVCPUMultiExtConfig riscv_cpu_experimental_exts[];
 extern const RISCVCPUMultiExtConfig riscv_cpu_named_features[];
-extern const RISCVCPUMultiExtConfig riscv_cpu_deprecated_exts[];
 
 typedef struct isa_ext_data {
     const char *name;
@@ -914,22 +967,26 @@ bool riscv_cpu_accelerator_compatible(RISCVCPU *cpu);
 
 /* CSR function table */
 extern riscv_csr_operations csr_ops[CSR_TABLE_SIZE];
+bool riscv_csr_is_fpu(int csrno);
+bool riscv_csr_is_vpu(int csrno);
 
 extern const bool valid_vm_1_10_32[], valid_vm_1_10_64[];
 
 void riscv_get_csr_ops(int csrno, riscv_csr_operations *ops);
-void riscv_set_csr_ops(int csrno, riscv_csr_operations *ops);
+void riscv_set_csr_ops(int csrno, const riscv_csr_operations *ops);
 
 void riscv_cpu_register_gdb_regs_for_features(CPUState *cs);
 
 target_ulong riscv_new_csr_seed(target_ulong new_value,
                                 target_ulong write_mask);
 
-uint8_t satp_mode_max_from_map(uint32_t map);
 const char *satp_mode_str(uint8_t satp_mode, bool is_32_bit);
 
-/* Implemented in th_csr.c */
-void th_register_custom_csrs(RISCVCPU *cpu);
+/* In th_csr.c */
+extern const RISCVCSR th_csr_list[];
+
+/* Implemented in mips_csr.c */
+extern const RISCVCSR mips_csr_list[];
 
 const char *priv_spec_to_str(int priv_version);
 #endif /* RISCV_CPU_H */

@@ -8,13 +8,13 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "migration/vmstate.h"
 #include "net/net.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/net/smc91c111.h"
-#include "hw/registerfields.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/registerfields.h"
+#include "hw/core/qdev-properties.h"
 #include "qapi/error.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
@@ -913,7 +913,7 @@ static const Property smc91c111_properties[] = {
     DEFINE_NIC_PROPERTIES(smc91c111_state, conf),
 };
 
-static void smc91c111_class_init(ObjectClass *klass, void *data)
+static void smc91c111_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

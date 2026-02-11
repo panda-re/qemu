@@ -20,11 +20,11 @@
 #include "qemu/osdep.h"
 #include "qemu/units.h"
 #include "qapi/error.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "migration/vmstate.h"
 #include "net/net.h"
-#include "hw/irq.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/irq.h"
+#include "hw/core/qdev-properties.h"
 #include "qemu/log.h"
 #include "trace.h"
 #include "net/checksum.h"
@@ -875,7 +875,8 @@ static const VMStateDescription vmstate_aw_emac = {
     }
 };
 
-static void allwinner_sun8i_emac_class_init(ObjectClass *klass, void *data)
+static void allwinner_sun8i_emac_class_init(ObjectClass *klass,
+                                            const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

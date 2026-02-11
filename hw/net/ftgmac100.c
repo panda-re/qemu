@@ -12,7 +12,7 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/net/ftgmac100.h"
 #include "system/dma.h"
 #include "qapi/error.h"
@@ -21,7 +21,7 @@
 #include "net/checksum.h"
 #include "net/eth.h"
 #include "hw/net/mii.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "migration/vmstate.h"
 
 #include <zlib.h> /* for crc32 */
@@ -1260,7 +1260,7 @@ static const Property ftgmac100_properties[] = {
     DEFINE_PROP_BOOL("dma64", FTGMAC100State, dma64, false),
 };
 
-static void ftgmac100_class_init(ObjectClass *klass, void *data)
+static void ftgmac100_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -1419,7 +1419,7 @@ static const Property aspeed_mii_properties[] = {
                      FTGMAC100State *),
 };
 
-static void aspeed_mii_class_init(ObjectClass *klass, void *data)
+static void aspeed_mii_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

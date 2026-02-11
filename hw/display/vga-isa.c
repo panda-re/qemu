@@ -30,8 +30,8 @@
 #include "ui/pixel_ops.h"
 #include "qemu/module.h"
 #include "qemu/timer.h"
-#include "hw/loader.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/loader.h"
+#include "hw/core/qdev-properties.h"
 #include "ui/console.h"
 #include "qom/object.h"
 
@@ -92,7 +92,7 @@ static const Property vga_isa_properties[] = {
     DEFINE_PROP_UINT32("vgamem_mb", ISAVGAState, state.vram_size_mb, 8),
 };
 
-static void vga_isa_class_initfn(ObjectClass *klass, void *data)
+static void vga_isa_class_initfn(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -21,7 +21,7 @@
 #include "exec/hwaddr.h"
 #include "qemu/notify.h"
 
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/i386/x86.h"
 #include "hw/acpi/acpi_dev_interface.h"
 #include "hw/pci-host/gpex.h"
@@ -102,8 +102,6 @@ struct MicrovmMachineState {
     Notifier powerdown_req;
     struct GPEXConfig gpex;
 
-    /* device tree */
-    void *fdt;
     uint32_t ioapic_phandle[2];
 };
 

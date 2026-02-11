@@ -10,7 +10,7 @@
 #ifndef PPC_PNV_PNOR_H
 #define PPC_PNV_PNOR_H
 
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 
 /*
  * PNOR offset on the LPC FW address space. For now this should be 0 because
@@ -28,6 +28,7 @@ struct PnvPnor {
     BlockBackend   *blk;
 
     uint8_t        *storage;
+    uint32_t       lpc_address; /* Offset within LPC FW space */
     int64_t        size;
     MemoryRegion   mmio;
 };

@@ -19,13 +19,13 @@
 #include "qemu/osdep.h"
 #include "qemu/timer.h"
 #include "qemu/log.h"
-#include "hw/irq.h"
-#include "hw/registerfields.h"
+#include "hw/core/irq.h"
+#include "hw/core/registerfields.h"
 #include "hw/misc/sifive_e_aon.h"
 #include "qapi/visitor.h"
 #include "qapi/error.h"
 #include "system/watchdog.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 
 REG32(AON_WDT_WDOGCFG, 0x0)
     FIELD(AON_WDT_WDOGCFG, SCALE, 0, 4)
@@ -294,7 +294,7 @@ static const Property sifive_e_aon_properties[] = {
                        SIFIVE_E_LFCLK_DEFAULT_FREQ),
 };
 
-static void sifive_e_aon_class_init(ObjectClass *oc, void *data)
+static void sifive_e_aon_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

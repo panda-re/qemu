@@ -1051,6 +1051,75 @@ static void pcie_ext_cap_set_next(PCIDevice *dev, uint16_t pos, uint16_t next)
 }
 
 /*
+ * Insert a PCIe extended capability at a given offset.
+ *
+ * This helper only validates that the insertion does not overwrite an
+ * existing PCIe extended capability header, as corrupting a header would
+ * break the extended capability linked list.
+ *
+ * The caller must ensure that (offset, size) does not overlap with other
+ * registers or capability-specific register blocks. Overlaps with
+ * capability-specific registers are not checked and are considered a
+ * user-controlled override.
+ *
+ * Note: Best effort helper. The PCIe spec does not require extended
+ * capabilities to be ordered, but most devices use a forward-linked list.
+ * Devices that do not consistently use a forward-linked list may cause
+ * insertion to fail.
+ */
+bool pcie_insert_capability(PCIDevice *dev, uint16_t cap_id, uint8_t cap_ver,
+                            uint16_t offset, uint16_t size)
+{
+    uint16_t pos = PCI_CONFIG_SPACE_SIZE, prev = 0;
+    uint32_t header;
+
+    assert(pci_is_express(dev));
+
+    if (!QEMU_IS_ALIGNED(offset, PCI_EXT_CAP_ALIGN) ||
+        size < 8 ||
+        offset < PCI_CONFIG_SPACE_SIZE ||
+        offset >= PCIE_CONFIG_SPACE_SIZE ||
+        offset + size > PCIE_CONFIG_SPACE_SIZE) {
+        return false;
+    }
+
+    header = pci_get_long(dev->config + pos);
+    if (!header) {
+        /* No extended capability present, insertion must be at the ECAP head */
+        if (offset != pos) {
+            return false;
+        }
+        pci_set_long(dev->config + pos, PCI_EXT_CAP(cap_id, cap_ver, 0));
+        goto out;
+    }
+
+    while (header && pos && offset >= pos) {
+        uint16_t next = PCI_EXT_CAP_NEXT(header);
+
+        /* Reject insertion inside an existing ECAP header (4 bytes) */
+        if (offset < pos + PCI_EXT_CAP_ALIGN) {
+            return false;
+        }
+
+        prev = pos;
+        pos = next;
+        header = pos ? pci_get_long(dev->config + pos) : 0;
+    }
+
+    pci_set_long(dev->config + offset, PCI_EXT_CAP(cap_id, cap_ver, pos));
+    if (prev) {
+        pcie_ext_cap_set_next(dev, prev, offset);
+    }
+
+out:
+    /* Make capability read-only by default */
+    memset(dev->wmask + offset, 0, size);
+    memset(dev->w1cmask + offset, 0, size);
+    /* Check capability by default */
+    memset(dev->cmask + offset, 0xFF, size);
+    return true;
+}
+/*
  * Caller must supply valid (offset, size) such that the range wouldn't
  * overlap with other capability or other registers.
  * This function doesn't check it.
@@ -1213,4 +1282,106 @@ void pcie_acs_reset(PCIDevice *dev)
     if (dev->exp.acs_cap) {
         pci_set_word(dev->config + dev->exp.acs_cap + PCI_ACS_CTRL, 0);
     }
+}
+
+void pcie_pasid_common_init(PCIDevice *dev, uint16_t offset,
+                            uint8_t pasid_width, bool exec_perm, bool priv_mod)
+{
+    static const uint16_t control_reg_rw_mask = 0x07;
+    uint16_t capability_reg;
+
+    assert(pasid_width <= PCI_EXT_CAP_PASID_MAX_WIDTH);
+    capability_reg = ((uint16_t)pasid_width) << PCI_PASID_CAP_WIDTH_SHIFT;
+    capability_reg |= exec_perm ? PCI_PASID_CAP_EXEC : 0;
+    capability_reg |= priv_mod  ? PCI_PASID_CAP_PRIV : 0;
+    pci_set_word(dev->config + offset + PCI_PASID_CAP, capability_reg);
+
+    /* Everything is disabled by default */
+    pci_set_word(dev->config + offset + PCI_PASID_CTRL, 0);
+
+    pci_set_word(dev->wmask + offset + PCI_PASID_CTRL, control_reg_rw_mask);
+
+    dev->exp.pasid_cap = offset;
+
+}
+
+/* PASID */
+void pcie_pasid_init(PCIDevice *dev, uint16_t offset, uint8_t pasid_width,
+                     bool exec_perm, bool priv_mod)
+{
+    pcie_add_capability(dev, PCI_EXT_CAP_ID_PASID, PCI_PASID_VER, offset,
+                        PCI_EXT_CAP_PASID_SIZEOF);
+    pcie_pasid_common_init(dev, offset, pasid_width, exec_perm, priv_mod);
+}
+
+/* PRI */
+void pcie_pri_init(PCIDevice *dev, uint16_t offset, uint32_t outstanding_pr_cap,
+                   bool prg_response_pasid_req)
+{
+    static const uint16_t control_reg_rw_mask = 0x3;
+    static const uint16_t status_reg_rw1_mask = 0x3;
+    static const uint32_t pr_alloc_reg_rw_mask = 0xffffffff;
+    uint16_t status_reg;
+
+    status_reg = prg_response_pasid_req ? PCI_PRI_STATUS_PASID : 0;
+    status_reg |= PCI_PRI_STATUS_STOPPED; /* Stopped by default */
+
+    pcie_add_capability(dev, PCI_EXT_CAP_ID_PRI, PCI_PRI_VER, offset,
+                        PCI_EXT_CAP_PRI_SIZEOF);
+    /* Disabled by default */
+
+    pci_set_word(dev->config + offset + PCI_PRI_STATUS, status_reg);
+    pci_set_long(dev->config + offset + PCI_PRI_MAX_REQ, outstanding_pr_cap);
+
+    pci_set_word(dev->wmask + offset + PCI_PRI_CTRL, control_reg_rw_mask);
+    pci_set_word(dev->w1cmask + offset + PCI_PRI_STATUS, status_reg_rw1_mask);
+    pci_set_long(dev->wmask + offset + PCI_PRI_ALLOC_REQ, pr_alloc_reg_rw_mask);
+
+    dev->exp.pri_cap = offset;
+}
+
+static inline bool pcie_pasid_check_ctrl_bit_enabled(const PCIDevice *dev,
+                                                     uint16_t mask)
+{
+    if (!pci_is_express(dev) || !dev->exp.pasid_cap) {
+        return false;
+    }
+    return (pci_get_word(dev->config + dev->exp.pasid_cap + PCI_PASID_CTRL) &
+                mask) != 0;
+}
+
+uint32_t pcie_pri_get_req_alloc(const PCIDevice *dev)
+{
+    if (!pcie_pri_enabled(dev)) {
+        return 0;
+    }
+    return pci_get_long(dev->config + dev->exp.pri_cap + PCI_PRI_ALLOC_REQ);
+}
+
+bool pcie_pri_enabled(const PCIDevice *dev)
+{
+    if (!pci_is_express(dev) || !dev->exp.pri_cap) {
+        return false;
+    }
+    return (pci_get_word(dev->config + dev->exp.pri_cap + PCI_PRI_CTRL) &
+                PCI_PRI_CTRL_ENABLE) != 0;
+}
+
+bool pcie_pasid_enabled(const PCIDevice *dev)
+{
+    return pcie_pasid_check_ctrl_bit_enabled(dev, PCI_PASID_CTRL_ENABLE);
+}
+
+bool pcie_pasid_priv_enabled(PCIDevice *dev)
+{
+    return pcie_pasid_check_ctrl_bit_enabled(dev, PCI_PASID_CTRL_PRIV);
+}
+
+bool pcie_ats_enabled(const PCIDevice *dev)
+{
+    if (!pci_is_express(dev) || !dev->exp.ats_cap) {
+        return false;
+    }
+    return (pci_get_word(dev->config + dev->exp.ats_cap + PCI_ATS_CTRL) &
+                PCI_ATS_CTRL_ENABLE) != 0;
 }

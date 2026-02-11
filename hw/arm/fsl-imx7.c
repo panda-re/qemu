@@ -22,7 +22,7 @@
 #include "qapi/error.h"
 #include "hw/arm/fsl-imx7.h"
 #include "hw/misc/unimp.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "system/system.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
@@ -748,7 +748,7 @@ static const Property fsl_imx7_properties[] = {
                      true),
 };
 
-static void fsl_imx7_class_init(ObjectClass *oc, void *data)
+static void fsl_imx7_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

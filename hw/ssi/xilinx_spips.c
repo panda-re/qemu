@@ -23,16 +23,16 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/sysbus.h"
-#include "hw/irq.h"
-#include "hw/ptimer.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/sysbus.h"
+#include "hw/core/irq.h"
+#include "hw/core/ptimer.h"
+#include "hw/core/qdev-properties.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "qemu/bitops.h"
 #include "hw/ssi/xilinx_spips.h"
 #include "qapi/error.h"
-#include "hw/register.h"
+#include "hw/core/register.h"
 #include "system/dma.h"
 #include "migration/blocker.h"
 #include "migration/vmstate.h"
@@ -1430,7 +1430,7 @@ static const Property xilinx_spips_properties[] = {
     DEFINE_PROP_UINT8("num-txrx-bytes", XilinxSPIPS, num_txrx_bytes, 1),
 };
 
-static void xilinx_qspips_class_init(ObjectClass *klass, void * data)
+static void xilinx_qspips_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     XilinxSPIPSClass *xsc = XILINX_SPIPS_CLASS(klass);
@@ -1442,7 +1442,7 @@ static void xilinx_qspips_class_init(ObjectClass *klass, void * data)
     xsc->tx_fifo_size = TXFF_A_Q;
 }
 
-static void xilinx_spips_class_init(ObjectClass *klass, void *data)
+static void xilinx_spips_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     XilinxSPIPSClass *xsc = XILINX_SPIPS_CLASS(klass);
@@ -1458,7 +1458,7 @@ static void xilinx_spips_class_init(ObjectClass *klass, void *data)
     xsc->tx_fifo_size = TXFF_A;
 }
 
-static void xlnx_zynqmp_qspips_class_init(ObjectClass *klass, void * data)
+static void xlnx_zynqmp_qspips_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     XilinxSPIPSClass *xsc = XILINX_SPIPS_CLASS(klass);

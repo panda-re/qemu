@@ -31,10 +31,10 @@
 #include "qemu/bitops.h"
 #include "qom/object.h"
 #include "qapi/error.h"
-#include "hw/sysbus.h"
-#include "hw/irq.h"
-#include "hw/qdev-properties.h"
-#include "hw/qdev-properties-system.h"
+#include "hw/core/sysbus.h"
+#include "hw/core/irq.h"
+#include "hw/core/qdev-properties.h"
+#include "hw/core/qdev-properties-system.h"
 #include "hw/misc/unimp.h"
 #include "net/net.h"
 #include "trace.h"
@@ -385,7 +385,7 @@ static const Property xilinx_ethlite_properties[] = {
     DEFINE_NIC_PROPERTIES(XlnxXpsEthLite, conf),
 };
 
-static void xilinx_ethlite_class_init(ObjectClass *klass, void *data)
+static void xilinx_ethlite_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

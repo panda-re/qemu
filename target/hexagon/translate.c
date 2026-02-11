@@ -23,7 +23,7 @@
 #include "exec/helper-gen.h"
 #include "exec/helper-proto.h"
 #include "exec/translation-block.h"
-#include "exec/cpu_ldst.h"
+#include "accel/tcg/cpu-ldst.h"
 #include "exec/log.h"
 #include "internal.h"
 #include "attribs.h"
@@ -36,6 +36,10 @@
 #define HELPER_H "helper.h"
 #include "exec/helper-info.c.inc"
 #undef  HELPER_H
+
+/* Forward declarations referenced in analyze_funcs_generated.c.inc */
+static void mark_implicit_reads(DisasContext *ctx);
+static void mark_implicit_writes(DisasContext *ctx);
 
 #include "analyze_funcs_generated.c.inc"
 
@@ -133,15 +137,15 @@ static bool use_goto_tb(DisasContext *ctx, target_ulong dest)
     return translator_use_goto_tb(&ctx->base, dest);
 }
 
-static void gen_goto_tb(DisasContext *ctx, int idx, target_ulong dest, bool
-                        move_to_pc)
+static void gen_goto_tb(DisasContext *ctx, unsigned tb_slot_idx,
+                        target_ulong dest, bool move_to_pc)
 {
     if (use_goto_tb(ctx, dest)) {
-        tcg_gen_goto_tb(idx);
+        tcg_gen_goto_tb(tb_slot_idx);
         if (move_to_pc) {
             tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], dest);
         }
-        tcg_gen_exit_tb(ctx->base.tb, idx);
+        tcg_gen_exit_tb(ctx->base.tb, tb_slot_idx);
     } else {
         if (move_to_pc) {
             tcg_gen_movi_tl(hex_gpr[HEX_REG_PC], dest);
@@ -203,8 +207,9 @@ static int read_packet_words(CPUHexagonState *env, DisasContext *ctx,
     memset(words, 0, PACKET_WORDS_MAX * sizeof(uint32_t));
     for (nwords = 0; !found_end && nwords < PACKET_WORDS_MAX; nwords++) {
         words[nwords] =
-            translator_ldl(env, &ctx->base,
-                           ctx->base.pc_next + nwords * sizeof(uint32_t));
+            translator_ldl_end(env, &ctx->base,
+                               ctx->base.pc_next + nwords * sizeof(uint32_t),
+                               MO_LE);
         found_end = is_packet_end(words[nwords]);
     }
     if (!found_end) {
@@ -272,12 +277,7 @@ static void mark_implicit_reg_write(DisasContext *ctx, int attrib, int rnum)
 {
     uint16_t opcode = ctx->insn->opcode;
     if (GET_ATTRIB(opcode, attrib)) {
-        /*
-         * USR is used to set overflow and FP exceptions,
-         * so treat it as conditional
-         */
-        bool is_predicated = GET_ATTRIB(opcode, A_CONDEXEC) ||
-                             rnum == HEX_REG_USR;
+        bool is_predicated = GET_ATTRIB(opcode, A_CONDEXEC);
 
         /* LC0/LC1 is conditionally written by endloop instructions */
         if ((rnum == HEX_REG_LC0 || rnum == HEX_REG_LC1) &&
@@ -291,6 +291,14 @@ static void mark_implicit_reg_write(DisasContext *ctx, int attrib, int rnum)
     }
 }
 
+static void mark_implicit_usr_write(DisasContext *ctx, int attrib)
+{
+    uint16_t opcode = ctx->insn->opcode;
+    if (GET_ATTRIB(opcode, attrib)) {
+        ctx->implicit_usr_write = true;
+    }
+}
+
 static void mark_implicit_reg_writes(DisasContext *ctx)
 {
     mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_FP,  HEX_REG_FP);
@@ -300,8 +308,9 @@ static void mark_implicit_reg_writes(DisasContext *ctx)
     mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_SA0, HEX_REG_SA0);
     mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_LC1, HEX_REG_LC1);
     mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_SA1, HEX_REG_SA1);
-    mark_implicit_reg_write(ctx, A_IMPLICIT_WRITES_USR, HEX_REG_USR);
-    mark_implicit_reg_write(ctx, A_FPOP, HEX_REG_USR);
+
+    mark_implicit_usr_write(ctx, A_IMPLICIT_WRITES_USR);
+    mark_implicit_usr_write(ctx, A_FPOP);
 }
 
 static void mark_implicit_pred_write(DisasContext *ctx, int attrib, int pnum)
@@ -351,11 +360,6 @@ static bool need_commit(DisasContext *ctx)
         }
     }
 
-    /* Floating point instructions are hard-coded to use new_value */
-    if (check_for_attrib(pkt, A_FPOP)) {
-        return true;
-    }
-
     if (ctx->read_after_write || ctx->has_hvx_overlap) {
         return true;
     }
@@ -378,6 +382,17 @@ static void mark_implicit_pred_reads(DisasContext *ctx)
     mark_implicit_pred_read(ctx, A_IMPLICIT_READS_P3, 3);
 }
 
+static void mark_implicit_reads(DisasContext *ctx)
+{
+    mark_implicit_pred_reads(ctx);
+}
+
+static void mark_implicit_writes(DisasContext *ctx)
+{
+    mark_implicit_reg_writes(ctx);
+    mark_implicit_pred_writes(ctx);
+}
+
 static void analyze_packet(DisasContext *ctx)
 {
     Packet *pkt = ctx->pkt;
@@ -389,9 +404,6 @@ static void analyze_packet(DisasContext *ctx)
         if (opcode_analyze[insn->opcode]) {
             opcode_analyze[insn->opcode](ctx);
         }
-        mark_implicit_reg_writes(ctx);
-        mark_implicit_pred_writes(ctx);
-        mark_implicit_pred_reads(ctx);
     }
 
     ctx->need_commit = need_commit(ctx);
@@ -465,6 +477,12 @@ static void gen_start_packet(DisasContext *ctx)
             i = find_next_bit(ctx->predicated_regs, TOTAL_PER_THREAD_REGS,
                               i + 1);
         }
+    }
+
+    /* Preload usr to new_value_usr */
+    if (ctx->need_commit && ctx->implicit_usr_write &&
+        !test_bit(HEX_REG_USR, ctx->regs_written)) {
+        tcg_gen_mov_tl(hex_new_value_usr, hex_gpr[HEX_REG_USR]);
     }
 
     /*
@@ -587,6 +605,10 @@ static void gen_reg_writes(DisasContext *ctx)
             ctx->is_tight_loop = false;
         }
     }
+
+    if (ctx->implicit_usr_write && !test_bit(HEX_REG_USR, ctx->regs_written)) {
+        tcg_gen_mov_tl(hex_gpr[HEX_REG_USR], hex_new_value_usr);
+    }
 }
 
 static void gen_pred_writes(DisasContext *ctx)
@@ -656,17 +678,17 @@ void process_store(DisasContext *ctx, int slot_num)
         case 2:
             tcg_gen_qemu_st_tl(hex_store_val32[slot_num],
                                hex_store_addr[slot_num],
-                               ctx->mem_idx, MO_TEUW);
+                               ctx->mem_idx, MO_LE | MO_UW);
             break;
         case 4:
             tcg_gen_qemu_st_tl(hex_store_val32[slot_num],
                                hex_store_addr[slot_num],
-                               ctx->mem_idx, MO_TEUL);
+                               ctx->mem_idx, MO_LE | MO_UL);
             break;
         case 8:
             tcg_gen_qemu_st_i64(hex_store_val64[slot_num],
                                 hex_store_addr[slot_num],
-                                ctx->mem_idx, MO_TEUQ);
+                                ctx->mem_idx, MO_LE | MO_UQ);
             break;
         default:
             {
@@ -693,11 +715,11 @@ static void process_store_log(DisasContext *ctx)
      *  the memory accesses overlap.
      */
     Packet *pkt = ctx->pkt;
-    if (pkt->pkt_has_store_s1) {
+    if (pkt->pkt_has_scalar_store_s1) {
         g_assert(!pkt->pkt_has_dczeroa);
         process_store(ctx, 1);
     }
-    if (pkt->pkt_has_store_s0) {
+    if (pkt->pkt_has_scalar_store_s0) {
         g_assert(!pkt->pkt_has_dczeroa);
         process_store(ctx, 0);
     }
@@ -822,8 +844,9 @@ static void gen_commit_packet(DisasContext *ctx)
      * involved in committing the packet.
      */
     Packet *pkt = ctx->pkt;
-    bool has_store_s0 = pkt->pkt_has_store_s0;
-    bool has_store_s1 = (pkt->pkt_has_store_s1 && !ctx->s1_store_processed);
+    bool has_store_s0 = pkt->pkt_has_scalar_store_s0;
+    bool has_store_s1 =
+        (pkt->pkt_has_scalar_store_s1 && !ctx->s1_store_processed);
     bool has_hvx_store = pkt_has_hvx_store(pkt);
     if (pkt->pkt_has_dczeroa) {
         /*
@@ -965,8 +988,10 @@ static bool pkt_crosses_page(CPUHexagonState *env, DisasContext *ctx)
     int nwords;
 
     for (nwords = 0; !found_end && nwords < PACKET_WORDS_MAX; nwords++) {
-        uint32_t word = translator_ldl(env, &ctx->base,
-                            ctx->base.pc_next + nwords * sizeof(uint32_t));
+        uint32_t word = translator_ldl_end(env, &ctx->base,
+                                           ctx->base.pc_next
+                                           + nwords * sizeof(uint32_t),
+                                           MO_LE);
         found_end = is_packet_end(word);
     }
     uint32_t next_ptr =  ctx->base.pc_next + nwords * sizeof(uint32_t);

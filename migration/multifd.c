@@ -16,7 +16,7 @@
 #include "qemu/rcu.h"
 #include "exec/target_page.h"
 #include "system/system.h"
-#include "exec/ramblock.h"
+#include "system/ramblock.h"
 #include "qemu/error-report.h"
 #include "qapi/error.h"
 #include "file.h"
@@ -29,17 +29,11 @@
 #include "qemu-file.h"
 #include "trace.h"
 #include "multifd.h"
-#include "threadinfo.h"
 #include "options.h"
 #include "qemu/yank.h"
 #include "io/channel-file.h"
 #include "io/channel-socket.h"
 #include "yank_functions.h"
-
-/* Multiple fd's */
-
-#define MULTIFD_MAGIC 0x11223344U
-#define MULTIFD_VERSION 1
 
 typedef struct {
     uint32_t magic;
@@ -63,10 +57,6 @@ struct {
      * operations on both 32bit / 64 bits hosts.  It means on 32bit systems
      * multifd will overflow the packet_num easier, but that should be
      * fine.
-     *
-     * Another option is to use QEMU's Stat64 then it'll be 64 bits on all
-     * hosts, however so far it does not support atomic fetch_add() yet.
-     * Make it easy for now.
      */
     uintptr_t packet_num;
     /*
@@ -179,7 +169,7 @@ static int multifd_send_initial_packet(MultiFDSendParams *p, Error **errp)
     if (ret != 0) {
         return -1;
     }
-    stat64_add(&mig_stats.multifd_bytes, size);
+    qatomic_add(&mig_stats.multifd_bytes, size);
     return 0;
 }
 
@@ -419,7 +409,7 @@ bool multifd_send(MultiFDSendData **send_data)
 }
 
 /* Multifd send side hit an error; remember it and prepare to quit */
-static void multifd_send_set_error(Error *err)
+static void multifd_send_error_propagate(Error *err)
 {
     /*
      * We don't want to exit each threads twice.  Depending on where
@@ -433,7 +423,9 @@ static void multifd_send_set_error(Error *err)
 
     if (err) {
         MigrationState *s = migrate_get_current();
-        migrate_set_error(s, err);
+
+        migrate_error_propagate(s, err);
+
         if (s->state == MIGRATION_STATUS_SETUP ||
             s->state == MIGRATION_STATUS_PRE_SWITCHOVER ||
             s->state == MIGRATION_STATUS_DEVICE ||
@@ -442,6 +434,39 @@ static void multifd_send_set_error(Error *err)
                               MIGRATION_STATUS_FAILED);
         }
     }
+}
+
+/*
+ * Gracefully shutdown IOChannels. Only needed for successful migrations on
+ * top of TLS channels.  Otherwise it is same to qio_channel_shutdown().
+ *
+ * A successful migration also guarantees multifd sender threads are
+ * properly flushed and halted.  It is only safe to send BYE in the
+ * migration thread here when we know there's no other thread writting to
+ * the channel, because GnuTLS doesn't support concurrent writers.
+ */
+static void migration_ioc_shutdown_gracefully(QIOChannel *ioc)
+{
+    Error *local_err = NULL;
+
+    if (!migration_has_failed(migrate_get_current()) &&
+        object_dynamic_cast((Object *)ioc, TYPE_QIO_CHANNEL_TLS)) {
+
+        /*
+         * The destination expects the TLS session to always be properly
+         * terminated. This helps to detect a premature termination in the
+         * middle of the stream.  Note that older QEMUs always break the
+         * connection on the source and the destination always sees
+         * GNUTLS_E_PREMATURE_TERMINATION.
+         */
+        migration_tls_channel_end(ioc, &local_err);
+        if (local_err) {
+            warn_reportf_err(local_err,
+                        "Failed to gracefully terminate TLS connection: ");
+        }
+    }
+
+    qio_channel_shutdown(ioc, QIO_CHANNEL_SHUTDOWN_BOTH, NULL);
 }
 
 static void multifd_send_terminate_threads(void)
@@ -465,7 +490,7 @@ static void multifd_send_terminate_threads(void)
 
         qemu_sem_post(&p->sem);
         if (p->c) {
-            qio_channel_shutdown(p->c, QIO_CHANNEL_SHUTDOWN_BOTH, NULL);
+            migration_ioc_shutdown_gracefully(p->c);
         }
     }
 
@@ -552,36 +577,6 @@ void multifd_send_shutdown(void)
         return;
     }
 
-    for (i = 0; i < migrate_multifd_channels(); i++) {
-        MultiFDSendParams *p = &multifd_send_state->params[i];
-
-        /* thread_created implies the TLS handshake has succeeded */
-        if (p->tls_thread_created && p->thread_created) {
-            Error *local_err = NULL;
-            /*
-             * The destination expects the TLS session to always be
-             * properly terminated. This helps to detect a premature
-             * termination in the middle of the stream.  Note that
-             * older QEMUs always break the connection on the source
-             * and the destination always sees
-             * GNUTLS_E_PREMATURE_TERMINATION.
-             */
-            migration_tls_channel_end(p->c, &local_err);
-
-            /*
-             * The above can return an error in case the migration has
-             * already failed. If the migration succeeded, errors are
-             * not expected but there's no need to kill the source.
-             */
-            if (local_err && !migration_has_failed(migrate_get_current())) {
-                warn_report(
-                    "multifd_send_%d: Failed to terminate TLS connection: %s",
-                    p->id, error_get_pretty(local_err));
-                break;
-            }
-        }
-    }
-
     multifd_send_terminate_threads();
 
     for (i = 0; i < migrate_multifd_channels(); i++) {
@@ -589,8 +584,7 @@ void multifd_send_shutdown(void)
         Error *local_err = NULL;
 
         if (!multifd_send_cleanup_channel(p, &local_err)) {
-            migrate_set_error(migrate_get_current(), local_err);
-            error_free(local_err);
+            migrate_error_propagate(migrate_get_current(), local_err);
         }
     }
 
@@ -608,7 +602,7 @@ static int multifd_zero_copy_flush(QIOChannel *c)
         return -1;
     }
     if (ret == 1) {
-        stat64_add(&mig_stats.dirty_sync_missed_zero_copy, 1);
+        qatomic_add(&mig_stats.dirty_sync_missed_zero_copy, 1);
     }
 
     return ret;
@@ -663,12 +657,9 @@ int multifd_send_sync_main(MultiFDSyncReq req)
 static void *multifd_send_thread(void *opaque)
 {
     MultiFDSendParams *p = opaque;
-    MigrationThread *thread = NULL;
     Error *local_err = NULL;
     int ret = 0;
     bool use_packets = multifd_use_packets();
-
-    thread = migration_threads_add(p->name, qemu_get_thread_id());
 
     trace_multifd_send_thread_start(p->id);
     rcu_register_thread();
@@ -695,6 +686,7 @@ static void *multifd_send_thread(void *opaque)
         if (qatomic_load_acquire(&p->pending_job)) {
             bool is_device_state = multifd_payload_device_state(p->data);
             size_t total_size;
+            int write_flags_masked = 0;
 
             p->flags = 0;
             p->iovs_num = 0;
@@ -702,6 +694,9 @@ static void *multifd_send_thread(void *opaque)
 
             if (is_device_state) {
                 multifd_device_state_send_prepare(p);
+
+                /* Device state packets cannot be sent via zerocopy */
+                write_flags_masked |= QIO_CHANNEL_WRITE_FLAG_ZERO_COPY;
             } else {
                 ret = multifd_send_state->ops->send_prepare(p, &local_err);
                 if (ret != 0) {
@@ -723,7 +718,8 @@ static void *multifd_send_thread(void *opaque)
                                               &p->data->u.ram, &local_err);
             } else {
                 ret = qio_channel_writev_full_all(p->c, p->iov, p->iovs_num,
-                                                  NULL, 0, p->write_flags,
+                                                  NULL, 0,
+                                                  p->write_flags & ~write_flags_masked,
                                                   &local_err);
             }
 
@@ -731,7 +727,7 @@ static void *multifd_send_thread(void *opaque)
                 break;
             }
 
-            stat64_add(&mig_stats.multifd_bytes, total_size);
+            qatomic_add(&mig_stats.multifd_bytes, total_size);
 
             p->next_packet_size = 0;
             multifd_send_data_clear(p->data);
@@ -762,7 +758,7 @@ static void *multifd_send_thread(void *opaque)
                     break;
                 }
                 /* p->next_packet_size will always be zero for a SYNC packet */
-                stat64_add(&mig_stats.multifd_bytes, p->packet_len);
+                qatomic_add(&mig_stats.multifd_bytes, p->packet_len);
             }
 
             qatomic_set(&p->pending_sync, MULTIFD_SYNC_NONE);
@@ -774,13 +770,11 @@ out:
     if (ret) {
         assert(local_err);
         trace_multifd_send_error(p->id);
-        multifd_send_set_error(local_err);
+        multifd_send_error_propagate(local_err);
         multifd_send_kick_main(p);
-        error_free(local_err);
     }
 
     rcu_unregister_thread();
-    migration_threads_remove(thread);
     trace_multifd_send_thread_end(p->id, p->packets_sent);
 
     return NULL;
@@ -811,12 +805,10 @@ static bool multifd_tls_channel_connect(MultiFDSendParams *p,
                                         QIOChannel *ioc,
                                         Error **errp)
 {
-    MigrationState *s = migrate_get_current();
-    const char *hostname = s->hostname;
     MultiFDTLSThreadArgs *args;
     QIOChannelTLS *tioc;
 
-    tioc = migration_tls_client_create(ioc, hostname, errp);
+    tioc = migration_tls_client_create(ioc, errp);
     if (!tioc) {
         return false;
     }
@@ -826,7 +818,7 @@ static bool multifd_tls_channel_connect(MultiFDSendParams *p,
      * created TLS channel, which has already taken a reference.
      */
     object_unref(OBJECT(ioc));
-    trace_multifd_tls_outgoing_handshake_start(ioc, tioc, hostname);
+    trace_multifd_tls_outgoing_handshake_start(ioc, tioc);
     qio_channel_set_name(QIO_CHANNEL(tioc), "multifd-tls-outgoing");
 
     args = g_new0(MultiFDTLSThreadArgs, 1);
@@ -873,8 +865,7 @@ static void multifd_new_send_channel_async(QIOTask *task, gpointer opaque)
         goto out;
     }
 
-    trace_multifd_set_outgoing_channel(ioc, object_get_typename(OBJECT(ioc)),
-                                       migrate_get_current()->hostname);
+    trace_multifd_set_outgoing_channel(ioc, object_get_typename(OBJECT(ioc)));
 
     if (migrate_channel_requires_tls_upgrade(ioc)) {
         ret = multifd_tls_channel_connect(p, ioc, &local_err);
@@ -898,14 +889,13 @@ out:
     }
 
     trace_multifd_new_send_channel_async_error(p->id, local_err);
-    multifd_send_set_error(local_err);
+    multifd_send_error_propagate(local_err);
     /*
      * For error cases (TLS or non-TLS), IO channel is always freed here
      * rather than when cleanup multifd: since p->c is not set, multifd
      * cleanup code doesn't even know its existence.
      */
     object_unref(OBJECT(ioc));
-    error_free(local_err);
 }
 
 static bool multifd_new_send_channel_create(gpointer opaque, Error **errp)
@@ -960,7 +950,7 @@ bool multifd_send_setup(void)
         p->write_flags = 0;
 
         if (!multifd_new_send_channel_create(p, &local_err)) {
-            migrate_set_error(s, local_err);
+            migrate_error_propagate(s, local_err);
             ret = -1;
         }
     }
@@ -984,7 +974,7 @@ bool multifd_send_setup(void)
 
         ret = multifd_send_state->ops->send_setup(p, &local_err);
         if (ret) {
-            migrate_set_error(s, local_err);
+            migrate_error_propagate(s, local_err);
             goto err;
         }
         assert(p->iov);
@@ -1063,7 +1053,9 @@ static void multifd_recv_terminate_threads(Error *err)
 
     if (err) {
         MigrationState *s = migrate_get_current();
-        migrate_set_error(s, err);
+
+        migrate_error_propagate(s, err);
+
         if (s->state == MIGRATION_STATUS_SETUP ||
             s->state == MIGRATION_STATUS_ACTIVE) {
             migrate_set_state(&s->state, s->state,
@@ -1384,6 +1376,13 @@ static void *multifd_recv_thread(void *opaque)
         }
 
         if (has_data) {
+            /*
+             * multifd thread should not be active and receive data
+             * when migration is in the Postcopy phase. Two threads
+             * writing the same memory area could easily corrupt
+             * the guest state.
+             */
+            assert(!migration_in_postcopy());
             if (is_device_state) {
                 assert(use_packets);
                 ret = multifd_device_state_recv(p, &local_err);
@@ -1423,7 +1422,6 @@ static void *multifd_recv_thread(void *opaque)
 
     if (local_err) {
         multifd_recv_terminate_threads(local_err);
-        error_free(local_err);
     }
 
     rcu_unregister_thread();
@@ -1514,7 +1512,7 @@ bool multifd_recv_all_channels_created(void)
  * Try to receive all multifd channels to get ready for the migration.
  * Sets @errp when failing to receive the current channel.
  */
-void multifd_recv_new_channel(QIOChannel *ioc, Error **errp)
+bool multifd_recv_new_channel(QIOChannel *ioc, Error **errp)
 {
     MultiFDRecvParams *p;
     Error *local_err = NULL;
@@ -1524,12 +1522,12 @@ void multifd_recv_new_channel(QIOChannel *ioc, Error **errp)
     if (use_packets) {
         id = multifd_recv_initial_packet(ioc, &local_err);
         if (id < 0) {
-            multifd_recv_terminate_threads(local_err);
+            multifd_recv_terminate_threads(error_copy(local_err));
             error_propagate_prepend(errp, local_err,
                                     "failed to receive packet"
                                     " via multifd channel %d: ",
                                     qatomic_read(&multifd_recv_state->count));
-            return;
+            return false;
         }
         trace_multifd_recv_new_channel(id);
     } else {
@@ -1540,9 +1538,9 @@ void multifd_recv_new_channel(QIOChannel *ioc, Error **errp)
     if (p->c != NULL) {
         error_setg(&local_err, "multifd: received id '%d' already setup'",
                    id);
-        multifd_recv_terminate_threads(local_err);
+        multifd_recv_terminate_threads(error_copy(local_err));
         error_propagate(errp, local_err);
-        return;
+        return false;
     }
     p->c = ioc;
     object_ref(OBJECT(ioc));
@@ -1551,4 +1549,6 @@ void multifd_recv_new_channel(QIOChannel *ioc, Error **errp)
     qemu_thread_create(&p->thread, p->name, multifd_recv_thread, p,
                        QEMU_THREAD_JOINABLE);
     qatomic_inc(&multifd_recv_state->count);
+
+    return true;
 }

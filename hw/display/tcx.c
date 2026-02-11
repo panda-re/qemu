@@ -27,9 +27,9 @@
 #include "qapi/error.h"
 #include "ui/console.h"
 #include "ui/pixel_ops.h"
-#include "hw/loader.h"
-#include "hw/qdev-properties.h"
-#include "hw/sysbus.h"
+#include "hw/core/loader.h"
+#include "hw/core/qdev-properties.h"
+#include "hw/core/sysbus.h"
 #include "migration/vmstate.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
@@ -452,7 +452,7 @@ static void tcx_dac_writel(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps tcx_dac_ops = {
     .read = tcx_dac_readl,
     .write = tcx_dac_writel,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
@@ -533,7 +533,7 @@ static void tcx_rstip_writel(void *opaque, hwaddr addr,
 static const MemoryRegionOps tcx_stip_ops = {
     .read = tcx_stip_readl,
     .write = tcx_stip_writel,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
     .impl = {
         .min_access_size = 4,
         .max_access_size = 4,
@@ -547,7 +547,7 @@ static const MemoryRegionOps tcx_stip_ops = {
 static const MemoryRegionOps tcx_rstip_ops = {
     .read = tcx_stip_readl,
     .write = tcx_rstip_writel,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
     .impl = {
         .min_access_size = 4,
         .max_access_size = 4,
@@ -633,7 +633,7 @@ static void tcx_rblit_writel(void *opaque, hwaddr addr,
 static const MemoryRegionOps tcx_blit_ops = {
     .read = tcx_blit_readl,
     .write = tcx_blit_writel,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
     .impl = {
         .min_access_size = 4,
         .max_access_size = 4,
@@ -647,7 +647,7 @@ static const MemoryRegionOps tcx_blit_ops = {
 static const MemoryRegionOps tcx_rblit_ops = {
     .read = tcx_blit_readl,
     .write = tcx_rblit_writel,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
     .impl = {
         .min_access_size = 4,
         .max_access_size = 4,
@@ -713,7 +713,7 @@ static void tcx_thc_writel(void *opaque, hwaddr addr,
 static const MemoryRegionOps tcx_thc_ops = {
     .read = tcx_thc_readl,
     .write = tcx_thc_writel,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
@@ -729,13 +729,12 @@ static uint64_t tcx_dummy_readl(void *opaque, hwaddr addr,
 static void tcx_dummy_writel(void *opaque, hwaddr addr,
                          uint64_t val, unsigned size)
 {
-    return;
 }
 
 static const MemoryRegionOps tcx_dummy_ops = {
     .read = tcx_dummy_readl,
     .write = tcx_dummy_writel,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = {
         .min_access_size = 4,
         .max_access_size = 4,
@@ -886,7 +885,7 @@ static const Property tcx_properties[] = {
     DEFINE_PROP_UINT16("depth",    TCXState, depth,     -1),
 };
 
-static void tcx_class_init(ObjectClass *klass, void *data)
+static void tcx_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

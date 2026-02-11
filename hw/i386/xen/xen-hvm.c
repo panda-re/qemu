@@ -15,9 +15,9 @@
 #include "qapi/qapi-commands-migration.h"
 #include "trace.h"
 
-#include "hw/hw.h"
+#include "hw/core/hw-error.h"
 #include "hw/i386/pc.h"
-#include "hw/irq.h"
+#include "hw/core/irq.h"
 #include "hw/i386/apic-msidef.h"
 #include "hw/xen/xen-x86.h"
 #include "qemu/range.h"
@@ -758,6 +758,4 @@ void arch_handle_ioreq(XenIOState *state, ioreq_t *req)
     default:
         hw_error("Invalid ioreq type 0x%x\n", req->type);
     }
-
-    return;
 }

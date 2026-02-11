@@ -22,9 +22,9 @@
 
 #include "qemu/osdep.h"
 #include "hw/char/bcm2835_aux.h"
-#include "hw/irq.h"
-#include "hw/qdev-properties.h"
-#include "hw/qdev-properties-system.h"
+#include "hw/core/irq.h"
+#include "hw/core/qdev-properties.h"
+#include "hw/core/qdev-properties-system.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
@@ -98,7 +98,7 @@ static uint64_t bcm2835_aux_read(void *opaque, hwaddr offset, unsigned size)
          * interrupts are active, besides that this cannot occur. At
          * present, we choose to prioritise the rx interrupt, since
          * the tx fifo is always empty. */
-        if (s->read_count != 0) {
+        if ((s->iir & RX_INT) && s->read_count != 0) {
             res |= 0x4;
         } else {
             res |= 0x2;
@@ -296,7 +296,7 @@ static const Property bcm2835_aux_props[] = {
     DEFINE_PROP_CHR("chardev", BCM2835AuxState, chr),
 };
 
-static void bcm2835_aux_class_init(ObjectClass *oc, void *data)
+static void bcm2835_aux_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
