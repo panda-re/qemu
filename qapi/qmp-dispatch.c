@@ -25,6 +25,11 @@
 #include "qemu/coroutine.h"
 #include "qemu/main-loop.h"
 
+/* * Declare as a weak symbol. If the PANDA library isn't linked 
+ * (like in qemu-nbd), this will evaluate to NULL at runtime.
+ */
+__attribute__((weak)) bool panda_callbacks_qmp(char *command, char* args, char **result);
+
 Visitor *qobject_input_visitor_new_qmp(QObject *obj)
 {
     Visitor *v = qobject_input_visitor_new(obj);
@@ -169,6 +174,56 @@ QDict *coroutine_mixed_fn qmp_dispatch(const QmpCommandList *cmds, QObject *requ
     }
     cmd = qmp_find_command(cmds, command);
     if (cmd == NULL) {
+        /* --- PANDA CUSTOMIZATION START --- */
+        // check that we have the symbol (not always in some binaries like qemu-nbd)
+        if (panda_callbacks_qmp){
+            char *result = NULL;
+            QDict *panda_args;
+        
+            /* We need arguments for the PANDA callback before normal arg extraction */
+            if (!qdict_haskey(dict, "arguments")) {
+                panda_args = qdict_new();
+            } else {
+                panda_args = qdict_get_qdict(dict, "arguments");
+                qobject_ref(panda_args);
+            }
+
+            /* Use GString instead of QString for modern QEMU */
+            GString *cmd_args_q = qobject_to_json(QOBJECT(panda_args));
+            const char *cmd_args = cmd_args_q->str;
+
+            if (panda_callbacks_qmp((char*)command, (char*)cmd_args, &result)) {
+                if (result != NULL) {
+                    ret = qobject_from_json(result, &err);
+                    if (err) {
+                        printf("PANDA ERROR decoding result json in callback\n");
+                        qobject_unref(panda_args);
+                        g_string_free(cmd_args_q, true); /* Free GString properly */
+                        goto out;
+                    }
+                }
+
+                if (!ret) {
+                    printf("PANDA WARNING: a qmp callback consumer returned TRUE without providing "
+                           "a return value! Creating empty dictionary\n");
+                    ret = QOBJECT(qdict_new());
+                }
+
+                /* Clean up early */
+                qobject_unref(panda_args);
+                g_string_free(cmd_args_q, true); /* Free GString properly */
+
+                /* Success! Package up the return value and skip QEMU dispatch */
+                rsp = qdict_new();
+                qdict_put_obj(rsp, "return", ret);
+                goto out;
+            }
+
+            /* Clean up if PANDA didn't handle it */
+            qobject_unref(panda_args);
+            g_string_free(cmd_args_q, true); /* Free GString properly */
+        }
+        /* --- PANDA CUSTOMIZATION END --- */
         error_set(&err, ERROR_CLASS_COMMAND_NOT_FOUND,
                   "The command %s has not been found", command);
         goto out;
