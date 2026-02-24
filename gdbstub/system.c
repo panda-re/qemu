@@ -18,15 +18,14 @@
 #include "gdbstub/syscalls.h"
 #include "gdbstub/commands.h"
 #include "exec/hwaddr.h"
-#include "exec/tb-flush.h"
-#include "system/accel-ops.h"
+#include "accel/accel-ops.h"
+#include "accel/accel-cpu-ops.h"
 #include "system/cpus.h"
 #include "system/runstate.h"
 #include "system/replay.h"
-#include "system/tcg.h"
 #include "hw/core/cpu.h"
 #include "hw/cpu/cluster.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "chardev/char.h"
 #include "chardev/char-fe.h"
 #include "monitor/monitor.h"
@@ -35,7 +34,7 @@
 
 /* System emulation specific state */
 typedef struct {
-    CharBackend chr;
+    CharFrontend chr;
     Chardev *mon_chr;
 } GDBSystemState;
 
@@ -173,9 +172,6 @@ static void gdb_vm_state_change(void *opaque, bool running, RunState state)
         } else {
             trace_gdbstub_hit_break();
         }
-        if (tcg_enabled()) {
-            tb_flush(cpu);
-        }
         ret = GDB_SIGNAL_TRAP;
         break;
     case RUN_STATE_PAUSED:
@@ -243,7 +239,7 @@ static void gdb_monitor_open(Chardev *chr, ChardevBackend *backend,
     *be_opened = false;
 }
 
-static void char_gdb_class_init(ObjectClass *oc, void *data)
+static void char_gdb_class_init(ObjectClass *oc, const void *data)
 {
     ChardevClass *cc = CHARDEV_CLASS(oc);
 
@@ -665,4 +661,15 @@ void gdb_breakpoint_remove_all(CPUState *cs)
     if (ops->remove_all_breakpoints) {
         ops->remove_all_breakpoints(cs);
     }
+}
+
+/*
+ * The minimal system-mode stop reply packet is:
+ *   T05core:{id};
+ */
+
+void gdb_build_stop_packet(GString *buf, CPUState *cs)
+{
+    g_string_printf(buf,
+                    "T%02xcore:%02x;", GDB_SIGNAL_TRAP, gdb_get_cpu_index(cs));
 }

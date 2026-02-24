@@ -11,10 +11,10 @@
 #include "qemu/module.h"
 #include "qemu/log.h"
 #include "cpu.h"
-#include "hw/irq.h"
-#include "hw/sysbus.h"
+#include "hw/core/irq.h"
+#include "hw/core/sysbus.h"
 #include "hw/m68k/mcf.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "qom/object.h"
 
 #define TYPE_MCF_INTC "mcf-intc"
@@ -182,7 +182,7 @@ static const Property mcf_intc_properties[] = {
                      TYPE_M68K_CPU, M68kCPU *),
 };
 
-static void mcf_intc_class_init(ObjectClass *oc, void *data)
+static void mcf_intc_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

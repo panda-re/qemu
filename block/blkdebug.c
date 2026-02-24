@@ -288,7 +288,7 @@ static int read_config(BDRVBlkdebugState *s, const char *filename,
     if (filename) {
         f = fopen(filename, "r");
         if (f == NULL) {
-            error_setg_errno(errp, errno, "Could not read blkdebug config file");
+            error_setg_file_open(errp, errno, filename);
             return -errno;
         }
 
@@ -751,9 +751,9 @@ blkdebug_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
 }
 
 static int coroutine_fn GRAPH_RDLOCK
-blkdebug_co_block_status(BlockDriverState *bs, bool want_zero, int64_t offset,
-                         int64_t bytes, int64_t *pnum, int64_t *map,
-                         BlockDriverState **file)
+blkdebug_co_block_status(BlockDriverState *bs, unsigned int mode,
+                         int64_t offset, int64_t bytes, int64_t *pnum,
+                         int64_t *map, BlockDriverState **file)
 {
     int err;
 

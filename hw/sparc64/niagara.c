@@ -26,10 +26,10 @@
 #include "block/block_int-common.h"
 #include "qemu/units.h"
 #include "cpu.h"
-#include "hw/boards.h"
+#include "hw/core/boards.h"
 #include "hw/char/serial-mm.h"
 #include "hw/misc/unimp.h"
-#include "hw/loader.h"
+#include "hw/core/loader.h"
 #include "hw/sparc/sparc64.h"
 #include "hw/rtc/sun4v-rtc.h"
 #include "system/block-backend.h"
@@ -157,7 +157,7 @@ static void niagara_init(MachineState *machine)
     sun4v_rtc_init(NIAGARA_RTC_BASE);
 }
 
-static void niagara_class_init(ObjectClass *oc, void *data)
+static void niagara_class_init(ObjectClass *oc, const void *data)
 {
     MachineClass *mc = MACHINE_CLASS(oc);
 

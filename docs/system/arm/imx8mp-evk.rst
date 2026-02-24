@@ -35,7 +35,7 @@ Direct Linux Kernel Boot
 
 Probably the easiest way to get started with a whole Linux system on the machine
 is to generate an image with Buildroot. Version 2024.11.1 is tested at the time
-of writing and involves three steps. First run the following commands in the
+of writing and involves two steps. First run the following commands in the
 toplevel directory of the Buildroot source tree:
 
 .. code-block:: bash
@@ -50,21 +50,32 @@ it and resize the SD card image to a power of two:
 
   $ qemu-img resize sdcard.img 256M
 
-Finally, the device tree needs to be patched with the following commands which
-will remove the ``cpu-idle-states`` properties from CPU nodes:
-
-.. code-block:: bash
-
-  $ dtc imx8mp-evk.dtb | sed '/cpu-idle-states/d' > imx8mp-evk-patched.dts
-  $ dtc imx8mp-evk-patched.dts -o imx8mp-evk-patched.dtb
-
 Now that everything is prepared the machine can be started as follows:
 
 .. code-block:: bash
 
-  $ qemu-system-aarch64 -M imx8mp-evk -smp 4 -m 3G \
+  $ qemu-system-aarch64 -M imx8mp-evk \
       -display none -serial null -serial stdio \
       -kernel Image \
-      -dtb imx8mp-evk-patched.dtb \
+      -dtb imx8mp-evk.dtb \
       -append "root=/dev/mmcblk2p2" \
       -drive file=sdcard.img,if=sd,bus=2,format=raw,id=mmcblk2
+
+
+KVM Acceleration
+----------------
+
+To enable hardware-assisted acceleration via KVM, append
+``-accel kvm`` to the command line. While this speeds up performance
+significantly, be aware of the following limitations:
+
+* The ``imx8mp-evk`` machine is not included under the "virtualization use case"
+  of :doc:`QEMU's security policy </system/security>`. This means that you
+  should not trust that it can contain malicious guests, whether it is run
+  using TCG or KVM. If you don't trust your guests and you're relying on QEMU to
+  be the security boundary, you want to choose another machine such as ``virt``.
+* Rather than Cortex-A53 CPUs, the same CPU type as the host's will be used.
+  This is a limitation of KVM and may not work with guests with a tight
+  dependency on Cortex-A53.
+* No EL2 and EL3 exception levels are available which is also a KVM limitation.
+  Direct kernel boot should work but running U-Boot, TF-A, etc. won't succeed.

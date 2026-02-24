@@ -39,8 +39,8 @@
 #include "qemu/osdep.h"
 #include "hw/block/block.h"
 #include "hw/block/flash.h"
-#include "hw/qdev-properties.h"
-#include "hw/qdev-properties-system.h"
+#include "hw/core/qdev-properties.h"
+#include "hw/core/qdev-properties-system.h"
 #include "system/block-backend.h"
 #include "qapi/error.h"
 #include "qemu/error-report.h"
@@ -48,7 +48,7 @@
 #include "qemu/host-utils.h"
 #include "qemu/log.h"
 #include "qemu/option.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "migration/vmstate.h"
 #include "system/blockdev.h"
 #include "system/runstate.h"
@@ -934,7 +934,7 @@ static const Property pflash_cfi01_properties[] = {
                      old_multiple_chip_handling, false),
 };
 
-static void pflash_cfi01_class_init(ObjectClass *klass, void *data)
+static void pflash_cfi01_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -28,11 +28,11 @@
 #include "qapi/error.h"
 #include "qemu/error-report.h"
 #include "ui/console.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "migration/vmstate.h"
-#include "hw/irq.h"
-#include "hw/loader.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/irq.h"
+#include "hw/core/loader.h"
+#include "hw/core/qdev-properties.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
 #include "trace.h"
@@ -265,7 +265,7 @@ static void cg3_reg_write(void *opaque, hwaddr addr, uint64_t val,
 static const MemoryRegionOps cg3_reg_ops = {
     .read = cg3_reg_read,
     .write = cg3_reg_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_BIG_ENDIAN,
     .valid = {
         .min_access_size = 1,
         .max_access_size = 4,
@@ -368,7 +368,7 @@ static const Property cg3_properties[] = {
     DEFINE_PROP_UINT16("depth",        CG3State, depth,     -1),
 };
 
-static void cg3_class_init(ObjectClass *klass, void *data)
+static void cg3_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

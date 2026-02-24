@@ -26,9 +26,9 @@
 #include "qemu/osdep.h"
 #include "qemu/log.h"
 #include "qemu/error-report.h"
-#include "hw/irq.h"
-#include "hw/registerfields.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/irq.h"
+#include "hw/core/registerfields.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/intc/rx_icu.h"
 #include "migration/vmstate.h"
 
@@ -368,7 +368,7 @@ static const Property rxicu_properties[] = {
                       qdev_prop_uint8, uint8_t),
 };
 
-static void rxicu_class_init(ObjectClass *klass, void *data)
+static void rxicu_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

@@ -9,8 +9,8 @@
 #include "qemu/main-loop.h"
 #include "qemu/module.h"
 #include "qemu/uuid.h"
-#include "hw/qdev-properties.h"
-#include "hw/sysbus.h"
+#include "hw/core/qdev-properties.h"
+#include "hw/core/sysbus.h"
 #include "hw/xen/xen.h"
 #include "hw/xen/xen-backend.h"
 #include "hw/xen/xen-legacy-backend.h" /* xen_be_init() */
@@ -353,10 +353,10 @@ static void xen_bus_realize(BusState *bus, Error **errp)
             xs_node_watch(xenbus->xsh, node, key, xen_bus_backend_changed,
                           xenbus, &local_err);
         if (local_err) {
-            /* This need not be treated as a hard error so don't propagate */
-            error_reportf_err(local_err,
-                              "failed to set up '%s' enumeration watch: ",
-                              type[i]);
+            warn_reportf_err(local_err,
+                             "failed to set up '%s' enumeration watch: ",
+                             type[i]);
+            local_err = NULL;
         }
 
         g_free(node);
@@ -380,7 +380,7 @@ static void xen_bus_unplug_request(HotplugHandler *hotplug,
     xen_device_unplug(xendev, errp);
 }
 
-static void xen_bus_class_init(ObjectClass *class, void *data)
+static void xen_bus_class_init(ObjectClass *class, const void *data)
 {
     BusClass *bus_class = BUS_CLASS(class);
     HotplugHandlerClass *hotplug_class = HOTPLUG_HANDLER_CLASS(class);
@@ -399,7 +399,7 @@ static const TypeInfo xen_bus_type_info = {
     .instance_size = sizeof(XenBus),
     .class_size = sizeof(XenBusClass),
     .class_init = xen_bus_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_HOTPLUG_HANDLER },
         { }
     },
@@ -1107,7 +1107,7 @@ static const Property xen_device_props[] = {
                        DOMID_INVALID),
 };
 
-static void xen_device_class_init(ObjectClass *class, void *data)
+static void xen_device_class_init(ObjectClass *class, const void *data)
 {
     DeviceClass *dev_class = DEVICE_CLASS(class);
 

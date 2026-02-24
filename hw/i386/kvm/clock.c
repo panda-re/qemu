@@ -21,9 +21,10 @@
 #include "system/hw_accel.h"
 #include "kvm/kvm_i386.h"
 #include "migration/vmstate.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "hw/i386/kvm/clock.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
+#include "exec/cpu-common.h"
 #include "qapi/error.h"
 
 #include <linux/kvm.h>
@@ -309,7 +310,7 @@ static const Property kvmclock_properties[] = {
                       mach_use_reliable_get_clock, true),
 };
 
-static void kvmclock_class_init(ObjectClass *klass, void *data)
+static void kvmclock_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

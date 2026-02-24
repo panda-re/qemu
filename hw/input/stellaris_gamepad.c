@@ -10,8 +10,8 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/input/stellaris_gamepad.h"
-#include "hw/irq.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/irq.h"
+#include "hw/core/qdev-properties.h"
 #include "migration/vmstate.h"
 #include "ui/console.h"
 
@@ -82,7 +82,7 @@ static const Property stellaris_gamepad_properties[] = {
                       keycodes, qdev_prop_uint32, uint32_t),
 };
 
-static void stellaris_gamepad_class_init(ObjectClass *klass, void *data)
+static void stellaris_gamepad_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     ResettableClass *rc = RESETTABLE_CLASS(klass);

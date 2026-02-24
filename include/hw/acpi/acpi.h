@@ -21,7 +21,7 @@
  */
 
 #include "qemu/notify.h"
-#include "exec/memory.h"
+#include "system/memory.h"
 #include "hw/acpi/acpi_dev_interface.h"
 
 /*
@@ -202,5 +202,8 @@ struct AcpiSlicOem {
   char *table_id;
 };
 int acpi_get_slic_oem(AcpiSlicOem *oem);
+
+/* core.c */
+int acpi_checksum(const uint8_t *data, int len);
 
 #endif /* QEMU_HW_ACPI_H */

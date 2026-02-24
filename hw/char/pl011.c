@@ -21,11 +21,11 @@
 #include "qemu/osdep.h"
 #include "qapi/error.h"
 #include "hw/char/pl011.h"
-#include "hw/irq.h"
-#include "hw/sysbus.h"
-#include "hw/qdev-clock.h"
-#include "hw/qdev-properties.h"
-#include "hw/qdev-properties-system.h"
+#include "hw/core/irq.h"
+#include "hw/core/sysbus.h"
+#include "hw/core/qdev-clock.h"
+#include "hw/core/qdev-properties.h"
+#include "hw/core/qdev-properties-system.h"
 #include "migration/vmstate.h"
 #include "chardev/char-fe.h"
 #include "chardev/char-serial.h"
@@ -490,16 +490,17 @@ static int pl011_can_receive(void *opaque)
     unsigned fifo_depth = pl011_get_fifo_depth(s);
     unsigned fifo_available = fifo_depth - s->read_count;
 
-    if (!(s->cr & CR_UARTEN)) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "PL011 receiving data on disabled UART\n");
-    }
-    if (!(s->cr & CR_RXE)) {
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "PL011 receiving data on disabled RX UART\n");
-    }
-    trace_pl011_can_receive(s->lcr, s->read_count, fifo_depth, fifo_available);
+    /*
+     * In theory we should check the UART and RX enable bits here and
+     * return 0 if they are not set (so the guest can't receive data
+     * until you have enabled the UART). In practice we suspect there
+     * is at least some guest code out there which has been tested only
+     * on QEMU and which never bothers to enable the UART because we
+     * historically never enforced that. So we effectively keep the
+     * UART continuously enabled regardless of the enable bits.
+     */
 
+    trace_pl011_can_receive(s->lcr, s->read_count, fifo_depth, fifo_available);
     return fifo_available;
 }
 
@@ -537,7 +538,7 @@ static void pl011_clock_update(void *opaque, ClockEvent event)
 static const MemoryRegionOps pl011_ops = {
     .read = pl011_read,
     .write = pl011_write,
-    .endianness = DEVICE_NATIVE_ENDIAN,
+    .endianness = DEVICE_LITTLE_ENDIAN,
     .impl.min_access_size = 4,
     .impl.max_access_size = 4,
 };
@@ -668,7 +669,7 @@ static void pl011_reset(DeviceState *dev)
     pl011_reset_tx_fifo(s);
 }
 
-static void pl011_class_init(ObjectClass *oc, void *data)
+static void pl011_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 

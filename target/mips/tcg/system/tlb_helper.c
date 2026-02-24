@@ -18,15 +18,17 @@
  */
 #include "qemu/osdep.h"
 #include "qemu/bitops.h"
+#include "qemu/plugin.h"
 
 #include "cpu.h"
 #include "internal.h"
 #include "exec/cputlb.h"
-#include "exec/exec-all.h"
 #include "exec/page-protection.h"
-#include "exec/cpu_ldst.h"
+#include "exec/target_page.h"
+#include "accel/tcg/cpu-ldst.h"
 #include "exec/log.h"
 #include "exec/helper-proto.h"
+bool panda_callbacks_asid_changed(CPUState *env, uint64_t oldval, uint64_t newval);
 
 /* TLB management */
 static void r4k_mips_tlb_flush_extra(CPUMIPSState *env, int first)
@@ -560,9 +562,18 @@ static void raise_mmu_exception(CPUMIPSState *env, target_ulong address,
     }
     env->CP0_Context = (env->CP0_Context & ~0x007fffff) |
                        ((address >> 9) & 0x007ffff0);
-    env->CP0_EntryHi = (env->CP0_EntryHi & env->CP0_EntryHi_ASID_mask) |
+    target_ulong val = (env->CP0_EntryHi & env->CP0_EntryHi_ASID_mask) |
                        (env->CP0_EntryHi & (1 << CP0EnHi_EHINV)) |
                        (address & (TARGET_PAGE_MASK << 1));
+    if ((env->CP0_EntryHi & env->CP0_EntryHi_ASID_mask) != (val & env->CP0_EntryHi_ASID_mask)) {
+      // it's actually changing the asid, trigger out CB and let plugins reject the change
+      if (!panda_callbacks_asid_changed(env_cpu(env), env->CP0_EntryHi & env->CP0_EntryHi_ASID_mask, val & env->CP0_EntryHi_ASID_mask)){
+          env->CP0_EntryHi = val;
+      }
+    }else {
+      // asid unchanged, just an update to other fields here - do it without a callback
+      env->CP0_EntryHi = val;
+    }
 #if defined(TARGET_MIPS64)
     env->CP0_EntryHi &= env->SEGMask;
     env->CP0_XContext =
@@ -652,7 +663,7 @@ static int walk_directory(CPUMIPSState *env, uint64_t *vaddr,
         return 0;
     }
 
-    if ((entry & (1 << psn)) && hugepg) {
+    if (extract64(entry, psn, 1) && hugepg) {
         *huge_page = true;
         *hgpg_directory_hit = true;
         entry = get_tlb_entry_layout(env, entry, leaf_mop, pf_ptew);
@@ -875,8 +886,8 @@ refill:
             break;
         }
     }
-    pw_pagemask = m >> TARGET_PAGE_BITS_MIN;
-    update_pagemask(env, pw_pagemask << CP0PM_MASK, &pw_pagemask);
+    pw_pagemask = m >> TARGET_PAGE_BITS;
+    pw_pagemask = compute_pagemask(pw_pagemask << CP0PM_MASK);
     pw_entryhi = (address & ~0x1fff) | (env->CP0_EntryHi & 0xFF);
     {
         target_ulong tmp_entryhi = env->CP0_EntryHi;
@@ -1034,6 +1045,7 @@ void mips_cpu_do_interrupt(CPUState *cs)
     bool update_badinstr = 0;
     target_ulong offset;
     int cause = -1;
+    uint64_t last_pc = env->active_tc.PC;
 
     if (qemu_loglevel_mask(CPU_LOG_INT)
         && cs->exception_index != EXCP_EXT_INTERRUPT) {
@@ -1052,6 +1064,7 @@ void mips_cpu_do_interrupt(CPUState *cs)
         cs->exception_index = EXCP_NONE;
         mips_semihosting(env);
         env->active_tc.PC += env->error_code;
+        qemu_plugin_vcpu_hostcall_cb(cs, last_pc);
         return;
     case EXCP_DSS:
         env->CP0_Debug |= 1 << CP0DB_DSS;
@@ -1335,6 +1348,14 @@ void mips_cpu_do_interrupt(CPUState *cs)
                  __func__, env->active_tc.PC, env->CP0_EPC, cause,
                  env->CP0_Status, env->CP0_Cause, env->CP0_BadVAddr,
                  env->CP0_DEPC);
+    }
+    switch (cs->exception_index) {
+    case EXCP_NMI:
+    case EXCP_EXT_INTERRUPT:
+        qemu_plugin_vcpu_interrupt_cb(cs, last_pc);
+        break;
+    default:
+        qemu_plugin_vcpu_exception_cb(cs, last_pc);
     }
     cs->exception_index = EXCP_NONE;
 }

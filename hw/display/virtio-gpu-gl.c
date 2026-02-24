@@ -21,7 +21,7 @@
 #include "hw/virtio/virtio-gpu.h"
 #include "hw/virtio/virtio-gpu-bswap.h"
 #include "hw/virtio/virtio-gpu-pixman.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 
 #include <virglrenderer.h>
 
@@ -182,7 +182,7 @@ static void virtio_gpu_gl_device_unrealize(DeviceState *qdev)
     g_array_unref(g->capset_ids);
 }
 
-static void virtio_gpu_gl_class_init(ObjectClass *klass, void *data)
+static void virtio_gpu_gl_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     VirtioDeviceClass *vdc = VIRTIO_DEVICE_CLASS(klass);

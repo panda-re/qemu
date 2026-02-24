@@ -11,15 +11,17 @@
 
 #include "qemu/osdep.h"
 #include "qemu/module.h"
+#include "exec/target_page.h"
 #include "system/system.h"
 #include "system/cpus.h"
 #include "system/hw_accel.h"
 #include "system/kvm.h"
 #include "system/runstate.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "hw/i386/apic_internal.h"
-#include "hw/sysbus.h"
-#include "hw/boards.h"
+#include "hw/core/sysbus.h"
+#include "hw/core/boards.h"
+#include "exec/cpu-common.h"
 #include "migration/vmstate.h"
 #include "qom/object.h"
 
@@ -489,7 +491,7 @@ void vapic_report_tpr_access(DeviceState *dev, CPUState *cs, target_ulong ip,
 }
 
 typedef struct VAPICEnableTPRReporting {
-    DeviceState *apic;
+    APICCommonState *apic;
     bool enable;
 } VAPICEnableTPRReporting;
 
@@ -846,7 +848,7 @@ static const VMStateDescription vmstate_vapic = {
     }
 };
 
-static void vapic_class_init(ObjectClass *klass, void *data)
+static void vapic_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

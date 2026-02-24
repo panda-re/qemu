@@ -28,8 +28,9 @@
 
 #define err_set(e, err, fmt, ...) {                                         \
     (e)->error_setg_win32_wrapper((e)->errp, __FILE__, __LINE__, __func__,  \
-                                   err, fmt, ## __VA_ARGS__);               \
-    qga_debug(fmt, ## __VA_ARGS__);                                         \
+                                   err, fmt ": Windows error 0x%lx",        \
+                                   ## __VA_ARGS__, err);                    \
+    qga_debug(fmt ": Windows error 0x%lx", ## __VA_ARGS__, err);            \
 }
 /* Bad idea, works only when (e)->errp != NULL: */
 #define err_is_set(e) ((e)->errp && *(e)->errp)
@@ -347,7 +348,12 @@ void requester_freeze(int *num_vols, void *mountpoints, ErrorSet *errset)
         goto out;
     }
 
-    assert(pCreateVssBackupComponents != NULL);
+    if (!pCreateVssBackupComponents) {
+        err_set(errset, (HRESULT)ERROR_PROC_NOT_FOUND,
+                "CreateVssBackupComponents proc address absent. Did you call requester_init()?");
+        goto out;
+    }
+
     hr = pCreateVssBackupComponents(&vss_ctx.pVssbc);
     if (FAILED(hr)) {
         err_set(errset, hr, "failed to create VSS backup components");
@@ -371,8 +377,10 @@ void requester_freeze(int *num_vols, void *mountpoints, ErrorSet *errset)
      * To prevent the final commit (which requires to write to snapshots),
      * ATTR_NO_AUTORECOVERY and ATTR_TRANSPORTABLE are specified here.
      */
-    ctx = VSS_CTX_APP_ROLLBACK | VSS_VOLSNAP_ATTR_TRANSPORTABLE |
-        VSS_VOLSNAP_ATTR_NO_AUTORECOVERY | VSS_VOLSNAP_ATTR_TXF_RECOVERY;
+    ctx = VSS_CTX_APP_ROLLBACK;
+    ctx |= VSS_VOLSNAP_ATTR_TRANSPORTABLE |
+           VSS_VOLSNAP_ATTR_NO_AUTORECOVERY |
+           VSS_VOLSNAP_ATTR_TXF_RECOVERY;
     hr = vss_ctx.pVssbc->SetContext(ctx);
     if (hr == (HRESULT)VSS_E_UNSUPPORTED_CONTEXT) {
         /* Non-server version of Windows doesn't support ATTR_TRANSPORTABLE */
@@ -579,8 +587,16 @@ void requester_thaw(int *num_vols, void *mountpints, ErrorSet *errset)
     /* Tell the provider that the snapshot is finished. */
     SetEvent(vss_ctx.hEventThaw);
 
-    assert(vss_ctx.pVssbc);
-    assert(vss_ctx.pAsyncSnapshot);
+    if (!vss_ctx.pVssbc) {
+        err_set(errset, (HRESULT)VSS_E_BAD_STATE,
+                "CreateVssBackupComponents is missing. Did you freeze the volumes?");
+        return;
+    }
+    if (!vss_ctx.pAsyncSnapshot) {
+        err_set(errset, (HRESULT)VSS_E_BAD_STATE,
+                "AsyncSnapshot set is missing. Did you freeze the volumes?");
+        return;
+    }
 
     HRESULT hr = WaitForAsync(vss_ctx.pAsyncSnapshot);
     switch (hr) {

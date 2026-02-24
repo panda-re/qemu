@@ -19,7 +19,7 @@
 
 #include "qemu/osdep.h"
 #include "qemu/units.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "migration/vmstate.h"
 #include "qemu/log.h"
 #include "qemu/module.h"
@@ -258,7 +258,7 @@ static const VMStateDescription allwinner_cpucfg_vmstate = {
     }
 };
 
-static void allwinner_cpucfg_class_init(ObjectClass *klass, void *data)
+static void allwinner_cpucfg_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 

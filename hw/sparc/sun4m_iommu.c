@@ -23,13 +23,13 @@
  */
 
 #include "qemu/osdep.h"
-#include "hw/irq.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/irq.h"
+#include "hw/core/qdev-properties.h"
 #include "hw/sparc/sun4m_iommu.h"
-#include "hw/sysbus.h"
+#include "hw/core/sysbus.h"
 #include "migration/vmstate.h"
 #include "qemu/module.h"
-#include "exec/address-spaces.h"
+#include "system/address-spaces.h"
 #include "trace.h"
 
 /*
@@ -372,7 +372,7 @@ static const Property iommu_properties[] = {
     DEFINE_PROP_UINT32("version", IOMMUState, version, 0),
 };
 
-static void iommu_class_init(ObjectClass *klass, void *data)
+static void iommu_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
@@ -389,7 +389,8 @@ static const TypeInfo iommu_info = {
     .class_init    = iommu_class_init,
 };
 
-static void sun4m_iommu_memory_region_class_init(ObjectClass *klass, void *data)
+static void sun4m_iommu_memory_region_class_init(ObjectClass *klass,
+                                                 const void *data)
 {
     IOMMUMemoryRegionClass *imrc = IOMMU_MEMORY_REGION_CLASS(klass);
 

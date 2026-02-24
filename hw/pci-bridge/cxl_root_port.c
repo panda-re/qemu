@@ -23,9 +23,9 @@
 #include "hw/pci/pci_bridge.h"
 #include "hw/pci/pcie_port.h"
 #include "hw/pci/msi.h"
-#include "hw/qdev-properties.h"
-#include "hw/qdev-properties-system.h"
-#include "hw/sysbus.h"
+#include "hw/core/qdev-properties.h"
+#include "hw/core/qdev-properties-system.h"
+#include "hw/core/sysbus.h"
 #include "qapi/error.h"
 #include "hw/cxl/cxl.h"
 
@@ -262,7 +262,7 @@ static void cxl_rp_write_config(PCIDevice *d, uint32_t address, uint32_t val,
     cxl_rp_dvsec_write_config(d, address, val, len);
 }
 
-static void cxl_root_port_class_init(ObjectClass *oc, void *data)
+static void cxl_root_port_class_init(ObjectClass *oc, const void *data)
 {
     DeviceClass *dc        = DEVICE_CLASS(oc);
     PCIDeviceClass *k      = PCI_DEVICE_CLASS(oc);
@@ -294,7 +294,7 @@ static const TypeInfo cxl_root_port_info = {
     .parent = TYPE_PCIE_ROOT_PORT,
     .instance_size = sizeof(CXLRootPort),
     .class_init = cxl_root_port_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { INTERFACE_CXL_DEVICE },
         { }
     },

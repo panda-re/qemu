@@ -32,7 +32,7 @@
 
 #include "qemu/osdep.h"
 #include "hw/isa/isa.h"
-#include "hw/qdev-properties.h"
+#include "hw/core/qdev-properties.h"
 #include "ui/console.h"
 #include "qemu/error-report.h"
 #include "qemu/module.h"
@@ -375,7 +375,7 @@ static void build_applesmc_aml(AcpiDevAmlIf *adev, Aml *scope)
     aml_append(scope, dev);
 }
 
-static void qdev_applesmc_class_init(ObjectClass *klass, void *data)
+static void qdev_applesmc_class_init(ObjectClass *klass, const void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
     AcpiDevAmlIfClass *adevc = ACPI_DEV_AML_IF_CLASS(klass);
@@ -393,7 +393,7 @@ static const TypeInfo applesmc_isa_info = {
     .parent        = TYPE_ISA_DEVICE,
     .instance_size = sizeof(AppleSMCState),
     .class_init    = qdev_applesmc_class_init,
-    .interfaces = (InterfaceInfo[]) {
+    .interfaces = (const InterfaceInfo[]) {
         { TYPE_ACPI_DEV_AML_IF },
         { },
     },
