@@ -15,6 +15,7 @@
 #include "hw/core/qdev-properties.h"
 #include "hw/core/qdev-properties-system.h"
 #include "hw/virtio/vhost-user-vsock.h"
+#include "migration/blocker.h"
 
 static const int user_feature_bits[] = {
     VIRTIO_F_VERSION_1,
@@ -91,7 +92,14 @@ static uint64_t vuv_get_features(VirtIODevice *vdev,
 
 static const VMStateDescription vuv_vmstate = {
     .name = "vhost-user-vsock",
-    .unmigratable = 1,
+    .minimum_version_id = VHOST_VSOCK_SAVEVM_VERSION,
+    .version_id = VHOST_VSOCK_SAVEVM_VERSION,
+    .fields = (const VMStateField[]) {
+        VMSTATE_VIRTIO_DEVICE,
+        VMSTATE_END_OF_LIST()
+    },
+    .pre_save = vhost_vsock_common_pre_save,
+    .post_load = vhost_vsock_common_post_load,
 };
 
 static void vuv_device_realize(DeviceState *dev, Error **errp)
@@ -119,6 +127,16 @@ static void vuv_device_realize(DeviceState *dev, Error **errp)
     if (ret < 0) {
         goto err_virtio;
     }
+
+    /*
+     * Remove the vhost-level migration blocker. vhost_dev_init() blocks
+     * migration when the backend lacks VHOST_F_LOG_ALL (dirty-page tracking),
+     * which is a live-migration concern. For savevm/loadvm (in-process
+     * snapshots), dirty tracking is not needed — the VM is paused and all
+     * state is captured atomically. The vmstate hooks (pre_save/post_load)
+     * from vhost-vsock-common handle save/restore correctly.
+     */
+    migrate_del_blocker(&vvc->vhost_dev.migration_blocker);
 
     ret = vhost_dev_get_config(&vvc->vhost_dev, (uint8_t *)&vsock->vsockcfg,
                                sizeof(struct virtio_vsock_config), errp);
