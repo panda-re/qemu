@@ -18,11 +18,15 @@
 #include "panda/callbacks/cb-support.h"
 #include "panda/wrap_ops.h"
 
+#include "qemu/main-loop.h"
+
 // call main_aux and run everything up to and including panda_callbacks_after_machine_init
 int panda_init(int argc, char **argv, char **envp) {
     qemu_init(argc, argv);
     wrap_cpu_ops();
+    bql_lock();
     panda_callbacks_after_machine_init(first_cpu);
+    bql_unlock();
     return 0;
 }
 
